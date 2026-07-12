@@ -95,8 +95,14 @@ class MediaStorage:
 
     def register_builtin_assets(self) -> None:
         """Sync built-in assets from repo into manifest."""
+        catalog_path = BUILTIN_ASSETS / "catalog.json"
+        display_names: dict[str, str] = {}
+        if catalog_path.exists():
+            for entry in json.loads(catalog_path.read_text(encoding="utf-8")):
+                display_names[entry["id"]] = entry.get("name", entry["id"])
+
         existing = {m.id: m for m in self._read_manifest()}
-        items = list(existing.values())
+        items = [m for m in existing.values() if not m.builtin]
 
         for category in ("bmw", "emoji"):
             cat_dir = BUILTIN_ASSETS / category
@@ -106,13 +112,12 @@ class MediaStorage:
                 if path.suffix.lower() not in {".png", ".gif", ".jpg", ".jpeg", ".webp"}:
                     continue
                 asset_id = f"builtin-{category}-{path.stem}"
-                if asset_id in existing:
-                    continue
                 is_anim = path.suffix.lower() == ".gif"
+                name = display_names.get(asset_id, path.stem.replace("-", " ").title())
                 items.append(
                     MediaItem(
                         id=asset_id,
-                        name=path.stem.replace("-", " ").title(),
+                        name=name,
                         type="animation" if is_anim else "image",
                         builtin=True,
                         filename=str(path.relative_to(REPO_ROOT)),

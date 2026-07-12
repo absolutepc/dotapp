@@ -1,0 +1,163 @@
+[
+  {
+    "id": "builtin-bmw-default",
+    "name": "Classic Roundel",
+    "category": "bmw",
+    "type": "image",
+    "file": "bmw/default.png"
+  },
+  {
+    "id": "builtin-bmw-classic-roundel",
+    "name": "Blue Roundel",
+    "category": "bmw",
+    "type": "image",
+    "file": "bmw/classic-roundel.png"
+  },
+  {
+    "id": "builtin-bmw-chrome-roundel",
+    "name": "Chrome Roundel",
+    "category": "bmw",
+    "type": "image",
+    "file": "bmw/chrome-roundel.png"
+  },
+  {
+    "id": "builtin-bmw-m-sport",
+    "name": "M Sport",
+    "category": "bmw",
+    "type": "image",
+    "file": "bmw/m-sport.png"
+  },
+  {
+    "id": "builtin-bmw-minimal-m",
+    "name": "M Badge",
+    "category": "bmw",
+    "type": "image",
+    "file": "bmw/minimal-m.png"
+  },
+  {
+    "id": "builtin-bmw-midnight",
+    "name": "Midnight",
+    "category": "bmw",
+    "type": "image",
+    "file": "bmw/midnight.png"
+  },
+  {
+    "id": "builtin-bmw-alpine",
+    "name": "Alpine White",
+    "category": "bmw",
+    "type": "image",
+    "file": "bmw/alpine.png"
+  },
+  {
+    "id": "builtin-bmw-motorsport",
+    "name": "Motorsport",
+    "category": "bmw",
+    "type": "image",
+    "file": "bmw/motorsport.png"
+  },
+  {
+    "id": "builtin-bmw-pulse",
+    "name": "Pulse Glow",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/pulse.gif"
+  },
+  {
+    "id": "builtin-bmw-spin",
+    "name": "Slow Spin",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/spin.gif"
+  },
+  {
+    "id": "builtin-bmw-shimmer",
+    "name": "Shimmer",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/shimmer.gif"
+  },
+  {
+    "id": "builtin-bmw-m-stripe-flow",
+    "name": "M Stripe Flow",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/m-stripe-flow.gif"
+  },
+  {
+    "id": "builtin-bmw-breathe-blue",
+    "name": "Blue Breathe",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/breathe-blue.gif"
+  },
+  {
+    "id": "builtin-bmw-ring-pulse",
+    "name": "Ring Pulse",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/ring-pulse.gif"
+  },
+  {
+    "id": "builtin-emoji-smile",
+    "name": "Smile",
+    "category": "emoji",
+    "type": "image",
+    "file": "emoji/smile.png"
+  },
+  {
+    "id": "builtin-emoji-cool",
+    "name": "Cool",
+    "category": "emoji",
+    "type": "image",
+    "file": "emoji/cool.png"
+  },
+  {
+    "id": "builtin-emoji-heart-eyes",
+    "name": "Heart Eyes",
+    "category": "emoji",
+    "type": "image",
+    "file": "emoji/heart-eyes.png"
+  },
+  {
+    "id": "builtin-emoji-star",
+    "name": "Star",
+    "category": "emoji",
+    "type": "image",
+    "file": "emoji/star.png"
+  },
+  {
+    "id": "builtin-emoji-fire",
+    "name": "Fire",
+    "category": "emoji",
+    "type": "image",
+    "file": "emoji/fire.png"
+  },
+  {
+    "id": "builtin-emoji-party",
+    "name": "Party",
+    "category": "emoji",
+    "type": "image",
+    "file": "emoji/party.png"
+  },
+  {
+    "id": "builtin-emoji-wink",
+    "name": "Wink",
+    "category": "emoji",
+    "type": "animation",
+    "file": "emoji/wink.gif"
+  },
+  {
+    "id": "builtin-emoji-bounce",
+    "name": "Bounce",
+    "category": "emoji",
+    "type": "animation",
+    "file": "emoji/bounce.gif"
+  },
+  {
+    "id": "builtin-emoji-laugh",
+    "name": "Laugh",
+    "category": "emoji",
+    "type": "animation",
+    "file": "emoji/laugh.gif"
+  }
+]
