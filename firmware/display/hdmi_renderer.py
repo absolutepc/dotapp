@@ -21,16 +21,40 @@ from firmware.config import (
 from firmware.display.mask import apply_circle_mask, create_circle_mask
 
 
+def _init_pygame_display() -> pygame.Surface:
+    """Try SDL drivers in order: env override, kmsdrm, fbcon, x11."""
+    preferred = os.environ.get("SDL_VIDEODRIVER")
+    drivers = [preferred] if preferred else []
+    for driver in ("kmsdrm", "fbcon", "x11"):
+        if driver not in drivers:
+            drivers.append(driver)
+
+    last_error: Exception | None = None
+    for driver in drivers:
+        if not driver:
+            continue
+        os.environ["SDL_VIDEODRIVER"] = driver
+        pygame.display.quit()
+        pygame.quit()
+        try:
+            pygame.init()
+            pygame.display.init()
+            screen = pygame.display.set_mode(
+                (DISPLAY_WIDTH, DISPLAY_HEIGHT),
+                pygame.FULLSCREEN,
+            )
+            print(f"Display driver: {driver}")
+            return screen
+        except pygame.error as exc:
+            last_error = exc
+            print(f"Driver {driver} failed: {exc}")
+
+    raise RuntimeError(f"No SDL display driver available: {last_error}")
+
+
 class HDMIRenderer:
     def __init__(self) -> None:
-        os.environ.setdefault("SDL_VIDEODRIVER", "kmsdrm")
-        pygame.init()
-        pygame.display.init()
-
-        self._screen = pygame.display.set_mode(
-            (DISPLAY_WIDTH, DISPLAY_HEIGHT),
-            pygame.FULLSCREEN,
-        )
+        self._screen = _init_pygame_display()
         pygame.display.set_caption("BMW Logo")
         pygame.mouse.set_visible(False)
 

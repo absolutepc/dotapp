@@ -49,8 +49,18 @@ python3 scripts/generate_assets.py
 PYTHONPATH=. uvicorn firmware.main:app --reload --port 8080
 ```
 
+## Kiosk boot (logo only, no desktop)
+
+```bash
+sudo bash scripts/setup-kiosk-boot.sh YOUR_USERNAME
+sudo reboot
+```
+
+See [docs/kiosk-boot.md](docs/kiosk-boot.md).
+
 ## Docs
 
 - [Wiring & HDMI setup](docs/wiring.md)
 - [config.txt example](docs/config.txt.example)
+- [Kiosk boot](docs/kiosk-boot.md)
 - [Car power & mounting](docs/car-power.md)
