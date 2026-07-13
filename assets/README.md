@@ -11,7 +11,7 @@ bash scripts/refresh-gallery.sh
 sudo systemctl restart bmw-logo-api bmw-logo-display
 ```
 
-## BMW / custom animations (6 items)
+## BMW / custom animations (7 items)
 
 | File | Name | Type |
 |------|------|------|
@@ -21,6 +21,7 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | omnitrix.gif | Omnitrix | animation |
 | quiet_r.gif | Quiet R | animation |
 | quiet_w.gif | Quiet W | animation |
+| radar.gif | Radar | animation |
 
 ## Emoji collection (9 items)
 
