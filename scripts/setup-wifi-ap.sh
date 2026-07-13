@@ -30,15 +30,31 @@ wpa_pairwise=CCMP
 rsn_pairwise=CCMP
 EOF
 
-sed -i 's|#DAEMON_CONF=""|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
+# Ensure hostapd uses our config (works even if package left an empty default)
+if [[ -f /etc/default/hostapd ]]; then
+  if grep -q '^DAEMON_CONF=' /etc/default/hostapd; then
+    sed -i 's|^#\?DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
+  elif grep -q '^#DAEMON_CONF=' /etc/default/hostapd; then
+    sed -i 's|^#DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
+  else
+    echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' >>/etc/default/hostapd
+  fi
+else
+  echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' >/etc/default/hostapd
+fi
 
+# Avoid dnsmasq conflicting with systemd-resolved / NM stub DNS on boot
+mkdir -p /etc/dnsmasq.d
 cat >/etc/dnsmasq.d/bmw-logo.conf <<EOF
 interface=wlan0
+bind-interfaces
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
 domain=local
 address=/bmw-logo.local/${AP_IP}
 EOF
 
+# Bookworm/Trixie may not ship ifupdown dirs — create them
+mkdir -p /etc/network/interfaces.d
 cat >/etc/network/interfaces.d/wlan0 <<EOF
 auto wlan0
 iface wlan0 inet static
@@ -46,12 +62,31 @@ iface wlan0 inet static
     netmask 255.255.255.0
 EOF
 
+# NetworkManager must not manage wlan0, or hostapd cannot bind it
+if command -v nmcli >/dev/null 2>&1; then
+  mkdir -p /etc/NetworkManager/conf.d
+  cat >/etc/NetworkManager/conf.d/99-bmw-logo-unmanaged.conf <<EOF
+[keyfile]
+unmanaged-devices=interface-name:wlan0
+EOF
+  systemctl reload NetworkManager 2>/dev/null || true
+  nmcli device set wlan0 managed no 2>/dev/null || true
+fi
+
+# Assign AP address now (also useful before reboot)
+ip link set wlan0 up || true
+ip addr replace ${AP_IP}/24 dev wlan0 || true
+
 systemctl unmask hostapd
 systemctl enable hostapd dnsmasq
+systemctl restart hostapd dnsmasq || true
 
 echo ""
 echo "AP configured."
 echo "  SSID:     ${SSID}"
 echo "  Password: ${WPA_PASS}"
 echo "  Pi IP:    ${AP_IP}:8080"
-echo "Reboot to apply: sudo reboot"
+echo ""
+echo "Check: ip addr show wlan0"
+echo "Then connect iPhone and open http://${AP_IP}:8080/api/status"
+echo "If needed: sudo reboot"
