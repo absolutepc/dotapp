@@ -1,101 +1,45 @@
 [
   {
     "id": "builtin-bmw-default",
-    "name": "Classic Roundel",
-    "category": "bmw",
-    "type": "image",
-    "file": "bmw/default.png"
-  },
-  {
-    "id": "builtin-bmw-classic-roundel",
-    "name": "Blue Roundel",
-    "category": "bmw",
-    "type": "image",
-    "file": "bmw/classic-roundel.png"
-  },
-  {
-    "id": "builtin-bmw-chrome-roundel",
-    "name": "Chrome Roundel",
-    "category": "bmw",
-    "type": "image",
-    "file": "bmw/chrome-roundel.png"
-  },
-  {
-    "id": "builtin-bmw-m-sport",
-    "name": "M Sport",
-    "category": "bmw",
-    "type": "image",
-    "file": "bmw/m-sport.png"
-  },
-  {
-    "id": "builtin-bmw-minimal-m",
-    "name": "M Badge",
-    "category": "bmw",
-    "type": "image",
-    "file": "bmw/minimal-m.png"
-  },
-  {
-    "id": "builtin-bmw-midnight",
-    "name": "Midnight",
-    "category": "bmw",
-    "type": "image",
-    "file": "bmw/midnight.png"
-  },
-  {
-    "id": "builtin-bmw-alpine",
-    "name": "Alpine White",
-    "category": "bmw",
-    "type": "image",
-    "file": "bmw/alpine.png"
-  },
-  {
-    "id": "builtin-bmw-motorsport",
-    "name": "Motorsport",
-    "category": "bmw",
-    "type": "image",
-    "file": "bmw/motorsport.png"
-  },
-  {
-    "id": "builtin-bmw-pulse",
-    "name": "Pulse Glow",
+    "name": "Default",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/pulse.gif"
+    "file": "bmw/default.gif"
   },
   {
-    "id": "builtin-bmw-spin",
-    "name": "Slow Spin",
+    "id": "builtin-bmw-challenger",
+    "name": "Challenger",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/spin.gif"
+    "file": "bmw/challenger.gif"
   },
   {
-    "id": "builtin-bmw-shimmer",
-    "name": "Shimmer",
+    "id": "builtin-bmw-Itachi",
+    "name": "Itachi",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/shimmer.gif"
+    "file": "bmw/Itachi.gif"
   },
   {
-    "id": "builtin-bmw-m-stripe-flow",
-    "name": "M Stripe Flow",
+    "id": "builtin-bmw-omnitrix",
+    "name": "Omnitrix",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/m-stripe-flow.gif"
+    "file": "bmw/omnitrix.gif"
   },
   {
-    "id": "builtin-bmw-breathe-blue",
-    "name": "Blue Breathe",
+    "id": "builtin-bmw-quiet_r",
+    "name": "Quiet R",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/breathe-blue.gif"
+    "file": "bmw/quiet_r.gif"
   },
   {
-    "id": "builtin-bmw-ring-pulse",
-    "name": "Ring Pulse",
+    "id": "builtin-bmw-quiet_w",
+    "name": "Quiet W",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/ring-pulse.gif"
+    "file": "bmw/quiet_w.gif"
   },
   {
     "id": "builtin-emoji-smile",

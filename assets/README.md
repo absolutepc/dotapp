@@ -1,35 +1,32 @@
 # Built-in gallery assets
 
-Stylized BMW-inspired roundels and emoji for the round display. These are **not** official BMW trademarks — geometric designs for personal use.
+Custom animations and emoji for the round display. Prefer your own uploads via the iPhone app (**My Media** / Custom) for personal logos.
 
-## Regenerate on Pi or dev machine
+## Refresh on Pi
 
 ```bash
-python3 scripts/generate_assets.py
-# or full refresh (clears manifest cache):
+cd ~/dotapp
+git pull origin main
 bash scripts/refresh-gallery.sh
+sudo systemctl restart bmw-logo-api bmw-logo-display
 ```
 
-## BMW collection (14 items)
+## BMW / custom animations (6 items)
 
 | File | Name | Type |
 |------|------|------|
-| default.png | Classic Roundel | static |
-| classic-roundel.png | Blue Roundel | static |
-| chrome-roundel.png | Chrome Roundel | static |
-| m-sport.png | M Sport | static |
-| minimal-m.png | M Badge | static |
-| midnight.png | Midnight | static |
-| alpine.png | Alpine White | static |
-| motorsport.png | Motorsport | static |
-| pulse.gif | Pulse Glow | animation |
-| spin.gif | Slow Spin | animation |
-| shimmer.gif | Shimmer | animation |
-| m-stripe-flow.gif | M Stripe Flow | animation |
-| breathe-blue.gif | Blue Breathe | animation |
-| ring-pulse.gif | Ring Pulse | animation |
+| default.gif | Default | animation |
+| challenger.gif | Challenger | animation |
+| Itachi.gif | Itachi | animation |
+| omnitrix.gif | Omnitrix | animation |
+| quiet_r.gif | Quiet R | animation |
+| quiet_w.gif | Quiet W | animation |
 
 ## Emoji collection (9 items)
+
+| File | Name | Type |
+|------|------|------|
+| smile.png | Smile | static |
 | cool.png | Cool | static |
 | heart-eyes.png | Heart Eyes | static |
 | star.png | Star | static |
@@ -41,6 +38,6 @@ bash scripts/refresh-gallery.sh
 
 ## Add your own
 
-Copy PNG/GIF (480×480) into `bmw/` or `emoji/`, then run `refresh-gallery.sh`.
+Copy PNG/GIF/WebP (ideally 480×480) into `bmw/` or `emoji/`, update `catalog.json` names if needed, then run `refresh-gallery.sh`.
 
-Official BMW logos: upload via iPhone **My Media** for personal use only.
+Or upload from iPhone — no repo changes required.

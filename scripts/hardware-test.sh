@@ -16,7 +16,7 @@ if command -v fbset >/dev/null 2>&1; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TEST_IMAGE="${REPO_ROOT}/assets/bmw/default.png"
+TEST_IMAGE="${REPO_ROOT}/assets/bmw/default.gif"
 
 if [[ ! -f "$TEST_IMAGE" ]]; then
   echo "Generating default test image..."

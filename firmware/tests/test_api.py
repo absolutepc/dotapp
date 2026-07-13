@@ -48,7 +48,7 @@ def test_status(client):
 
 def test_upload_and_display_png(client):
     test_client, frames_dir = client
-    png_path = REPO_ROOT / "assets" / "bmw" / "default.png"
+    png_path = REPO_ROOT / "assets" / "emoji" / "smile.png"
     if not png_path.exists():
         pytest.skip("assets not generated")
 

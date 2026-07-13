@@ -34,7 +34,7 @@ FPC ribbon: round display ────► 30-pin MIPI connector
 ```bash
 sudo apt install -y fbset fbi
 tvservice -s
-fbi -T 1 -a /opt/bmw-logo/assets/bmw/default.png
+fbi -T 1 -a /opt/bmw-logo/assets/bmw/default.gif
 ```
 
 ## Smoke test script
