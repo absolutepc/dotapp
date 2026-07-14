@@ -502,7 +502,16 @@
           <button class="nav-btn icon" type="button" onclick="setConnected(true)">↻</button>
         </div>
         <div class="connection">
-          <div class="wifi-icon">⚠️📶</div>
+          <div class="wifi-icon" aria-hidden="true">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+              <path d="M8 26c13-12 35-12 48 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
+              <path d="M16 34c9-8 23-8 32 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
+              <path d="M24 42c5-4 11-4 16 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="32" cy="50" r="3.5" fill="#ff9500"/>
+              <path d="M46 10 L54 28" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="54" cy="33" r="2.8" fill="#ff9500"/>
+            </svg>
+          </div>
           <h2>Connect to BMW Logo Wi‑Fi</h2>
           <div class="steps">
             <div class="step"><span class="badge">1</span><span>Open Settings → Wi‑Fi</span></div>
