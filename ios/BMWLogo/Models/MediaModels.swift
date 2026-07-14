@@ -38,7 +38,7 @@ struct MediaItem: Codable, Identifiable, Hashable {
 }
 
 enum MediaCategory: String, CaseIterable, Identifiable {
-    case bmw = "BMW"
+    case bmw = "Gallery"
     case emoji = "Emoji"
     case custom = "My Media"
 
