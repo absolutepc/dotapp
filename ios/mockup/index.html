@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>BMW Logo — iOS UI mockup</title>
+  <style>
+    :root {
+      --bg: #f2f2f7;
+      --card: #ffffff;
+      --secondary-bg: #e5e5ea;
+      --label: #000000;
+      --secondary-label: #8e8e93;
+      --blue: #007aff;
+      --red: #ff3b30;
+      --orange: #ff9500;
+      --green: #34c759;
+      --separator: rgba(60, 60, 67, 0.12);
+      --shadow: rgba(0, 0, 0, 0.18);
+      --phone-w: 390px;
+      --phone-h: 844px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 20% 0%, #2c2c2e 0%, transparent 55%),
+        radial-gradient(900px 500px at 90% 20%, #1c1c1e 0%, transparent 50%),
+        #0d0d0f;
+      color: var(--label);
+      display: grid;
+      place-items: center;
+      min-height: 100%;
+      padding: 24px 16px 40px;
+      gap: 20px;
+    }
+
+    .page-note {
+      max-width: 420px;
+      color: #c7c7cc;
+      font-size: 13px;
+      line-height: 1.45;
+      text-align: center;
+    }
+    .page-note code {
+      background: #2c2c2e;
+      padding: 1px 6px;
+      border-radius: 6px;
+      color: #fff;
+    }
+    .toolbar-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .toolbar-btns button {
+      border: 0;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font: inherit;
+      font-size: 13px;
+      background: #3a3a3c;
+      color: #fff;
+      cursor: pointer;
+    }
+    .toolbar-btns button.active { background: var(--blue); }
+
+    .phone {
+      width: var(--phone-w);
+      height: var(--phone-h);
+      border-radius: 48px;
+      background: #111;
+      padding: 12px;
+      box-shadow:
+        0 0 0 2px #3a3a3c,
+        0 30px 80px rgba(0,0,0,.55);
+      position: relative;
+    }
+    .phone-notch {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 118px;
+      height: 34px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 5;
+    }
+    .screen {
+      height: 100%;
+      border-radius: 38px;
+      overflow: hidden;
+      background: var(--bg);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status-bar {
+      height: 54px;
+      padding: 14px 28px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-size: 15px;
+      font-weight: 600;
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+    .status-bar .right {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .nav {
+      height: 44px;
+      display: grid;
+      grid-template-columns: 56px 1fr 56px;
+      align-items: center;
+      padding: 0 8px;
+      background: var(--bg);
+      border-bottom: 0.5px solid var(--separator);
+      flex-shrink: 0;
+    }
+    .nav h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .nav-btn {
+      border: 0;
+      background: transparent;
+      color: var(--blue);
+      font: inherit;
+      font-size: 17px;
+      cursor: pointer;
+      padding: 8px;
+    }
+    .nav-btn.icon { font-size: 20px; line-height: 1; }
+
+    .view { display: none; flex: 1; min-height: 0; flex-direction: column; }
+    .view.active { display: flex; }
+
+    /* Connection */
+    .connection {
+      padding: 28px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+      text-align: center;
+    }
+    .wifi-icon {
+      font-size: 56px;
+      color: var(--orange);
+      line-height: 1;
+      margin-top: 36px;
+    }
+    .connection h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .steps {
+      width: 100%;
+      text-align: left;
+      background: var(--secondary-bg);
+      border-radius: 12px;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      font-size: 15px;
+    }
+    .step {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .err {
+      color: var(--red);
+      font-size: 12px;
+      max-width: 300px;
+    }
+    .addr {
+      color: var(--secondary-label);
+      font-size: 12px;
+    }
+
+    /* Gallery */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 15px;
+      color: var(--secondary-label);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+    }
+    .status-row .res {
+      margin-left: auto;
+      font-size: 12px;
+    }
+
+    .segmented {
+      margin: 8px 16px 12px;
+      background: var(--secondary-bg);
+      border-radius: 9px;
+      padding: 2px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2px;
+    }
+    .segmented button {
+      border: 0;
+      background: transparent;
+      border-radius: 7px;
+      padding: 7px 4px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--label);
+      cursor: pointer;
+    }
+    .segmented button.active {
+      background: var(--card);
+      box-shadow: 0 1px 3px rgba(0,0,0,.12);
+    }
+
+    .grid-wrap {
+      flex: 1;
+      overflow: auto;
+      padding: 0 16px 24px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font: inherit;
+      color: inherit;
+    }
+    .thumb {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      background:
+        conic-gradient(from 45deg, #1c69d4, #fff, #1c69d4, #111, #1c69d4);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 28px;
+      font-weight: 700;
+      box-shadow: inset 0 0 0 3px rgba(255,255,255,.35);
+    }
+    .thumb.emoji {
+      background: radial-gradient(circle at 35% 30%, #ffe566, #f5b942);
+      color: #3a2a00;
+      font-size: 42px;
+      box-shadow: none;
+    }
+    .thumb.upload {
+      background: var(--secondary-bg);
+      color: var(--blue);
+      font-size: 36px;
+      box-shadow: none;
+      border-radius: 12px;
+      width: 100%;
+      min-height: 110px;
+      height: auto;
+      aspect-ratio: 1;
+    }
+    .tile span {
+      font-size: 11px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Sheets */
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.28);
+      display: none;
+      z-index: 10;
+    }
+    .sheet-backdrop.show { display: block; }
+    .sheet {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      top: 56px;
+      background: var(--bg);
+      border-radius: 16px 16px 0 0;
+      z-index: 11;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 -8px 30px var(--shadow);
+    }
+    .sheet.show { display: flex; }
+    .sheet .nav {
+      border-radius: 16px 16px 0 0;
+      background: rgba(242,242,247,.92);
+      backdrop-filter: blur(12px);
+    }
+
+    .preview-body {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      text-align: center;
+    }
+    .preview-circle {
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      box-shadow: 0 8px 24px rgba(0,0,0,.2);
+      background:
+        conic-gradient(from 45deg, #1c69d4, #fff, #1c69d4, #111, #1c69d4);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 64px;
+      font-weight: 700;
+    }
+    .preview-circle.emoji {
+      background: radial-gradient(circle at 35% 30%, #ffe566, #f5b942);
+      font-size: 120px;
+      color: #3a2a00;
+    }
+    .preview-body h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .meta {
+      color: var(--secondary-label);
+      font-size: 15px;
+      margin-top: -8px;
+    }
+    .btn {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font: inherit;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+    }
+    .btn-primary:disabled { opacity: .45; }
+    .btn-danger {
+      background: transparent;
+      color: var(--red);
+      font-weight: 400;
+    }
+
+    .upload-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--secondary-label);
+      text-align: center;
+    }
+
+    .home-indicator {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%);
+      width: 134px;
+      height: 5px;
+      border-radius: 3px;
+      background: #000;
+      opacity: .7;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .toast {
+      position: absolute;
+      left: 24px; right: 24px; top: 90px;
+      background: rgba(30,30,30,.92);
+      color: #fff;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 14px;
+      z-index: 30;
+      display: none;
+      text-align: center;
+    }
+    .toast.show { display: block; animation: fade .25s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(-6px); } }
+
+    @media (max-width: 430px) {
+      body { padding: 0; align-items: stretch; }
+      .phone {
+        width: 100%;
+        height: 100dvh;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+      .phone-notch, .page-note, .toolbar-btns { display: none; }
+      .screen { border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <p class="page-note">
+    Визуальная копия SwiftUI-приложения <strong>BMW Logo</strong> (из <code>ios/BMWLogo/</code>).
+    Откройте этот файл в браузере. Это макет UI, не установка на iPhone.
+  </p>
+  <div class="toolbar-btns">
+    <button type="button" id="btnConnected" class="active" onclick="setConnected(true)">Экран: подключено</button>
+    <button type="button" id="btnDisconnected" onclick="setConnected(false)">Экран: нет Wi‑Fi</button>
+  </div>
+
+  <div class="phone" aria-label="iPhone mockup">
+    <div class="phone-notch"></div>
+    <div class="screen">
+      <div class="status-bar">
+        <div>9:41</div>
+        <div class="right">▌▌▌▌ ▉</div>
+      </div>
+
+      <!-- Main gallery -->
+      <section id="view-gallery" class="view active">
+        <div class="nav">
+          <div></div>
+          <h1>BMW Logo</h1>
+          <button class="nav-btn icon" type="button" title="Refresh" onclick="showToast('Галерея обновлена')">↻</button>
+        </div>
+        <div class="status-row">
+          <span class="dot"></span>
+          <span id="currentName">Default</span>
+          <span class="res">480x480</span>
+        </div>
+        <div class="segmented" role="tablist">
+          <button type="button" class="active" data-cat="bmw" onclick="setCategory('bmw', this)">BMW</button>
+          <button type="button" data-cat="emoji" onclick="setCategory('emoji', this)">Emoji</button>
+          <button type="button" data-cat="custom" onclick="setCategory('custom', this)">My Media</button>
+        </div>
+        <div class="grid-wrap">
+          <div class="grid" id="grid"></div>
+        </div>
+      </section>
+
+      <!-- Connection -->
+      <section id="view-connection" class="view">
+        <div class="nav">
+          <div></div>
+          <h1>BMW Logo</h1>
+          <button class="nav-btn icon" type="button" onclick="setConnected(true)">↻</button>
+        </div>
+        <div class="connection">
+          <div class="wifi-icon">⚠️📶</div>
+          <h2>Connect to BMW Logo Wi‑Fi</h2>
+          <div class="steps">
+            <div class="step"><span class="badge">1</span><span>Open Settings → Wi‑Fi</span></div>
+            <div class="step"><span class="badge">2</span><span>Join network BMW-Logo-XXXX</span></div>
+            <div class="step"><span class="badge">3</span><span>Return here and tap Refresh</span></div>
+          </div>
+          <div class="err">The Internet connection appears to be offline.</div>
+          <div class="addr">Device address: 192.168.4.1:8080</div>
+        </div>
+      </section>
+
+      <div class="sheet-backdrop" id="backdrop" onclick="closeSheets()"></div>
+
+      <!-- Preview sheet -->
+      <div class="sheet" id="sheet-preview">
+        <div class="nav">
+          <button class="nav-btn" type="button" onclick="closeSheets()">Close</button>
+          <h1>Preview</h1>
+          <div></div>
+        </div>
+        <div class="preview-body">
+          <div class="preview-circle" id="previewThumb">B</div>
+          <h2 id="previewName">Default</h2>
+          <div class="meta" id="previewMeta">Animation · 60 fps</div>
+          <button class="btn btn-primary" type="button" onclick="applyItem()">Apply to Display</button>
+          <button class="btn btn-danger" type="button" id="btnDelete" style="display:none" onclick="deleteItem()">Delete</button>
+        </div>
+      </div>
+
+      <!-- Upload sheet -->
+      <div class="sheet" id="sheet-upload">
+        <div class="nav">
+          <button class="nav-btn" type="button" onclick="closeSheets()">Close</button>
+          <h1>Upload</h1>
+          <div></div>
+        </div>
+        <div class="upload-body">
+          <button class="btn btn-primary" type="button" onclick="fakeUpload()">Choose from Photos</button>
+          <div class="hint">Images are resized to 480×480 before upload.</div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast"></div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <script>
+    const MEDIA = [
+      { id: "builtin-bmw-default", name: "Default", cat: "bmw", anim: true, glyph: "B" },
+      { id: "builtin-bmw-challenger", name: "Challenger", cat: "bmw", anim: true, glyph: "C" },
+      { id: "builtin-bmw-Itachi", name: "Itachi", cat: "bmw", anim: true, glyph: "I" },
+      { id: "builtin-bmw-omnitrix", name: "Omnitrix", cat: "bmw", anim: true, glyph: "O" },
+      { id: "builtin-bmw-quiet_r", name: "Quiet R", cat: "bmw", anim: true, glyph: "R" },
+      { id: "builtin-bmw-quiet_w", name: "Quiet W", cat: "bmw", anim: true, glyph: "W" },
+      { id: "builtin-bmw-radar", name: "Radar", cat: "bmw", anim: true, glyph: "📡" },
+      { id: "builtin-emoji-smile", name: "Smile", cat: "emoji", anim: false, glyph: "😀" },
+      { id: "builtin-emoji-cool", name: "Cool", cat: "emoji", anim: false, glyph: "😎" },
+      { id: "builtin-emoji-heart-eyes", name: "Heart Eyes", cat: "emoji", anim: false, glyph: "😍" },
+      { id: "builtin-emoji-star", name: "Star", cat: "emoji", anim: false, glyph: "🤩" },
+      { id: "builtin-emoji-fire", name: "Fire", cat: "emoji", anim: false, glyph: "🔥" },
+      { id: "builtin-emoji-party", name: "Party", cat: "emoji", anim: false, glyph: "🥳" },
+      { id: "builtin-emoji-wink", name: "Wink", cat: "emoji", anim: true, glyph: "😉" },
+      { id: "builtin-emoji-bounce", name: "Bounce", cat: "emoji", anim: true, glyph: "🙂" },
+      { id: "builtin-emoji-laugh", name: "Laugh", cat: "emoji", anim: true, glyph: "😂" },
+      { id: "upload-demo-1", name: "My Photo", cat: "custom", anim: false, glyph: "📷", custom: true },
+    ];
+
+    let category = "bmw";
+    let selected = null;
+
+    function setConnected(on) {
+      document.getElementById("view-gallery").classList.toggle("active", on);
+      document.getElementById("view-connection").classList.toggle("active", !on);
+      document.getElementById("btnConnected").classList.toggle("active", on);
+      document.getElementById("btnDisconnected").classList.toggle("active", !on);
+      closeSheets();
+    }
+
+    function setCategory(cat, btn) {
+      category = cat;
+      document.querySelectorAll(".segmented button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderGrid();
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      if (category === "custom") {
+        const upload = document.createElement("button");
+        upload.className = "tile";
+        upload.type = "button";
+        upload.innerHTML = `<div class="thumb upload">＋<div style="font-size:12px;font-weight:600;margin-top:4px">Upload</div></div><span></span>`;
+        upload.onclick = () => openUpload();
+        grid.appendChild(upload);
+      }
+      MEDIA.filter((m) => m.cat === category).forEach((item) => {
+        const b = document.createElement("button");
+        b.className = "tile";
+        b.type = "button";
+        const emoji = item.cat === "emoji" ? " emoji" : "";
+        b.innerHTML = `<div class="thumb${emoji}">${item.glyph}</div><span>${item.name}</span>`;
+        b.onclick = () => openPreview(item);
+        grid.appendChild(b);
+      });
+    }
+
+    function openPreview(item) {
+      selected = item;
+      const thumb = document.getElementById("previewThumb");
+      thumb.textContent = item.glyph;
+      thumb.className = "preview-circle" + (item.cat === "emoji" ? " emoji" : "");
+      document.getElementById("previewName").textContent = item.name;
+      document.getElementById("previewMeta").textContent = item.anim
+        ? "Animation · 60 fps"
+        : "Static image";
+      document.getElementById("btnDelete").style.display = item.custom ? "block" : "none";
+      document.getElementById("backdrop").classList.add("show");
+      document.getElementById("sheet-preview").classList.add("show");
+      document.getElementById("sheet-upload").classList.remove("show");
+    }
+
+    function openUpload() {
+      document.getElementById("backdrop").classList.add("show");
+      document.getElementById("sheet-upload").classList.add("show");
+      document.getElementById("sheet-preview").classList.remove("show");
+    }
+
+    function closeSheets() {
+      document.getElementById("backdrop").classList.remove("show");
+      document.getElementById("sheet-preview").classList.remove("show");
+      document.getElementById("sheet-upload").classList.remove("show");
+    }
+
+    function applyItem() {
+      if (!selected) return;
+      document.getElementById("currentName").textContent = selected.name;
+      closeSheets();
+      showToast("Applied — Image sent to the round display.");
+    }
+
+    function deleteItem() {
+      if (!selected || !selected.custom) return;
+      const i = MEDIA.findIndex((m) => m.id === selected.id);
+      if (i >= 0) MEDIA.splice(i, 1);
+      closeSheets();
+      renderGrid();
+      showToast("Удалено из My Media");
+    }
+
+    function fakeUpload() {
+      const item = {
+        id: "upload-" + Date.now(),
+        name: "Upload",
+        cat: "custom",
+        anim: false,
+        glyph: "🖼",
+        custom: true,
+      };
+      MEDIA.push(item);
+      document.getElementById("currentName").textContent = item.name;
+      closeSheets();
+      setCategory("custom", document.querySelector('[data-cat="custom"]'));
+      showToast("Applied — Image sent to the round display.");
+    }
+
+    function showToast(text) {
+      const t = document.getElementById("toast");
+      t.textContent = text;
+      t.classList.add("show");
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => t.classList.remove("show"), 2200);
+    }
+
+    renderGrid();
+  </script>
+</body>
+</html>
