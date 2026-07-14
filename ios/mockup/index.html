@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>BMW Logo — iOS UI mockup</title>
+  <title>BMW Logo — gallery preview</title>
   <style>
     :root {
       --bg: #f2f2f7;
@@ -35,11 +35,11 @@
       place-items: center;
       min-height: 100%;
       padding: 24px 16px 40px;
-      gap: 20px;
+      gap: 16px;
     }
 
     .page-note {
-      max-width: 420px;
+      max-width: 460px;
       color: #c7c7cc;
       font-size: 13px;
       line-height: 1.45;
@@ -56,8 +56,9 @@
       gap: 8px;
       flex-wrap: wrap;
       justify-content: center;
+      max-width: 520px;
     }
-    .toolbar-btns button {
+    .toolbar-btns button, .toolbar-btns input {
       border: 0;
       border-radius: 999px;
       padding: 8px 14px;
@@ -65,9 +66,14 @@
       font-size: 13px;
       background: #3a3a3c;
       color: #fff;
-      cursor: pointer;
     }
+    .toolbar-btns button { cursor: pointer; }
     .toolbar-btns button.active { background: var(--blue); }
+    .toolbar-btns input {
+      width: min(220px, 70vw);
+      background: #1c1c1e;
+      border: 1px solid #48484a;
+    }
 
     .phone {
       width: var(--phone-w);
@@ -75,9 +81,7 @@
       border-radius: 48px;
       background: #111;
       padding: 12px;
-      box-shadow:
-        0 0 0 2px #3a3a3c,
-        0 30px 80px rgba(0,0,0,.55);
+      box-shadow: 0 0 0 2px #3a3a3c, 0 30px 80px rgba(0,0,0,.55);
       position: relative;
     }
     .phone-notch {
@@ -112,12 +116,7 @@
       background: var(--bg);
       flex-shrink: 0;
     }
-    .status-bar .right {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      font-size: 13px;
-    }
+    .status-bar .right { font-size: 13px; }
 
     .nav {
       height: 44px;
@@ -149,7 +148,6 @@
     .view { display: none; flex: 1; min-height: 0; flex-direction: column; }
     .view.active { display: flex; }
 
-    /* Connection */
     .connection {
       padding: 28px 20px 20px;
       display: flex;
@@ -158,17 +156,7 @@
       gap: 22px;
       text-align: center;
     }
-    .wifi-icon {
-      font-size: 56px;
-      color: var(--orange);
-      line-height: 1;
-      margin-top: 36px;
-    }
-    .connection h2 {
-      margin: 0;
-      font-size: 22px;
-      font-weight: 700;
-    }
+    .connection h2 { margin: 0; font-size: 22px; font-weight: 700; }
     .steps {
       width: 100%;
       text-align: left;
@@ -179,35 +167,15 @@
       gap: 12px;
       font-size: 15px;
     }
-    .step {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
+    .step { display: flex; gap: 10px; align-items: flex-start; }
     .badge {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: var(--blue);
-      color: #fff;
-      font-size: 12px;
-      font-weight: 700;
-      display: grid;
-      place-items: center;
-      flex-shrink: 0;
-      margin-top: 1px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--blue); color: #fff; font-size: 12px; font-weight: 700;
+      display: grid; place-items: center; flex-shrink: 0;
     }
-    .err {
-      color: var(--red);
-      font-size: 12px;
-      max-width: 300px;
-    }
-    .addr {
-      color: var(--secondary-label);
-      font-size: 12px;
-    }
+    .err { color: var(--red); font-size: 12px; max-width: 300px; min-height: 1em; }
+    .addr { color: var(--secondary-label); font-size: 12px; }
 
-    /* Gallery */
     .status-row {
       display: flex;
       align-items: center;
@@ -217,16 +185,10 @@
       color: var(--secondary-label);
     }
     .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--green);
-      flex-shrink: 0;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
     }
-    .status-row .res {
-      margin-left: auto;
-      font-size: 12px;
-    }
+    .status-row .res { margin-left: auto; font-size: 12px; }
 
     .segmented {
       margin: 8px 16px 12px;
@@ -245,7 +207,6 @@
       font: inherit;
       font-size: 13px;
       font-weight: 500;
-      color: var(--label);
       cursor: pointer;
     }
     .segmented button.active {
@@ -281,31 +242,29 @@
       height: 100px;
       border-radius: 50%;
       object-fit: cover;
-      background:
-        conic-gradient(from 45deg, #1c69d4, #fff, #1c69d4, #111, #1c69d4);
+      background: #d1d1d6;
+      display: block;
+    }
+    .thumb-fallback {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: var(--secondary-bg);
       display: grid;
       place-items: center;
-      color: #fff;
-      font-size: 28px;
-      font-weight: 700;
-      box-shadow: inset 0 0 0 3px rgba(255,255,255,.35);
-    }
-    .thumb.emoji {
-      background: radial-gradient(circle at 35% 30%, #ffe566, #f5b942);
-      color: #3a2a00;
-      font-size: 42px;
-      box-shadow: none;
+      color: var(--secondary-label);
+      font-size: 12px;
     }
     .thumb.upload {
       background: var(--secondary-bg);
       color: var(--blue);
-      font-size: 36px;
-      box-shadow: none;
       border-radius: 12px;
       width: 100%;
-      min-height: 110px;
-      height: auto;
       aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      font-size: 32px;
+      font-weight: 600;
     }
     .tile span {
       font-size: 11px;
@@ -315,7 +274,6 @@
       white-space: nowrap;
     }
 
-    /* Sheets */
     .sheet-backdrop {
       position: absolute;
       inset: 0;
@@ -349,24 +307,16 @@
       align-items: center;
       gap: 18px;
       text-align: center;
+      overflow: auto;
     }
     .preview-circle {
       width: 280px;
       height: 280px;
       border-radius: 50%;
+      object-fit: cover;
       box-shadow: 0 8px 24px rgba(0,0,0,.2);
-      background:
-        conic-gradient(from 45deg, #1c69d4, #fff, #1c69d4, #111, #1c69d4);
-      display: grid;
-      place-items: center;
-      color: #fff;
-      font-size: 64px;
-      font-weight: 700;
-    }
-    .preview-circle.emoji {
-      background: radial-gradient(circle at 35% 30%, #ffe566, #f5b942);
-      font-size: 120px;
-      color: #3a2a00;
+      background: #d1d1d6;
+      display: block;
     }
     .preview-body h2 {
       margin: 0;
@@ -388,16 +338,9 @@
       font-weight: 600;
       cursor: pointer;
     }
-    .btn-primary {
-      background: var(--blue);
-      color: #fff;
-    }
+    .btn-primary { background: var(--blue); color: #fff; }
     .btn-primary:disabled { opacity: .45; }
-    .btn-danger {
-      background: transparent;
-      color: var(--red);
-      font-weight: 400;
-    }
+    .btn-danger { background: transparent; color: var(--red); font-weight: 400; }
 
     .upload-body {
       padding: 20px;
@@ -440,6 +383,13 @@
     .toast.show { display: block; animation: fade .25s ease; }
     @keyframes fade { from { opacity: 0; transform: translateY(-6px); } }
 
+    .loading {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--secondary-label);
+      font-size: 14px;
+    }
+
     @media (max-width: 430px) {
       body { padding: 0; align-items: stretch; }
       .phone {
@@ -456,33 +406,37 @@
 </head>
 <body>
   <p class="page-note">
-    Визуальная копия SwiftUI-приложения <strong>BMW Logo</strong> (из <code>ios/BMWLogo/</code>).
-    Откройте этот файл в браузере. Это макет UI, не установка на iPhone.
+    Макет с <strong>реальной галереей и GIF-анимациями</strong>.
+    Локально: откройте через сервер из корня репо
+    (<code>python3 -m http.server 5500</code> →
+    <code>http://localhost:5500/ios/mockup/</code>).
+    На Pi: <code>http://192.168.4.1:8080/mockup/</code>
   </p>
   <div class="toolbar-btns">
-    <button type="button" id="btnConnected" class="active" onclick="setConnected(true)">Экран: подключено</button>
-    <button type="button" id="btnDisconnected" onclick="setConnected(false)">Экран: нет Wi‑Fi</button>
+    <button type="button" id="btnLocal" class="active" onclick="useLocal()">Local assets</button>
+    <button type="button" id="btnLive" onclick="useLive()">Live Pi</button>
+    <input id="apiBase" type="text" value="http://192.168.4.1:8080" title="Pi API base" />
+    <button type="button" onclick="reloadGallery()">↻ Refresh</button>
   </div>
 
   <div class="phone" aria-label="iPhone mockup">
     <div class="phone-notch"></div>
     <div class="screen">
       <div class="status-bar">
-        <div>9:41</div>
+        <div id="clock">9:41</div>
         <div class="right">▌▌▌▌ ▉</div>
       </div>
 
-      <!-- Main gallery -->
       <section id="view-gallery" class="view active">
         <div class="nav">
           <div></div>
           <h1>BMW Logo</h1>
-          <button class="nav-btn icon" type="button" title="Refresh" onclick="showToast('Галерея обновлена')">↻</button>
+          <button class="nav-btn icon" type="button" title="Refresh" onclick="reloadGallery()">↻</button>
         </div>
         <div class="status-row">
           <span class="dot"></span>
-          <span id="currentName">Default</span>
-          <span class="res">480x480</span>
+          <span id="currentName">Loading…</span>
+          <span class="res" id="resolution">480x480</span>
         </div>
         <div class="segmented" role="tablist">
           <button type="button" class="active" data-cat="bmw" onclick="setCategory('bmw', this)">BMW</button>
@@ -490,19 +444,19 @@
           <button type="button" data-cat="custom" onclick="setCategory('custom', this)">My Media</button>
         </div>
         <div class="grid-wrap">
-          <div class="grid" id="grid"></div>
+          <div class="loading" id="loading">Loading gallery…</div>
+          <div class="grid" id="grid" hidden></div>
         </div>
       </section>
 
-      <!-- Connection -->
       <section id="view-connection" class="view">
         <div class="nav">
           <div></div>
           <h1>BMW Logo</h1>
-          <button class="nav-btn icon" type="button" onclick="setConnected(true)">↻</button>
+          <button class="nav-btn icon" type="button" onclick="useLive()">↻</button>
         </div>
         <div class="connection">
-          <div class="wifi-icon" aria-hidden="true">
+          <div aria-hidden="true">
             <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
               <path d="M8 26c13-12 35-12 48 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
               <path d="M16 34c9-8 23-8 32 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
@@ -518,14 +472,13 @@
             <div class="step"><span class="badge">2</span><span>Join network BMW-Logo-XXXX</span></div>
             <div class="step"><span class="badge">3</span><span>Return here and tap Refresh</span></div>
           </div>
-          <div class="err">The Internet connection appears to be offline.</div>
-          <div class="addr">Device address: 192.168.4.1:8080</div>
+          <div class="err" id="connError"></div>
+          <div class="addr" id="connAddr">Device address: 192.168.4.1:8080</div>
         </div>
       </section>
 
       <div class="sheet-backdrop" id="backdrop" onclick="closeSheets()"></div>
 
-      <!-- Preview sheet -->
       <div class="sheet" id="sheet-preview">
         <div class="nav">
           <button class="nav-btn" type="button" onclick="closeSheets()">Close</button>
@@ -533,15 +486,14 @@
           <div></div>
         </div>
         <div class="preview-body">
-          <div class="preview-circle" id="previewThumb">B</div>
+          <img class="preview-circle" id="previewThumb" alt="" />
           <h2 id="previewName">Default</h2>
-          <div class="meta" id="previewMeta">Animation · 60 fps</div>
-          <button class="btn btn-primary" type="button" onclick="applyItem()">Apply to Display</button>
+          <div class="meta" id="previewMeta">Animation</div>
+          <button class="btn btn-primary" type="button" id="btnApply" onclick="applyItem()">Apply to Display</button>
           <button class="btn btn-danger" type="button" id="btnDelete" style="display:none" onclick="deleteItem()">Delete</button>
         </div>
       </div>
 
-      <!-- Upload sheet -->
       <div class="sheet" id="sheet-upload">
         <div class="nav">
           <button class="nav-btn" type="button" onclick="closeSheets()">Close</button>
@@ -549,8 +501,10 @@
           <div></div>
         </div>
         <div class="upload-body">
-          <button class="btn btn-primary" type="button" onclick="fakeUpload()">Choose from Photos</button>
-          <div class="hint">Images are resized to 480×480 before upload.</div>
+          <input id="fileInput" type="file" accept="image/*,.gif,.webp" hidden />
+          <button class="btn btn-primary" type="button" onclick="document.getElementById('fileInput').click()">Choose from Photos</button>
+          <div class="hint">Images are resized on the Pi after upload. GIF animations play as-is.</div>
+          <div class="hint" id="uploadHint">Upload works in Live Pi mode.</div>
         </div>
       </div>
 
@@ -560,35 +514,64 @@
   </div>
 
   <script>
-    const MEDIA = [
-      { id: "builtin-bmw-default", name: "Default", cat: "bmw", anim: true, glyph: "B" },
-      { id: "builtin-bmw-challenger", name: "Challenger", cat: "bmw", anim: true, glyph: "C" },
-      { id: "builtin-bmw-Itachi", name: "Itachi", cat: "bmw", anim: true, glyph: "I" },
-      { id: "builtin-bmw-omnitrix", name: "Omnitrix", cat: "bmw", anim: true, glyph: "O" },
-      { id: "builtin-bmw-quiet_r", name: "Quiet R", cat: "bmw", anim: true, glyph: "R" },
-      { id: "builtin-bmw-quiet_w", name: "Quiet W", cat: "bmw", anim: true, glyph: "W" },
-      { id: "builtin-bmw-radar", name: "Radar", cat: "bmw", anim: true, glyph: "📡" },
-      { id: "builtin-emoji-smile", name: "Smile", cat: "emoji", anim: false, glyph: "😀" },
-      { id: "builtin-emoji-cool", name: "Cool", cat: "emoji", anim: false, glyph: "😎" },
-      { id: "builtin-emoji-heart-eyes", name: "Heart Eyes", cat: "emoji", anim: false, glyph: "😍" },
-      { id: "builtin-emoji-star", name: "Star", cat: "emoji", anim: false, glyph: "🤩" },
-      { id: "builtin-emoji-fire", name: "Fire", cat: "emoji", anim: false, glyph: "🔥" },
-      { id: "builtin-emoji-party", name: "Party", cat: "emoji", anim: false, glyph: "🥳" },
-      { id: "builtin-emoji-wink", name: "Wink", cat: "emoji", anim: true, glyph: "😉" },
-      { id: "builtin-emoji-bounce", name: "Bounce", cat: "emoji", anim: true, glyph: "🙂" },
-      { id: "builtin-emoji-laugh", name: "Laugh", cat: "emoji", anim: true, glyph: "😂" },
-      { id: "upload-demo-1", name: "My Photo", cat: "custom", anim: false, glyph: "📷", custom: true },
+    const FALLBACK_CATALOG = [
+      { id: "builtin-bmw-default", name: "Default", category: "bmw", type: "animation", file: "bmw/default.gif" },
+      { id: "builtin-bmw-challenger", name: "Challenger", category: "bmw", type: "animation", file: "bmw/challenger.gif" },
+      { id: "builtin-bmw-Itachi", name: "Itachi", category: "bmw", type: "animation", file: "bmw/Itachi.gif" },
+      { id: "builtin-bmw-omnitrix", name: "Omnitrix", category: "bmw", type: "animation", file: "bmw/omnitrix.gif" },
+      { id: "builtin-bmw-quiet_r", name: "Quiet R", category: "bmw", type: "animation", file: "bmw/quiet_r.gif" },
+      { id: "builtin-bmw-quiet_w", name: "Quiet W", category: "bmw", type: "animation", file: "bmw/quiet_w.gif" },
+      { id: "builtin-bmw-radar", name: "Radar", category: "bmw", type: "animation", file: "bmw/radar.gif" },
+      { id: "builtin-emoji-smile", name: "Smile", category: "emoji", type: "image", file: "emoji/smile.png" },
+      { id: "builtin-emoji-cool", name: "Cool", category: "emoji", type: "image", file: "emoji/cool.png" },
+      { id: "builtin-emoji-heart-eyes", name: "Heart Eyes", category: "emoji", type: "image", file: "emoji/heart-eyes.png" },
+      { id: "builtin-emoji-star", name: "Star", category: "emoji", type: "image", file: "emoji/star.png" },
+      { id: "builtin-emoji-fire", name: "Fire", category: "emoji", type: "image", file: "emoji/fire.png" },
+      { id: "builtin-emoji-party", name: "Party", category: "emoji", type: "image", file: "emoji/party.png" },
+      { id: "builtin-emoji-wink", name: "Wink", category: "emoji", type: "animation", file: "emoji/wink.gif" },
+      { id: "builtin-emoji-bounce", name: "Bounce", category: "emoji", type: "animation", file: "emoji/bounce.gif" },
+      { id: "builtin-emoji-laugh", name: "Laugh", category: "emoji", type: "animation", file: "emoji/laugh.gif" },
     ];
 
+    let mode = "local"; // local | live
     let category = "bmw";
+    let items = [];
     let selected = null;
+    let status = { current_name: "Ready", resolution: "480x480" };
 
-    function setConnected(on) {
+    function apiBase() {
+      return document.getElementById("apiBase").value.replace(/\/$/, "");
+    }
+
+    function mediaCategory(item) {
+      if (item.category) return item.category;
+      const id = item.id || "";
+      if (id.includes("emoji")) return "emoji";
+      if (item.builtin === false || (!id.includes("builtin-"))) return "custom";
+      return "bmw";
+    }
+
+    function sourceUrl(item) {
+      if (item.source_url) {
+        return item.source_url.startsWith("http")
+          ? item.source_url
+          : `${apiBase()}${item.source_url}`;
+      }
+      if (item.file) {
+        // Prefer absolute assets mount when served from Pi/API, else relative from mockup folder
+        if (location.pathname.includes("/mockup") || location.port === "8080") {
+          return `/assets/${item.file}`;
+        }
+        return `../../assets/${item.file}`;
+      }
+      return "";
+    }
+
+    function setConnected(on, err = "") {
       document.getElementById("view-gallery").classList.toggle("active", on);
       document.getElementById("view-connection").classList.toggle("active", !on);
-      document.getElementById("btnConnected").classList.toggle("active", on);
-      document.getElementById("btnDisconnected").classList.toggle("active", !on);
-      closeSheets();
+      document.getElementById("connError").textContent = err || "";
+      document.getElementById("connAddr").textContent = `Device address: ${apiBase().replace(/^https?:\/\//, "")}`;
     }
 
     function setCategory(cat, btn) {
@@ -598,6 +581,17 @@
       renderGrid();
     }
 
+    function showLoading(on, text = "Loading gallery…") {
+      document.getElementById("loading").hidden = !on;
+      document.getElementById("loading").textContent = text;
+      document.getElementById("grid").hidden = on;
+    }
+
+    function renderStatus() {
+      document.getElementById("currentName").textContent = status.current_name || status.current || "Ready";
+      document.getElementById("resolution").textContent = status.resolution || "480x480";
+    }
+
     function renderGrid() {
       const grid = document.getElementById("grid");
       grid.innerHTML = "";
@@ -605,37 +599,61 @@
         const upload = document.createElement("button");
         upload.className = "tile";
         upload.type = "button";
-        upload.innerHTML = `<div class="thumb upload">＋<div style="font-size:12px;font-weight:600;margin-top:4px">Upload</div></div><span></span>`;
+        upload.innerHTML = `<div class="thumb upload">＋<div style="font-size:12px;margin-top:4px">Upload</div></div><span></span>`;
         upload.onclick = () => openUpload();
         grid.appendChild(upload);
       }
-      MEDIA.filter((m) => m.cat === category).forEach((item) => {
+
+      const filtered = items.filter((m) => mediaCategory(m) === category);
+      filtered.forEach((item) => {
         const b = document.createElement("button");
         b.className = "tile";
         b.type = "button";
-        const emoji = item.cat === "emoji" ? " emoji" : "";
-        b.innerHTML = `<div class="thumb${emoji}">${item.glyph}</div><span>${item.name}</span>`;
+        const url = sourceUrl(item);
+        b.innerHTML = url
+          ? `<img class="thumb" src="${url}" alt="" loading="lazy" /><span></span>`
+          : `<div class="thumb-fallback">No media</div><span></span>`;
+        b.querySelector("span").textContent = item.name;
         b.onclick = () => openPreview(item);
+        const img = b.querySelector("img");
+        if (img) {
+          img.onerror = () => {
+            img.replaceWith(Object.assign(document.createElement("div"), {
+              className: "thumb-fallback",
+              textContent: "?",
+            }));
+          };
+        }
         grid.appendChild(b);
       });
     }
 
     function openPreview(item) {
       selected = item;
-      const thumb = document.getElementById("previewThumb");
-      thumb.textContent = item.glyph;
-      thumb.className = "preview-circle" + (item.cat === "emoji" ? " emoji" : "");
+      const url = sourceUrl(item);
+      const img = document.getElementById("previewThumb");
+      img.src = url;
+      img.alt = item.name;
       document.getElementById("previewName").textContent = item.name;
-      document.getElementById("previewMeta").textContent = item.anim
-        ? "Animation · 60 fps"
-        : "Static image";
-      document.getElementById("btnDelete").style.display = item.custom ? "block" : "none";
+      document.getElementById("previewMeta").textContent =
+        item.type === "animation" || (item.file || "").endsWith(".gif")
+          ? `Animation · ${Math.round(item.fps || 60)} fps`
+          : "Static image";
+      document.getElementById("btnDelete").style.display =
+        item.builtin === false || mediaCategory(item) === "custom" ? "block" : "none";
+      document.getElementById("btnApply").disabled = mode !== "live";
+      document.getElementById("btnApply").textContent =
+        mode === "live" ? "Apply to Display" : "Apply (Live Pi only)";
       document.getElementById("backdrop").classList.add("show");
       document.getElementById("sheet-preview").classList.add("show");
       document.getElementById("sheet-upload").classList.remove("show");
     }
 
     function openUpload() {
+      document.getElementById("uploadHint").textContent =
+        mode === "live"
+          ? "Choose an image/GIF to upload to the Pi."
+          : "Switch to Live Pi mode to upload.";
       document.getElementById("backdrop").classList.add("show");
       document.getElementById("sheet-upload").classList.add("show");
       document.getElementById("sheet-preview").classList.remove("show");
@@ -647,36 +665,123 @@
       document.getElementById("sheet-upload").classList.remove("show");
     }
 
-    function applyItem() {
-      if (!selected) return;
-      document.getElementById("currentName").textContent = selected.name;
-      closeSheets();
-      showToast("Applied — Image sent to the round display.");
+    async function applyItem() {
+      if (!selected || mode !== "live") {
+        showToast("Подключите Live Pi, чтобы отправить на дисплей");
+        return;
+      }
+      const btn = document.getElementById("btnApply");
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${apiBase()}/api/display`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ media_id: selected.id }),
+        });
+        if (!res.ok) throw new Error("display failed");
+        status.current_name = selected.name;
+        renderStatus();
+        closeSheets();
+        showToast("Applied — Image sent to the round display.");
+      } catch (e) {
+        showToast("Не удалось отправить на дисплей");
+      } finally {
+        btn.disabled = false;
+      }
     }
 
-    function deleteItem() {
-      if (!selected || !selected.custom) return;
-      const i = MEDIA.findIndex((m) => m.id === selected.id);
-      if (i >= 0) MEDIA.splice(i, 1);
-      closeSheets();
+    async function deleteItem() {
+      if (!selected || mode !== "live") return;
+      try {
+        const res = await fetch(`${apiBase()}/api/media/${selected.id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("delete failed");
+        closeSheets();
+        await reloadGallery();
+        showToast("Deleted");
+      } catch (e) {
+        showToast("Cannot delete");
+      }
+    }
+
+    async function loadLocal() {
+      showLoading(true);
+      let catalog = FALLBACK_CATALOG;
+      const candidates = [
+        "../../assets/catalog.json",
+        "/assets/catalog.json",
+        "../assets/catalog.json",
+      ];
+      for (const path of candidates) {
+        try {
+          const res = await fetch(path, { cache: "no-store" });
+          if (res.ok) {
+            catalog = await res.json();
+            break;
+          }
+        } catch (_) {}
+      }
+      items = catalog.map((e) => ({
+        id: e.id,
+        name: e.name,
+        category: e.category,
+        type: e.type,
+        file: e.file,
+        builtin: true,
+        fps: 60,
+      }));
+      status = { current_name: items[0]?.name || "Ready", resolution: "480x480" };
+      renderStatus();
+      showLoading(false);
       renderGrid();
-      showToast("Удалено из My Media");
+      setConnected(true);
     }
 
-    function fakeUpload() {
-      const item = {
-        id: "upload-" + Date.now(),
-        name: "Upload",
-        cat: "custom",
-        anim: false,
-        glyph: "🖼",
-        custom: true,
-      };
-      MEDIA.push(item);
-      document.getElementById("currentName").textContent = item.name;
-      closeSheets();
-      setCategory("custom", document.querySelector('[data-cat="custom"]'));
-      showToast("Applied — Image sent to the round display.");
+    async function loadLive() {
+      showLoading(true, "Connecting to Pi…");
+      try {
+        const [statusRes, galleryRes] = await Promise.all([
+          fetch(`${apiBase()}/api/status`, { cache: "no-store" }),
+          fetch(`${apiBase()}/api/gallery`, { cache: "no-store" }),
+        ]);
+        if (!statusRes.ok || !galleryRes.ok) throw new Error("API error");
+        status = await statusRes.json();
+        const gallery = await galleryRes.json();
+        items = gallery.map((e) => ({
+          ...e,
+          category: mediaCategory(e),
+        }));
+        renderStatus();
+        showLoading(false);
+        renderGrid();
+        setConnected(true);
+        document.getElementById("btnLocal").classList.remove("active");
+        document.getElementById("btnLive").classList.add("active");
+      } catch (e) {
+        showLoading(false);
+        setConnected(false, e.message || "Cannot reach Pi API");
+        document.getElementById("view-gallery").classList.remove("active");
+        document.getElementById("view-connection").classList.add("active");
+      }
+    }
+
+    async function useLocal() {
+      mode = "local";
+      document.getElementById("btnLocal").classList.add("active");
+      document.getElementById("btnLive").classList.remove("active");
+      await loadLocal();
+    }
+
+    async function useLive() {
+      mode = "live";
+      document.getElementById("btnLive").classList.add("active");
+      document.getElementById("btnLocal").classList.remove("active");
+      await loadLive();
+    }
+
+    async function reloadGallery() {
+      if (mode === "live") await loadLive();
+      else await loadLocal();
+      showToast("Галерея обновлена");
     }
 
     function showToast(text) {
@@ -687,7 +792,49 @@
       showToast._timer = setTimeout(() => t.classList.remove("show"), 2200);
     }
 
-    renderGrid();
+    document.getElementById("fileInput").addEventListener("change", async (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      ev.target.value = "";
+      if (!file) return;
+      if (mode !== "live") {
+        showToast("Переключитесь в Live Pi для upload");
+        return;
+      }
+      const body = new FormData();
+      body.append("file", file, file.name);
+      try {
+        const res = await fetch(`${apiBase()}/api/upload`, { method: "POST", body });
+        if (!res.ok) throw new Error("upload failed");
+        const data = await res.json();
+        await fetch(`${apiBase()}/api/display`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ media_id: data.media_id }),
+        });
+        closeSheets();
+        await loadLive();
+        showToast("Applied — Image sent to the round display.");
+      } catch (e) {
+        showToast("Upload failed");
+      }
+    });
+
+    function tickClock() {
+      const d = new Date();
+      document.getElementById("clock").textContent =
+        d.getHours().toString().padStart(2, "0") + ":" +
+        d.getMinutes().toString().padStart(2, "0");
+    }
+    tickClock();
+    setInterval(tickClock, 10000);
+
+    // Auto: if opened from Pi API host, prefer live
+    if (location.port === "8080" || location.hostname === "192.168.4.1") {
+      document.getElementById("apiBase").value = location.origin;
+      useLive();
+    } else {
+      useLocal();
+    }
   </script>
 </body>
 </html>

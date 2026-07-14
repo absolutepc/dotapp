@@ -65,6 +65,7 @@ def gallery() -> list[dict]:
             {
                 **item.to_dict(),
                 "preview_url": f"/api/preview/{item.id}",
+                "source_url": f"/api/source/{item.id}",
             }
         )
     return items
@@ -127,3 +128,28 @@ def preview(media_id: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Preview not found")
 
     return FileResponse(path, media_type="image/jpeg")
+
+
+@router.get("/source/{media_id}")
+def source(media_id: str) -> FileResponse:
+    """Original uploaded/builtin file (GIF/PNG) for web preview / animations."""
+    item = storage.get(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Not found")
+    path = storage.resolve_source_path(item)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Source file not found")
+
+    suffix = path.suffix.lower()
+    media_types = {
+        ".gif": "image/gif",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+    }
+    return FileResponse(
+        path,
+        media_type=media_types.get(suffix, "application/octet-stream"),
+        filename=path.name,
+    )
