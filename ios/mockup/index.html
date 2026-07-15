@@ -522,7 +522,7 @@
       { id: "builtin-bmw-quiet_r", name: "Quiet R", category: "bmw", type: "animation", file: "bmw/quiet_r.gif" },
       { id: "builtin-bmw-quiet_w", name: "Quiet W", category: "bmw", type: "animation", file: "bmw/quiet_w.gif" },
       { id: "builtin-bmw-radar", name: "Radar", category: "bmw", type: "animation", file: "bmw/radar.gif" },
-      { id: "builtin-bmw-radar1", name: "Radar 1", category: "bmw", type: "animation", file: "bmw/radar1.gif" },
+      { id: "builtin-bmw-radar2", name: "Radar 2", category: "bmw", type: "animation", file: "bmw/radar2.gif" },
       { id: "builtin-emoji-smile", name: "Smile", category: "emoji", type: "image", file: "emoji/smile.png" },
       { id: "builtin-emoji-cool", name: "Cool", category: "emoji", type: "image", file: "emoji/cool.png" },
       { id: "builtin-emoji-heart-eyes", name: "Heart Eyes", category: "emoji", type: "image", file: "emoji/heart-eyes.png" },
@@ -554,16 +554,17 @@
 
     function sourceUrl(item) {
       if (item.source_url) {
-        return item.source_url.startsWith("http")
+        const raw = item.source_url.startsWith("http")
           ? item.source_url
           : `${apiBase()}${item.source_url}`;
+        return encodeURI(raw);
       }
       if (item.file) {
         // Prefer absolute assets mount when served from Pi/API, else relative from mockup folder
-        if (location.pathname.includes("/mockup") || location.port === "8080") {
-          return `/assets/${item.file}`;
-        }
-        return `../../assets/${item.file}`;
+        const path = (location.pathname.includes("/mockup") || location.port === "8080")
+          ? `/assets/${item.file}`
+          : `../../assets/${item.file}`;
+        return encodeURI(path);
       }
       return "";
     }

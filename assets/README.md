@@ -24,7 +24,7 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | quiet_r.gif | Quiet R | animation |
 | quiet_w.gif | Quiet W | animation |
 | radar.gif | Radar | animation |
-| radar1.gif | Radar 1 | animation |
+| radar2.gif | Radar 2 | animation |
 
 ## Emoji collection (9 items)
 
