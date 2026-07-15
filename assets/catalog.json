@@ -49,6 +49,13 @@
     "file": "bmw/radar.gif"
   },
   {
+    "id": "builtin-bmw-radar1",
+    "name": "Radar 1",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/radar1.gif"
+  },
+  {
     "id": "builtin-emoji-smile",
     "name": "Smile",
     "category": "emoji",

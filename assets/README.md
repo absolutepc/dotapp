@@ -7,11 +7,13 @@ Custom animations and emoji for the round display. Prefer your own uploads via t
 ```bash
 cd ~/dotapp
 git pull origin main
-bash scripts/refresh-gallery.sh
+# do NOT run refresh-gallery.sh / generate_assets.py (wipes custom GIFs)
+sudo rm -f /var/lib/bmw-logo/manifest.json
+sudo rm -rf /var/lib/bmw-logo/frames/builtin-*
 sudo systemctl restart bmw-logo-api bmw-logo-display
 ```
 
-## BMW / custom animations (7 items)
+## Gallery animations (8 items)
 
 | File | Name | Type |
 |------|------|------|
@@ -22,6 +24,7 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | quiet_r.gif | Quiet R | animation |
 | quiet_w.gif | Quiet W | animation |
 | radar.gif | Radar | animation |
+| radar1.gif | Radar 1 | animation |
 
 ## Emoji collection (9 items)
 
