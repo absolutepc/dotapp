@@ -34,7 +34,7 @@ async def startup() -> None:
     for item in storage.list_all():
         try:
             processor.ensure_frames(item)
-        except FileNotFoundError:
+        except (FileNotFoundError, OSError, ValueError):
             continue
 
     current = get_current_media_id()
@@ -81,7 +81,7 @@ async def upload(file: UploadFile = File(...)) -> dict:
         raise HTTPException(status_code=400, detail="Missing filename")
 
     suffix = Path(file.filename).suffix.lower()
-    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".webm", ".mp4"}
     if suffix not in allowed:
         raise HTTPException(status_code=400, detail=f"Unsupported type: {suffix}")
 
@@ -147,6 +147,8 @@ def source(media_id: str) -> FileResponse:
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
+        ".webm": "video/webm",
+        ".mp4": "video/mp4",
     }
     return FileResponse(
         path,

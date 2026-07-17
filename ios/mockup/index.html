@@ -245,6 +245,9 @@
       background: #d1d1d6;
       display: block;
     }
+    video.thumb {
+      pointer-events: none;
+    }
     .thumb-fallback {
       width: 100px;
       height: 100px;
@@ -317,6 +320,9 @@
       box-shadow: 0 8px 24px rgba(0,0,0,.2);
       background: #d1d1d6;
       display: block;
+    }
+    video.preview-circle {
+      background: #000;
     }
     .preview-body h2 {
       margin: 0;
@@ -487,6 +493,7 @@
         </div>
         <div class="preview-body">
           <img class="preview-circle" id="previewThumb" alt="" />
+          <video class="preview-circle" id="previewVideo" autoplay muted loop playsinline style="display:none"></video>
           <h2 id="previewName">Default</h2>
           <div class="meta" id="previewMeta">Animation</div>
           <button class="btn btn-primary" type="button" id="btnApply" onclick="applyItem()">Apply to Display</button>
@@ -523,6 +530,7 @@
       { id: "builtin-bmw-quiet_w", name: "Quiet W", category: "bmw", type: "animation", file: "bmw/quiet_w.gif" },
       { id: "builtin-bmw-radar", name: "Radar", category: "bmw", type: "animation", file: "bmw/radar.gif" },
       { id: "builtin-bmw-radar2", name: "Radar 2", category: "bmw", type: "animation", file: "bmw/radar2.gif" },
+      { id: "builtin-bmw-project1", name: "Project 1", category: "bmw", type: "animation", file: "bmw/project1.webm" },
       { id: "builtin-emoji-smile", name: "Smile", category: "emoji", type: "image", file: "emoji/smile.png" },
       { id: "builtin-emoji-cool", name: "Cool", category: "emoji", type: "image", file: "emoji/cool.png" },
       { id: "builtin-emoji-heart-eyes", name: "Heart Eyes", category: "emoji", type: "image", file: "emoji/heart-eyes.png" },
@@ -550,6 +558,19 @@
       if (id.includes("emoji")) return "emoji";
       if (item.builtin === false || (!id.includes("builtin-"))) return "custom";
       return "bmw";
+    }
+
+    function isVideo(item) {
+      const file = (item.file || item.filename || item.source_url || "").toLowerCase();
+      return file.endsWith(".webm") || file.endsWith(".mp4") || file.endsWith(".mov");
+    }
+
+    function mediaElementHtml(item, url) {
+      if (!url) return `<div class="thumb-fallback">No media</div>`;
+      if (isVideo(item)) {
+        return `<video class="thumb" src="${url}" autoplay muted loop playsinline></video>`;
+      }
+      return `<img class="thumb" src="${url}" alt="" loading="lazy" />`;
     }
 
     function sourceUrl(item) {
@@ -612,15 +633,13 @@
         b.className = "tile";
         b.type = "button";
         const url = sourceUrl(item);
-        b.innerHTML = url
-          ? `<img class="thumb" src="${url}" alt="" loading="lazy" /><span></span>`
-          : `<div class="thumb-fallback">No media</div><span></span>`;
+        b.innerHTML = `${mediaElementHtml(item, url)}<span></span>`;
         b.querySelector("span").textContent = item.name;
         b.onclick = () => openPreview(item);
-        const img = b.querySelector("img");
-        if (img) {
-          img.onerror = () => {
-            img.replaceWith(Object.assign(document.createElement("div"), {
+        const media = b.querySelector("img, video");
+        if (media) {
+          media.onerror = () => {
+            media.replaceWith(Object.assign(document.createElement("div"), {
               className: "thumb-fallback",
               textContent: "?",
             }));
@@ -634,13 +653,27 @@
       selected = item;
       const url = sourceUrl(item);
       const img = document.getElementById("previewThumb");
-      img.src = url;
-      img.alt = item.name;
+      const video = document.getElementById("previewVideo");
+      if (isVideo(item)) {
+        img.style.display = "none";
+        img.removeAttribute("src");
+        video.style.display = "block";
+        video.src = url;
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+        video.removeAttribute("src");
+        video.style.display = "none";
+        img.style.display = "block";
+        img.src = url;
+        img.alt = item.name;
+      }
       document.getElementById("previewName").textContent = item.name;
-      document.getElementById("previewMeta").textContent =
-        item.type === "animation" || (item.file || "").endsWith(".gif")
+      document.getElementById("previewMeta").textContent = isVideo(item)
+        ? "Video · WebM"
+        : (item.type === "animation" || (item.file || "").endsWith(".gif")
           ? `Animation · ${Math.round(item.fps || 60)} fps`
-          : "Static image";
+          : "Static image");
       document.getElementById("btnDelete").style.display =
         item.builtin === false || mediaCategory(item) === "custom" ? "block" : "none";
       document.getElementById("btnApply").disabled = mode !== "live";

@@ -52,7 +52,17 @@ class MediaProcessor:
         durations: list[float] = []
         frame_paths: list[Path] = []
 
-        if suffix == ".gif":
+        if suffix in {".webm", ".mp4", ".mov"}:
+            # HDMI frame cache needs ffmpeg later; keep a placeholder so gallery/API stay healthy.
+            placeholder = Image.new("RGBA", (DISPLAY_WIDTH, DISPLAY_HEIGHT), (20, 20, 24, 255))
+            masked = apply_circle_mask(placeholder, self._mask)
+            out = frame_dir / "0000.png"
+            masked.convert("RGB").save(out)
+            frame_paths.append(out)
+            durations = [1.0 / TARGET_FPS]
+            media_type = "animation"
+            fps = TARGET_FPS
+        elif suffix == ".gif":
             with Image.open(source) as im:
                 for idx, frame in enumerate(ImageSequence.Iterator(im)):
                     if idx >= MAX_GIF_FRAMES:
