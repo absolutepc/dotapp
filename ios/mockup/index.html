@@ -944,6 +944,7 @@
 
     async function useLocal() {
       mode = "local";
+      thumbCache.clear();
       document.getElementById("btnLocal").classList.add("active");
       document.getElementById("btnLive").classList.remove("active");
       await loadLocal();
@@ -951,12 +952,14 @@
 
     async function useLive() {
       mode = "live";
+      thumbCache.clear();
       document.getElementById("btnLive").classList.add("active");
       document.getElementById("btnLocal").classList.remove("active");
       await loadLive();
     }
 
     async function reloadGallery() {
+      thumbCache.clear();
       if (mode === "live") await loadLive();
       else await loadLocal();
       showToast("Галерея обновлена");
