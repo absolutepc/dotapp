@@ -49,13 +49,6 @@
     "file": "bmw/radar.gif"
   },
   {
-    "id": "builtin-bmw-radar2",
-    "name": "Radar 2",
-    "category": "bmw",
-    "type": "animation",
-    "file": "bmw/radar2.gif"
-  },
-  {
     "id": "builtin-bmw-project1",
     "name": "Project 1",
     "category": "bmw",
