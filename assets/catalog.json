@@ -56,6 +56,13 @@
     "file": "bmw/project1.webm"
   },
   {
+    "id": "builtin-bmw-project2",
+    "name": "Project 2",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/project2.gif"
+  },
+  {
     "id": "builtin-emoji-smile",
     "name": "Smile",
     "category": "emoji",

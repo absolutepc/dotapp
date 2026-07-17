@@ -13,7 +13,7 @@ sudo rm -rf /var/lib/bmw-logo/frames/builtin-*
 sudo systemctl restart bmw-logo-api bmw-logo-display
 ```
 
-## Gallery animations (8 items)
+## Gallery animations (9 items)
 
 | File | Name | Type |
 |------|------|------|
@@ -25,6 +25,7 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | quiet_w.gif | Quiet W | animation |
 | radar.gif | Radar | animation |
 | project1.webm | Project 1 | video (WebM → HDMI frames via ffmpeg) |
+| project2.gif | Project 2 | animation |
 
 WebM/MP4 require `ffmpeg` on the Pi (`sudo apt install -y ffmpeg`).
 
