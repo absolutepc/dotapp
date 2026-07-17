@@ -17,8 +17,8 @@ from firmware.media.storage import MediaItem, MediaStorage
 logger = logging.getLogger(__name__)
 
 VIDEO_SUFFIXES = {".webm", ".mp4", ".mov"}
-MAX_VIDEO_FRAMES = 120
-VIDEO_TARGET_FPS = 15.0
+MAX_VIDEO_FRAMES = 180
+VIDEO_TARGET_FPS = 60.0
 
 
 class MediaProcessor:
@@ -74,11 +74,9 @@ class MediaProcessor:
             )
 
         duration = self._probe_duration(source)
-        if duration and duration > 0:
-            fps = min(VIDEO_TARGET_FPS, MAX_VIDEO_FRAMES / duration)
-        else:
-            fps = VIDEO_TARGET_FPS
-        fps = max(fps, 1.0)
+        # Keep 60 fps smoothness; take up to MAX_VIDEO_FRAMES (180 → ~3.0s at 60fps).
+        # Longer source videos are truncated to the first 180 frames.
+        fps = VIDEO_TARGET_FPS
 
         # rgb24 + mild lift so dark radar animations stay visible on HDMI
         vf = (

@@ -24,11 +24,12 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | quiet_r.gif | Quiet R | animation |
 | quiet_w.gif | Quiet W | animation |
 | radar.gif | Radar | animation |
-| project1.webm | Project 1 | video (WebM → HDMI frames via ffmpeg) |
-| project2.webm | Project 2 | video (WebM → HDMI frames via ffmpeg) |
-| project3.webm | Project 3 | video (WebM → HDMI frames via ffmpeg) |
+| project1.webm | Project 1 | video (WebM → HDMI, up to 180 frames @ 60 fps) |
+| project2.webm | Project 2 | video (WebM → HDMI, up to 180 frames @ 60 fps) |
+| project3.webm | Project 3 | video (WebM → HDMI, up to 180 frames @ 60 fps) |
 
 WebM/MP4 require `ffmpeg` on the Pi (`sudo apt install -y ffmpeg`).
+Video is extracted at **60 fps**, max **180 frames** (~3 s). Longer clips are truncated to the first 180 frames.
 
 ## Emoji collection (9 items)
 
