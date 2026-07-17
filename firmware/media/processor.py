@@ -40,8 +40,8 @@ class MediaProcessor:
 
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
         thumb = frame.copy()
-        thumb.thumbnail((120, 120), Image.Resampling.LANCZOS)
-        thumb.convert("RGB").save(PREVIEW_DIR / f"{media_id}.jpg", quality=85)
+        thumb.thumbnail((160, 160), Image.Resampling.LANCZOS)
+        thumb.convert("RGB").save(PREVIEW_DIR / f"{media_id}.jpg", quality=90)
 
     def _probe_duration(self, source: Path) -> float | None:
         try:
