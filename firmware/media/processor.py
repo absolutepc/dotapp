@@ -73,7 +73,6 @@ class MediaProcessor:
                 "ffmpeg is required for WebM/MP4. Install with: sudo apt install -y ffmpeg"
             )
 
-        duration = self._probe_duration(source)
         # Keep 60 fps smoothness; take up to MAX_VIDEO_FRAMES (180 → ~3.0s at 60fps).
         # Longer source videos are truncated to the first 180 frames.
         fps = VIDEO_TARGET_FPS
