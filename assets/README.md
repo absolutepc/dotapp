@@ -25,7 +25,9 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | quiet_w.gif | Quiet W | animation |
 | radar.gif | Radar | animation |
 | radar2.gif | Radar 2 | animation |
-| project1.webm | Project 1 | video |
+| project1.webm | Project 1 | video (WebM → HDMI frames via ffmpeg) |
+
+WebM/MP4 require `ffmpeg` on the Pi (`sudo apt install -y ffmpeg`).
 
 ## Emoji collection (9 items)
 

@@ -5,6 +5,9 @@ set -euo pipefail
 INSTALL_DIR="/opt/bmw-logo"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+sudo apt-get update
+sudo apt-get install -y ffmpeg python3-venv python3-pip rsync
+
 echo "Installing to ${INSTALL_DIR}..."
 
 sudo mkdir -p "${INSTALL_DIR}"
