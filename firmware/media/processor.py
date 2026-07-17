@@ -6,7 +6,6 @@ import json
 import logging
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 from PIL import Image, ImageOps, ImageSequence
@@ -18,8 +17,8 @@ from firmware.media.storage import MediaItem, MediaStorage
 logger = logging.getLogger(__name__)
 
 VIDEO_SUFFIXES = {".webm", ".mp4", ".mov"}
-MAX_VIDEO_FRAMES = MAX_GIF_FRAMES
-VIDEO_TARGET_FPS = 20.0
+MAX_VIDEO_FRAMES = 120
+VIDEO_TARGET_FPS = 15.0
 
 
 class MediaProcessor:
@@ -56,12 +55,12 @@ class MediaProcessor:
                     "default=noprint_wrappers=1:nokey=1",
                     str(source),
                 ],
-                check=True,
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
             )
-            value = result.stdout.strip()
+            value = (result.stdout or "").strip()
             return float(value) if value else None
         except (subprocess.SubprocessError, ValueError, FileNotFoundError) as exc:
             logger.warning("ffprobe failed for %s: %s", source, exc)
@@ -81,24 +80,35 @@ class MediaProcessor:
             fps = VIDEO_TARGET_FPS
         fps = max(fps, 1.0)
 
+        # rgb24 + mild lift so dark radar animations stay visible on HDMI
         vf = (
             f"fps={fps:.4f},"
             f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:force_original_aspect_ratio=increase,"
-            f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}"
+            f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT},"
+            "eq=contrast=1.12:brightness=0.04,"
+            "format=rgb24"
         )
         pattern = dest_dir / "raw_%04d.png"
         cmd = [
             "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
             "-y",
             "-i",
             str(source),
+            "-an",
             "-vf",
             vf,
             "-frames:v",
             str(MAX_VIDEO_FRAMES),
             str(pattern),
         ]
-        subprocess.run(cmd, check=True, capture_output=True, timeout=300)
+        result = subprocess.run(cmd, check=False, capture_output=True, timeout=300)
+        if result.returncode != 0:
+            err = (result.stderr or result.stdout or b"").decode("utf-8", errors="replace")
+            raise RuntimeError(f"ffmpeg failed for {source.name}: {err[-800:]}")
+
         frames = sorted(dest_dir.glob("raw_*.png"))
         if not frames:
             raise RuntimeError(f"ffmpeg produced no frames for {source}")
@@ -121,18 +131,23 @@ class MediaProcessor:
 
         durations: list[float] = []
         frame_paths: list[Path] = []
+        fps = TARGET_FPS
 
         if suffix in VIDEO_SUFFIXES:
-            with tempfile.TemporaryDirectory(prefix="bmw-video-") as tmp:
-                raw_frames, fps = self._extract_video_frames(source, Path(tmp))
+            raw_dir = frame_dir / "_raw"
+            raw_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                raw_frames, fps = self._extract_video_frames(source, raw_dir)
                 for idx, raw in enumerate(raw_frames):
                     with Image.open(raw) as im:
                         fitted = self._fit_square(im)
                         masked = apply_circle_mask(fitted, self._mask)
                         out = frame_dir / f"{idx:04d}.png"
-                        masked.convert("RGB").save(out)
+                        masked.convert("RGB").save(out, optimize=False)
                         frame_paths.append(out)
                         durations.append(1.0 / fps)
+            finally:
+                shutil.rmtree(raw_dir, ignore_errors=True)
             media_type = "animation"
         elif suffix == ".gif":
             with Image.open(source) as im:
@@ -159,27 +174,47 @@ class MediaProcessor:
             media_type = "image"
             fps = TARGET_FPS
 
-        meta = {"durations": durations, "frame_count": len(frame_paths), "fps": fps}
+        if not frame_paths:
+            raise RuntimeError(f"No frames produced for {source}")
+
+        meta = {
+            "durations": durations,
+            "frame_count": len(frame_paths),
+            "fps": fps,
+            "source_suffix": suffix,
+        }
         (frame_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
         with Image.open(frame_paths[0]) as first:
             self._save_preview(media_id, first)
+
+        # Keep relative path for builtins so resolve_source_path stays stable
+        if builtin:
+            try:
+                from firmware.config import REPO_ROOT
+
+                rel = source.resolve().relative_to(REPO_ROOT.resolve())
+                filename = str(rel)
+            except Exception:
+                filename = str(source)
+        else:
+            filename = source.name
 
         item = MediaItem(
             id=media_id,
             name=name,
             type=media_type,
             builtin=builtin,
-            filename=str(source.name if not builtin else source),
+            filename=filename,
             frame_count=len(frame_paths),
             fps=fps,
         )
-        if not builtin:
-            self.storage.add(item)
+        # Always refresh manifest entry (fps/frame_count matter for display)
+        self.storage.add(item)
         return item
 
     def ensure_frames(self, item: MediaItem) -> None:
-        """Build frame cache for a manifest item if missing."""
+        """Build frame cache for a manifest item if missing or stale video placeholder."""
         from firmware.config import FRAMES_DIR, REPO_ROOT
 
         frame_dir = FRAMES_DIR / item.id
@@ -187,13 +222,34 @@ class MediaProcessor:
         if not source.is_absolute():
             source = REPO_ROOT / source
         if not source.exists():
-            raise FileNotFoundError(f"Source not found: {source}")
+            # Common GitHub upload rename with spaces
+            alt = source.parent / source.name.replace("_", " ")
+            if alt.exists():
+                source = alt
+            else:
+                raise FileNotFoundError(f"Source not found: {source}")
 
         existing = sorted(frame_dir.glob("*.png")) if frame_dir.exists() else []
-        # Rebuild old WebM placeholders (single frame) now that ffmpeg extraction exists
-        if existing and not (
-            source.suffix.lower() in VIDEO_SUFFIXES and len(existing) <= 1
-        ):
+        meta_path = frame_dir / "meta.json"
+        needs_rebuild = False
+        if not existing:
+            needs_rebuild = True
+        elif source.suffix.lower() in VIDEO_SUFFIXES:
+            if len(existing) <= 1:
+                needs_rebuild = True
+            elif meta_path.exists():
+                try:
+                    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                    if meta.get("source_suffix") not in VIDEO_SUFFIXES:
+                        needs_rebuild = True
+                    if int(meta.get("frame_count") or 0) != len(existing):
+                        needs_rebuild = True
+                except Exception:
+                    needs_rebuild = True
+            else:
+                needs_rebuild = True
+
+        if not needs_rebuild:
             return
 
         self.process_file(item.id, source, item.name, builtin=item.builtin)

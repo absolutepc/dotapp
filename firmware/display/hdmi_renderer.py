@@ -65,24 +65,40 @@ class HDMIRenderer:
         self._frame_paths: list[Path] = []
         self._frame_index = 0
         self._frame_durations: list[float] = []
-        self._last_manifest_mtime = 0.0
+        self._last_state_mtime = 0.0
+        self._last_frames_mtime = 0.0
+
+    def _dir_mtime(self, frame_dir: Path) -> float:
+        try:
+            mtimes = [frame_dir.stat().st_mtime]
+            meta = frame_dir / "meta.json"
+            if meta.exists():
+                mtimes.append(meta.stat().st_mtime)
+            return max(mtimes)
+        except OSError:
+            return 0.0
 
     def _load_state(self) -> None:
         if not CURRENT_MEDIA_FILE.exists():
             return
 
-        mtime = CURRENT_MEDIA_FILE.stat().st_mtime
-        if mtime <= self._last_manifest_mtime:
-            return
-
-        self._last_manifest_mtime = mtime
+        state_mtime = CURRENT_MEDIA_FILE.stat().st_mtime
         data = json.loads(CURRENT_MEDIA_FILE.read_text(encoding="utf-8"))
         media_id = data.get("media_id")
-        if not media_id or media_id == self._current_media_id:
+        if not media_id:
             return
 
         frame_dir = FRAMES_DIR / media_id
         if not frame_dir.is_dir():
+            return
+
+        frames_mtime = self._dir_mtime(frame_dir)
+        same_media = media_id == self._current_media_id
+        if (
+            same_media
+            and state_mtime <= self._last_state_mtime
+            and frames_mtime <= self._last_frames_mtime
+        ):
             return
 
         paths = sorted(frame_dir.glob("*.png"))
@@ -95,15 +111,17 @@ class HDMIRenderer:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
             durations = meta.get("durations", [])
 
-        if not durations:
-            fps = data.get("fps", TARGET_FPS)
-            durations = [1.0 / fps] * len(paths)
+        if not durations or len(durations) != len(paths):
+            fps = float(data.get("fps") or TARGET_FPS)
+            durations = [1.0 / max(fps, 1.0)] * len(paths)
 
         self._current_media_id = media_id
         self._frame_paths = paths
         self._frame_durations = durations
         self._frame_index = 0
-
+        self._last_state_mtime = state_mtime
+        self._last_frames_mtime = frames_mtime
+        print(f"Loaded media {media_id}: {len(paths)} frames")
     def _pil_to_surface(self, image: Image.Image) -> pygame.Surface:
         masked = apply_circle_mask(image, self._mask)
         rgb = masked.convert("RGB")

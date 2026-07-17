@@ -33,8 +33,12 @@ async def startup() -> None:
     storage.register_builtin_assets()
     for item in storage.list_all():
         try:
+            # WebM/MP4 are prepared lazily on /api/display (slow on Pi Zero)
+            suffix = Path(item.filename).suffix.lower()
+            if suffix in {".webm", ".mp4", ".mov"}:
+                continue
             processor.ensure_frames(item)
-        except (FileNotFoundError, OSError, ValueError):
+        except Exception:
             continue
 
     current = get_current_media_id()
@@ -97,9 +101,23 @@ def display(req: DisplayRequest) -> dict:
     if not item:
         raise HTTPException(status_code=404, detail="Media not found")
 
-    processor.ensure_frames(item)
+    try:
+        processor.ensure_frames(item)
+    except Exception as exc:  # noqa: BLE001 - surface prepare errors to clients
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to prepare media: {exc}",
+        ) from exc
+
+    # Re-read after ensure_frames (fps/frame_count may have been updated)
+    item = storage.get(req.media_id) or item
     set_current_media(item.id, item.fps)
-    return {"ok": True, "media_id": item.id}
+    return {
+        "ok": True,
+        "media_id": item.id,
+        "fps": item.fps,
+        "frame_count": item.frame_count,
+    }
 
 
 @router.delete("/media/{media_id}")
