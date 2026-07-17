@@ -60,7 +60,14 @@
     "name": "Project 2",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/project2.gif"
+    "file": "bmw/project2.webm"
+  },
+  {
+    "id": "builtin-bmw-project3",
+    "name": "Project 3",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/project3.webm"
   },
   {
     "id": "builtin-emoji-smile",
