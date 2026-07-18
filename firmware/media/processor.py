@@ -21,11 +21,7 @@ MAX_VIDEO_FRAMES = 360
 # 15 fps keeps motion smooth enough and finishes in seconds on Pi Zero
 VIDEO_TARGET_FPS = 15.0
 # Bump when PNG/JPEG cache encoding changes so ensure_frames rebuilds on Pi.
-FRAME_CACHE_VERSION = 5
-# Auto-zoom: fill this fraction of the round display with detected content.
-CONTENT_FILL = 0.94
-CONTENT_MIN_HEIGHT = 0.38
-MAX_AUTO_ZOOM = 1.5
+FRAME_CACHE_VERSION = 6
 
 
 def list_frame_files(frame_dir: Path) -> list[Path]:
@@ -108,63 +104,6 @@ class MediaProcessor:
                 return sibling
         return source
 
-    def _probe_content_zoom(self, source: Path) -> float:
-        """Zoom so small centered logos fill the round panel (e.g. Anim 3)."""
-        import tempfile
-
-        with tempfile.TemporaryDirectory(prefix="bmw-zoom-") as tmp:
-            sample = Path(tmp) / "sample.png"
-            cmd = [
-                "ffmpeg",
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-y",
-                "-ss",
-                "0.35",
-                "-i",
-                str(source),
-                "-frames:v",
-                "1",
-                "-vf",
-                f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}",
-                str(sample),
-            ]
-            result = subprocess.run(cmd, check=False, capture_output=True, timeout=60)
-            if result.returncode != 0 or not sample.exists():
-                return 1.0
-
-            with Image.open(sample) as im:
-                # Threshold to a mask, then bounding box of non-black content
-                gray = im.convert("L")
-                mask = gray.point(lambda p: 255 if p > 18 else 0)
-                bbox = mask.getbbox()
-                if not bbox:
-                    return 1.0
-                cw = bbox[2] - bbox[0]
-                ch = bbox[3] - bbox[1]
-                if cw * ch < 80:
-                    return 1.0
-                # Already fills enough of the round panel — leave framing alone
-                if ch >= DISPLAY_HEIGHT * 0.28 and cw >= DISPLAY_WIDTH * 0.42:
-                    return 1.0
-
-        zoom_w = (DISPLAY_WIDTH * CONTENT_FILL) / max(cw, 1)
-        zoom_h = (DISPLAY_HEIGHT * CONTENT_MIN_HEIGHT) / max(ch, 1)
-        zoom = max(zoom_w, zoom_h, 1.0)
-        zoom = min(zoom, MAX_AUTO_ZOOM)
-        # Ignore tiny zooms — not worth re-encoding
-        if zoom < 1.08:
-            return 1.0
-        logger.info(
-            "Auto-zoom %s: content=%sx%s → zoom=%.2f",
-            source.name,
-            cw,
-            ch,
-            zoom,
-        )
-        return zoom
-
     def _extract_video_frames(self, source: Path, dest_dir: Path) -> tuple[list[Path], float]:
         """Extract WebM/MP4 directly to final 480x480 JPEGs (no per-frame Pillow)."""
         if shutil.which("ffmpeg") is None:
@@ -180,13 +119,9 @@ class MediaProcessor:
             fps = VIDEO_TARGET_FPS
         fps = max(fps, 1.0)
 
-        zoom = self._probe_content_zoom(decode_src)
-        # Scale up then center-crop so small logos aren't tiny on the round HDMI
-        scale_w = int(DISPLAY_WIDTH * zoom)
-        scale_h = int(DISPLAY_HEIGHT * zoom)
         vf = (
             f"fps={fps:.4f},"
-            f"scale={scale_w}:{scale_h}:flags=bilinear:"
+            f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:flags=bilinear:"
             f"force_original_aspect_ratio=increase,"
             f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT},"
             "eq=contrast=1.35:brightness=0.12:gamma=1.25"
@@ -212,11 +147,10 @@ class MediaProcessor:
             str(pattern),
         ]
         logger.info(
-            "ffmpeg extract %s → %s (fps=%.2f zoom=%.2f)",
+            "ffmpeg extract %s → %s (fps=%.2f)",
             decode_src.name,
             dest_dir,
             fps,
-            zoom,
         )
         result = subprocess.run(cmd, check=False, capture_output=True, timeout=420)
         if result.returncode != 0:
