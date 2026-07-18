@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -19,6 +20,8 @@ from firmware.media.processor import MediaProcessor
 from firmware.media.storage import MediaStorage
 from firmware.state import get_current_media_id, set_current_media
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api")
 storage = MediaStorage()
 processor = MediaProcessor(storage)
@@ -30,22 +33,28 @@ class DisplayRequest(BaseModel):
 
 @router.on_event("startup")
 async def startup() -> None:
+    """Register catalog and prepare only the active logo quickly.
+
+    Full gallery frame caches are built lazily on /api/display. Preparing every
+    360-frame GIF at boot left the HDMI renderer on a black screen for minutes.
+    """
     storage.register_builtin_assets()
-    for item in storage.list_all():
-        try:
-            # WebM/MP4 are prepared lazily on /api/display (slow on Pi Zero)
-            suffix = Path(item.filename).suffix.lower()
-            if suffix in {".webm", ".mp4", ".mov"}:
-                continue
-            processor.ensure_frames(item)
-        except Exception:
-            continue
 
     current = get_current_media_id()
-    if not current:
-        default = next((m for m in storage.list_all() if "default" in m.id), None)
-        if default:
-            set_current_media(default.id, default.fps)
+    priority = None
+    if current:
+        priority = storage.get(current)
+    if priority is None:
+        priority = next((m for m in storage.list_all() if "default" in m.id), None)
+        if priority:
+            set_current_media(priority.id, priority.fps)
+
+    if priority is not None:
+        try:
+            processor.ensure_frames(priority)
+            logger.info("Prepared startup media %s (%s frames)", priority.id, priority.frame_count)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to prepare startup media %s: %s", priority.id, exc)
 
 
 @router.get("/status")

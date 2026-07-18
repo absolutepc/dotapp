@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from PIL import Image, ImageOps, ImageSequence
+from PIL import Image, ImageEnhance, ImageOps, ImageSequence, ImageStat
 
 from firmware.config import DISPLAY_HEIGHT, DISPLAY_WIDTH, MAX_GIF_FRAMES, TARGET_FPS
 from firmware.display.mask import apply_circle_mask, create_circle_mask
@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 VIDEO_SUFFIXES = {".webm", ".mp4", ".mov"}
 MAX_VIDEO_FRAMES = 360
 VIDEO_TARGET_FPS = 24.0
+# Bump when PNG cache encoding changes so ensure_frames rebuilds on Pi.
+FRAME_CACHE_VERSION = 2
 
 
 class MediaProcessor:
@@ -33,6 +35,21 @@ class MediaProcessor:
             method=Image.Resampling.LANCZOS,
             centering=(0.5, 0.5),
         )
+
+    def _ensure_visible(self, image: Image.Image) -> Image.Image:
+        """Lift near-black neon/radar art so it reads on dim HDMI panels."""
+        rgba = image.convert("RGBA")
+        w, h = rgba.size
+        sample = rgba.crop((w // 4, h // 4, 3 * w // 4, 3 * h // 4)).convert("RGB")
+        lum = sum(ImageStat.Stat(sample).mean) / 3.0
+        if lum < 12:
+            factor = min(3.5, 28.0 / max(lum, 1.0))
+            rgba = ImageEnhance.Brightness(rgba).enhance(factor)
+            rgba = ImageEnhance.Contrast(rgba).enhance(1.4)
+        elif lum < 28:
+            rgba = ImageEnhance.Brightness(rgba).enhance(1.35)
+            rgba = ImageEnhance.Contrast(rgba).enhance(1.2)
+        return rgba
 
     def _save_preview(self, media_id: str, frame: Image.Image) -> None:
         from firmware.config import PREVIEW_DIR
@@ -80,12 +97,12 @@ class MediaProcessor:
             fps = VIDEO_TARGET_FPS
         fps = max(fps, 1.0)
 
-        # rgb24 + mild lift so dark radar animations stay visible on HDMI
+        # Stronger lift — dark radar/neon art looks black on round HDMI
         vf = (
             f"fps={fps:.4f},"
             f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:force_original_aspect_ratio=increase,"
             f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT},"
-            "eq=contrast=1.12:brightness=0.04,"
+            "eq=contrast=1.35:brightness=0.12:gamma=1.25,"
             "format=rgb24"
         )
         pattern = dest_dir / "raw_%04d.png"
@@ -140,7 +157,7 @@ class MediaProcessor:
                 raw_frames, fps = self._extract_video_frames(source, raw_dir)
                 for idx, raw in enumerate(raw_frames):
                     with Image.open(raw) as im:
-                        fitted = self._fit_square(im)
+                        fitted = self._ensure_visible(self._fit_square(im))
                         masked = apply_circle_mask(fitted, self._mask)
                         out = frame_dir / f"{idx:04d}.png"
                         masked.convert("RGB").save(out, optimize=False)
@@ -151,10 +168,20 @@ class MediaProcessor:
             media_type = "animation"
         elif suffix == ".gif":
             with Image.open(source) as im:
+                canvas = Image.new("RGBA", im.size, (0, 0, 0, 0))
                 for idx, frame in enumerate(ImageSequence.Iterator(im)):
                     if idx >= MAX_GIF_FRAMES:
                         break
-                    fitted = self._fit_square(frame.convert("RGBA"))
+                    rgba = frame.convert("RGBA")
+                    disposal = int(getattr(frame, "disposal_method", 0) or 0)
+                    composed = canvas.copy()
+                    composed.paste(rgba, (0, 0), rgba)
+                    if disposal == 2:
+                        canvas = Image.new("RGBA", im.size, (0, 0, 0, 0))
+                    else:
+                        canvas = composed
+
+                    fitted = self._ensure_visible(self._fit_square(composed))
                     masked = apply_circle_mask(fitted, self._mask)
                     out = frame_dir / f"{idx:04d}.png"
                     masked.convert("RGB").save(out)
@@ -165,7 +192,7 @@ class MediaProcessor:
             fps = 1.0 / (sum(durations) / len(durations)) if durations else TARGET_FPS
         else:
             with Image.open(source) as im:
-                fitted = self._fit_square(im)
+                fitted = self._ensure_visible(self._fit_square(im))
                 masked = apply_circle_mask(fitted, self._mask)
                 out = frame_dir / "0000.png"
                 masked.convert("RGB").save(out)
@@ -182,6 +209,7 @@ class MediaProcessor:
             "frame_count": len(frame_paths),
             "fps": fps,
             "source_suffix": suffix,
+            "cache_version": FRAME_CACHE_VERSION,
         }
         (frame_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -214,7 +242,7 @@ class MediaProcessor:
         return item
 
     def ensure_frames(self, item: MediaItem) -> None:
-        """Build frame cache for a manifest item if missing or stale video placeholder."""
+        """Build frame cache for a manifest item if missing or stale."""
         from firmware.config import FRAMES_DIR, REPO_ROOT
 
         frame_dir = FRAMES_DIR / item.id
@@ -232,24 +260,25 @@ class MediaProcessor:
         existing = sorted(frame_dir.glob("*.png")) if frame_dir.exists() else []
         meta_path = frame_dir / "meta.json"
         needs_rebuild = False
+        meta: dict = {}
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except Exception:
+                meta = {}
+                needs_rebuild = True
+
         if not existing:
             needs_rebuild = True
-        elif source.suffix.lower() in VIDEO_SUFFIXES:
-            if len(existing) <= 1:
-                needs_rebuild = True
-            elif meta_path.exists():
-                try:
-                    meta = json.loads(meta_path.read_text(encoding="utf-8"))
-                    if meta.get("source_suffix") not in VIDEO_SUFFIXES:
-                        needs_rebuild = True
-                    if int(meta.get("frame_count") or 0) != len(existing):
-                        needs_rebuild = True
-                except Exception:
-                    needs_rebuild = True
-            else:
-                needs_rebuild = True
+        elif int(meta.get("cache_version") or 0) != FRAME_CACHE_VERSION:
+            needs_rebuild = True
+        elif meta.get("source_suffix") and meta.get("source_suffix") != source.suffix.lower():
+            needs_rebuild = True
+        elif int(meta.get("frame_count") or 0) != len(existing):
+            needs_rebuild = True
+        elif source.suffix.lower() in VIDEO_SUFFIXES and len(existing) <= 1:
+            needs_rebuild = True
         elif source.suffix.lower() == ".gif":
-            # Rebuild when source grew (e.g. 120 → 360 frames) or cache is truncated.
             try:
                 with Image.open(source) as im:
                     source_frames = min(int(getattr(im, "n_frames", 1) or 1), MAX_GIF_FRAMES)

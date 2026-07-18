@@ -221,7 +221,8 @@ class HDMIRenderer:
             self._load_state()
 
             if not self._frame_paths:
-                self._screen.fill((0, 0, 0))
+                # Dim gray (not pure black) so "no cache yet" is distinguishable
+                self._screen.fill((18, 18, 22))
                 pygame.display.flip()
                 continue
 
@@ -237,7 +238,7 @@ class HDMIRenderer:
             if surface is not None:
                 self._screen.blit(surface, (0, 0))
             else:
-                self._screen.fill((0, 0, 0))
+                self._screen.fill((18, 18, 22))
             pygame.display.flip()
 
         pygame.quit()

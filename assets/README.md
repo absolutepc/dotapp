@@ -36,6 +36,10 @@ WebM/MP4 uploads still work via ffmpeg, but GIF is recommended.
 Firmware accepts up to **360 frames** per GIF/video. Shorter clips preload into RAM;
 longer ones (e.g. Project 1–3) stream from disk with a small frame cache.
 
+Dark neon/radar clips are auto-brightened when building the frame cache so they
+stay visible on dim round HDMI panels. After pulling updates, wipe `frames/` as
+above — the first select rebuilds cache (may take a minute on Pi Zero).
+
 ## Emoji collection (9 items)
 
 | File | Name | Type |
