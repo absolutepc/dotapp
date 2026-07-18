@@ -157,7 +157,11 @@ class HDMIRenderer:
         ):
             return
 
-        paths = sorted(frame_dir.glob("*.png"))
+        paths = sorted(
+            p
+            for p in frame_dir.iterdir()
+            if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg"}
+        )
         if not paths:
             return
 

@@ -18,9 +18,21 @@ logger = logging.getLogger(__name__)
 
 VIDEO_SUFFIXES = {".webm", ".mp4", ".mov"}
 MAX_VIDEO_FRAMES = 360
-VIDEO_TARGET_FPS = 24.0
-# Bump when PNG cache encoding changes so ensure_frames rebuilds on Pi.
-FRAME_CACHE_VERSION = 2
+# 15 fps keeps motion smooth enough and finishes in seconds on Pi Zero
+VIDEO_TARGET_FPS = 15.0
+# Bump when PNG/JPEG cache encoding changes so ensure_frames rebuilds on Pi.
+FRAME_CACHE_VERSION = 3
+
+
+def list_frame_files(frame_dir: Path) -> list[Path]:
+    """Cached display frames (GIF→PNG, video→JPEG)."""
+    if not frame_dir.is_dir():
+        return []
+    return sorted(
+        p
+        for p in frame_dir.iterdir()
+        if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg"}
+    )
 
 
 class MediaProcessor:
@@ -84,7 +96,7 @@ class MediaProcessor:
             return None
 
     def _extract_video_frames(self, source: Path, dest_dir: Path) -> tuple[list[Path], float]:
-        """Extract WebM/MP4 frames via ffmpeg into dest_dir as raw PNGs."""
+        """Extract WebM/MP4 directly to final 480x480 JPEGs (no per-frame Pillow)."""
         if shutil.which("ffmpeg") is None:
             raise RuntimeError(
                 "ffmpeg is required for WebM/MP4. Install with: sudo apt install -y ffmpeg"
@@ -97,15 +109,14 @@ class MediaProcessor:
             fps = VIDEO_TARGET_FPS
         fps = max(fps, 1.0)
 
-        # Stronger lift — dark radar/neon art looks black on round HDMI
+        # All sizing + visibility lift in ffmpeg — Pillow per-frame was minutes on Pi Zero
         vf = (
             f"fps={fps:.4f},"
             f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:force_original_aspect_ratio=increase,"
             f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT},"
-            "eq=contrast=1.35:brightness=0.12:gamma=1.25,"
-            "format=rgb24"
+            "eq=contrast=1.35:brightness=0.12:gamma=1.25"
         )
-        pattern = dest_dir / "raw_%04d.png"
+        pattern = dest_dir / "%04d.jpg"
         cmd = [
             "ffmpeg",
             "-hide_banner",
@@ -119,16 +130,20 @@ class MediaProcessor:
             vf,
             "-frames:v",
             str(MAX_VIDEO_FRAMES),
+            "-q:v",
+            "3",
             str(pattern),
         ]
-        result = subprocess.run(cmd, check=False, capture_output=True, timeout=300)
+        logger.info("ffmpeg extract %s → %s (fps=%.2f)", source.name, dest_dir, fps)
+        result = subprocess.run(cmd, check=False, capture_output=True, timeout=180)
         if result.returncode != 0:
             err = (result.stderr or result.stdout or b"").decode("utf-8", errors="replace")
             raise RuntimeError(f"ffmpeg failed for {source.name}: {err[-800:]}")
 
-        frames = sorted(dest_dir.glob("raw_*.png"))
+        frames = list_frame_files(dest_dir)
         if not frames:
             raise RuntimeError(f"ffmpeg produced no frames for {source}")
+        logger.info("ffmpeg produced %d frames for %s", len(frames), source.name)
         return frames, fps
 
     def process_file(
@@ -151,20 +166,9 @@ class MediaProcessor:
         fps = TARGET_FPS
 
         if suffix in VIDEO_SUFFIXES:
-            raw_dir = frame_dir / "_raw"
-            raw_dir.mkdir(parents=True, exist_ok=True)
-            try:
-                raw_frames, fps = self._extract_video_frames(source, raw_dir)
-                for idx, raw in enumerate(raw_frames):
-                    with Image.open(raw) as im:
-                        fitted = self._ensure_visible(self._fit_square(im))
-                        masked = apply_circle_mask(fitted, self._mask)
-                        out = frame_dir / f"{idx:04d}.png"
-                        masked.convert("RGB").save(out, optimize=False)
-                        frame_paths.append(out)
-                        durations.append(1.0 / fps)
-            finally:
-                shutil.rmtree(raw_dir, ignore_errors=True)
+            # Write final JPEGs straight into frame_dir (fast path for Pi Zero)
+            frame_paths, fps = self._extract_video_frames(source, frame_dir)
+            durations = [1.0 / fps] * len(frame_paths)
             media_type = "animation"
         elif suffix == ".gif":
             with Image.open(source) as im:
@@ -257,7 +261,7 @@ class MediaProcessor:
             else:
                 raise FileNotFoundError(f"Source not found: {source}")
 
-        existing = sorted(frame_dir.glob("*.png")) if frame_dir.exists() else []
+        existing = list_frame_files(frame_dir)
         meta_path = frame_dir / "meta.json"
         needs_rebuild = False
         meta: dict = {}
@@ -290,4 +294,5 @@ class MediaProcessor:
         if not needs_rebuild:
             return
 
+        logger.info("Rebuilding frames for %s from %s", item.id, source.name)
         self.process_file(item.id, source, item.name, builtin=item.builtin)

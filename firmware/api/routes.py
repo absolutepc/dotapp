@@ -110,9 +110,11 @@ def display(req: DisplayRequest) -> dict:
     if not item:
         raise HTTPException(status_code=404, detail="Media not found")
 
+    logger.info("Display request for %s (%s)", item.id, item.filename)
     try:
         processor.ensure_frames(item)
     except Exception as exc:  # noqa: BLE001 - surface prepare errors to clients
+        logger.exception("Failed to prepare %s", item.id)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to prepare media: {exc}",
@@ -121,6 +123,7 @@ def display(req: DisplayRequest) -> dict:
     # Re-read after ensure_frames (fps/frame_count may have been updated)
     item = storage.get(req.media_id) or item
     set_current_media(item.id, item.fps)
+    logger.info("Display set %s frames=%s fps=%s", item.id, item.frame_count, item.fps)
     return {
         "ok": True,
         "media_id": item.id,
