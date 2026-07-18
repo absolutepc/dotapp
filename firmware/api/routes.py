@@ -177,9 +177,9 @@ def source(media_id: str) -> FileResponse:
         ".webm": "video/webm",
         ".mp4": "video/mp4",
     }
+    # Do not set filename=… — that forces Content-Disposition: attachment and
+    # breaks <img>/<video> playback inside the HTML mockup.
     return FileResponse(
         path,
         media_type=media_types.get(suffix, "application/octet-stream"),
-        # inline so <img>/<video> in the HTML mockup can play the animation
-        content_disposition_type="inline",
     )
