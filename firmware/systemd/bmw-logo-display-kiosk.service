@@ -1,22 +1,29 @@
 [Unit]
 Description=BMW Logo HDMI Display Renderer (kiosk, no desktop)
-After=local-fs.target bmw-logo-api.service
+# Start as soon as local FS is up; API can come later (state file polled)
+After=local-fs.target
+Wants=bmw-logo-api.service
 Before=getty@tty1.service
 Conflicts=getty@tty1.service
 
 [Service]
 Type=simple
 User=pi
+SupplementaryGroups=video render
 WorkingDirectory=/opt/bmw-logo
 Environment=PYTHONPATH=/opt/bmw-logo
+Environment=SDL_VIDEODRIVER=kmsdrm
+# Clear leftover boot text, then start renderer
+ExecStartPre=/bin/sh -c 'setterm -cursor off -blank 0 -powerdown 0 2>/dev/null || true; clear || true'
 TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
 StandardInput=tty
 StandardOutput=journal
+StandardError=journal
 ExecStart=/opt/bmw-logo/.venv/bin/python -m firmware.display.hdmi_renderer
 Restart=always
-RestartSec=3
+RestartSec=2
 
 [Install]
 WantedBy=multi-user.target

@@ -89,19 +89,27 @@ if [[ -x "${INSTALL_DIR}/venv/bin/uvicorn" ]]; then
   sed -i "s|/.venv/bin/uvicorn|/venv/bin/uvicorn|g" /etc/systemd/system/bmw-logo-api.service
 fi
 
+# Ensure user can open DRM/KMS devices without desktop
+usermod -aG video,render "${PI_USER}" 2>/dev/null || usermod -aG video "${PI_USER}" 2>/dev/null || true
+
 systemctl daemon-reload
 systemctl enable bmw-logo-api bmw-logo-display
+systemctl restart bmw-logo-api bmw-logo-display 2>/dev/null || true
 
 echo ""
 echo "Kiosk boot configured."
-echo "  - No desktop"
-echo "  - Splash / Plymouth disabled"
-echo "  - Logo renderer starts on tty1"
+echo "  - No desktop / no Plymouth / no cloud-init spam"
+echo "  - Logo renderer on tty1 (kmsdrm)"
 echo ""
-echo "Reboot to apply: sudo reboot"
+echo "Check now (before reboot):"
+echo "  systemctl --no-pager --failed"
+echo "  journalctl -u bmw-logo-display -n 30 --no-pager"
+echo ""
+echo "Reboot to apply quiet boot: sudo reboot"
 echo ""
 echo "To restore desktop:"
 echo "  sudo systemctl set-default graphical.target"
 echo "  sudo systemctl enable lightdm"
 echo "  sudo systemctl unmask plymouth-start"
+echo "  sudo rm -f /etc/cloud/cloud-init.disabled"
 echo "  sudo reboot"

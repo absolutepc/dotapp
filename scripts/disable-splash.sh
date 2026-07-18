@@ -83,11 +83,30 @@ elif command -v plymouth-set-default-theme >/dev/null 2>&1; then
   echo "[ok] plymouth theme -> text"
 fi
 
+# 7) Disable cloud-init (prints "Completed socket interaction for boot stage …")
+mkdir -p /etc/cloud
+touch /etc/cloud/cloud-init.disabled
+for svc in cloud-init cloud-init-local cloud-config cloud-final \
+           cloud-init-main.service cloud-init-network.service; do
+  systemctl disable "${svc}" 2>/dev/null || true
+  systemctl mask "${svc}" 2>/dev/null || true
+done
+echo "[ok] cloud-init disabled"
+
+# 8) Hide kernel printk on console after boot
+mkdir -p /etc/sysctl.d
+cat >/etc/sysctl.d/20-quiet-console.conf <<'EOF'
+kernel.printk = 3 4 1 3
+EOF
+echo "[ok] kernel.printk quieted"
+
 echo ""
 echo "Verify (must NOT contain the word 'splash'):"
 echo "--- cmdline ---"
 cat "${CMDLINE}"
 echo "--- config ---"
 grep disable_splash "${CONFIG}" || true
+echo "--- cloud-init ---"
+ls -la /etc/cloud/cloud-init.disabled
 echo ""
 echo "Now reboot: sudo reboot"
