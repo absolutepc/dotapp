@@ -60,9 +60,15 @@ for svc in plymouth-start plymouth-read-write plymouth-quit plymouth-quit-wait p
 done
 echo "Default target: multi-user (no desktop, Plymouth masked)"
 
-# Also via raspi-config noninteractive if available
+# Also via raspi-config noninteractive if available (1 = Splash Screen No)
 if command -v raspi-config >/dev/null 2>&1; then
   raspi-config nonint do_boot_splash 1 2>/dev/null || true
+fi
+
+# Rebuild initramfs / black out leftover Plymouth art
+if [[ -f "${REPO_ROOT}/scripts/disable-splash.sh" ]]; then
+  # Full splash kill: cmdline + mask Plymouth + black theme + initramfs
+  bash "${REPO_ROOT}/scripts/disable-splash.sh" || true
 fi
 
 # --- Kiosk display service ---
