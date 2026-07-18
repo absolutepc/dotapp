@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Boot straight to BMW logo: no desktop, minimal splash.
+# Boot straight to BMW logo: no desktop, no splash screens.
 # Run on Pi: sudo bash scripts/setup-kiosk-boot.sh [username]
 set -euo pipefail
 
@@ -13,7 +13,7 @@ fi
 echo "Kiosk boot setup for user: ${PI_USER}"
 echo "Install dir: ${INSTALL_DIR}"
 
-# --- Quiet boot: config.txt ---
+# --- Quiet boot: config.txt (hide rainbow + early Pi logos) ---
 CONFIG="/boot/firmware/config.txt"
 [[ -f "${CONFIG}" ]] || CONFIG="/boot/config.txt"
 if [[ -f "${CONFIG}" ]]; then
@@ -22,23 +22,48 @@ if [[ -f "${CONFIG}" ]]; then
 fi
 
 # --- Quiet boot: cmdline.txt ---
+# IMPORTANT: do NOT add "splash" — that enables Plymouth ("Welcome to Raspberry Pi").
 CMDLINE="/boot/firmware/cmdline.txt"
 [[ -f "${CMDLINE}" ]] || CMDLINE="/boot/cmdline.txt"
 if [[ -f "${CMDLINE}" ]]; then
-  for token in quiet splash loglevel=3 logo.nologo vt.global_cursor_default=0; do
-    grep -q "${token}" "${CMDLINE}" || sed -i "s/$/ ${token}/" "${CMDLINE}"
+  # Remove splash / plymouth flags that show the graphical boot screen
+  sed -i \
+    -e 's/\bsplash\b//g' \
+    -e 's/\bnosplash\b//g' \
+    -e 's/\bplymouth\.ignore-serial-consoles\b//g' \
+    -e 's/  */ /g' \
+    -e 's/[[:space:]]*$//' \
+    "${CMDLINE}"
+
+  for token in quiet loglevel=0 logo.nologo vt.global_cursor_default=0 consoleblank=0; do
+    grep -qE "(^|[[:space:]])${token}([[:space:]]|$)" "${CMDLINE}" || sed -i "s/$/ ${token}/" "${CMDLINE}"
   done
-  echo "Updated ${CMDLINE} (quiet boot)"
+
+  # Prefer tty3 so kernel spam is not on the visible console
+  if grep -q 'console=tty1' "${CMDLINE}"; then
+    sed -i 's/console=tty1/console=tty3/' "${CMDLINE}"
+  fi
+
+  echo "Updated ${CMDLINE}:"
+  cat "${CMDLINE}"
 fi
 
-# --- No desktop ---
+# --- No desktop / no Plymouth ---
 systemctl set-default multi-user.target
 systemctl disable lightdm 2>/dev/null || true
 systemctl disable gdm 2>/dev/null || true
 systemctl disable wayfire 2>/dev/null || true
 systemctl disable labwc 2>/dev/null || true
-systemctl disable plymouth-start 2>/dev/null || true
-echo "Default target: multi-user (no desktop)"
+for svc in plymouth-start plymouth-read-write plymouth-quit plymouth-quit-wait plymouth-reboot plymouth-halt plymouth-kexec; do
+  systemctl disable "${svc}" 2>/dev/null || true
+  systemctl mask "${svc}" 2>/dev/null || true
+done
+echo "Default target: multi-user (no desktop, Plymouth masked)"
+
+# Also via raspi-config noninteractive if available
+if command -v raspi-config >/dev/null 2>&1; then
+  raspi-config nonint do_boot_splash 1 2>/dev/null || true
+fi
 
 # --- Kiosk display service ---
 sed "s|User=pi|User=${PI_USER}|g; s|/opt/bmw-logo|${INSTALL_DIR}|g" \
@@ -63,8 +88,8 @@ systemctl enable bmw-logo-api bmw-logo-display
 
 echo ""
 echo "Kiosk boot configured."
-echo "  - No desktop on next boot"
-echo "  - Minimal Raspberry Pi splash"
+echo "  - No desktop"
+echo "  - Splash / Plymouth disabled"
 echo "  - Logo renderer starts on tty1"
 echo ""
 echo "Reboot to apply: sudo reboot"
@@ -72,5 +97,5 @@ echo ""
 echo "To restore desktop:"
 echo "  sudo systemctl set-default graphical.target"
 echo "  sudo systemctl enable lightdm"
-echo "  sudo cp ${INSTALL_DIR}/firmware/systemd/bmw-logo-display.service /etc/systemd/system/"
-echo "  sudo systemctl daemon-reload && sudo reboot"
+echo "  sudo systemctl unmask plymouth-start"
+echo "  sudo reboot"
