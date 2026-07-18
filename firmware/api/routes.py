@@ -180,5 +180,6 @@ def source(media_id: str) -> FileResponse:
     return FileResponse(
         path,
         media_type=media_types.get(suffix, "application/octet-stream"),
-        filename=path.name,
+        # inline so <img>/<video> in the HTML mockup can play the animation
+        content_disposition_type="inline",
     )

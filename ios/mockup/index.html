@@ -599,10 +599,15 @@
         return encodeURI(raw);
       }
       if (item.file) {
-        const path = (location.pathname.includes("/mockup") || location.port === "8080")
-          ? `/assets/${item.file}`
-          : `../../assets/${item.file}`;
-        return encodeURI(path);
+        // Pi API serves StaticFiles at /assets when mockup is at /mockup/
+        if (
+          location.protocol.startsWith("http") &&
+          /\/mockup(\/|$)/.test(location.pathname)
+        ) {
+          return encodeURI(`/assets/${item.file}`);
+        }
+        // file:// or static open of ios/mockup/index.html
+        return new URL(`../../assets/${item.file}`, location.href).href;
       }
       return "";
     }
@@ -646,18 +651,31 @@
       return new Promise((resolve, reject) => {
         const video = document.createElement("video");
         video.muted = true;
+        video.defaultMuted = true;
         video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
         video.preload = "auto";
+        video.crossOrigin = "anonymous";
+        let settled = false;
         const cleanup = () => {
           video.pause();
           video.removeAttribute("src");
           video.load();
         };
+        const fail = () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error("video thumb failed"));
+        };
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolve({ video, cleanup });
+        };
         video.onloadeddata = () => {
           const seekTo = Math.min(0.12, (video.duration || 1) * 0.05);
-          const finish = () => {
-            resolve({ video, cleanup });
-          };
           if (video.readyState >= 2) {
             try {
               video.currentTime = seekTo;
@@ -667,13 +685,10 @@
             }
           }
           video.onseeked = finish;
-          // Some browsers fire loadeddata already at frame 0
-          setTimeout(finish, 250);
+          setTimeout(finish, 400);
         };
-        video.onerror = () => {
-          cleanup();
-          reject(new Error("video thumb failed"));
-        };
+        video.onerror = fail;
+        setTimeout(fail, 8000);
         video.src = url;
       });
     }
@@ -682,11 +697,16 @@
       const key = item.id + ":" + (item.file || item.source_url || item.preview_url || "");
       if (thumbCache.has(key)) return thumbCache.get(key);
 
-      // Live Pi: API already ships LANCZOS JPEG previews
+      // Live Pi: prefer API JPEG preview when it already exists
       const apiPreview = previewUrl(item);
       if (apiPreview && mode === "live") {
-        thumbCache.set(key, apiPreview);
-        return apiPreview;
+        try {
+          await loadImage(apiPreview + (apiPreview.includes("?") ? "&" : "?") + "t=" + Date.now());
+          thumbCache.set(key, apiPreview);
+          return apiPreview;
+        } catch (_) {
+          // fall through — WebM may not have a preview until first display
+        }
       }
 
       const url = sourceUrl(item);
@@ -724,7 +744,8 @@
         thumbCache.set(key, dataUrl);
         return dataUrl;
       } catch (_) {
-        return url;
+        // Last resort: raw URL (GIF/PNG work as <img>; WebM may still fail as img)
+        return isVideo(item) ? "" : url;
       }
     }
 
@@ -810,13 +831,25 @@
         img.style.display = "none";
         img.removeAttribute("src");
         video.style.display = "block";
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.loop = true;
         video.src = url;
-        video.play().catch(() => {});
+        video.onerror = () => {
+          showToast("WebM не воспроизводится в этом браузере");
+        };
+        const play = () => video.play().catch(() => {});
+        video.onloadeddata = play;
+        play();
       } else {
         video.pause();
         video.removeAttribute("src");
+        video.load();
         video.style.display = "none";
         img.style.display = "block";
+        img.onerror = () => showToast("Не удалось загрузить анимацию");
         img.src = url;
         img.alt = item.name;
       }
