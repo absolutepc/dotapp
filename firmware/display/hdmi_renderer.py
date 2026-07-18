@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-import time
 from pathlib import Path
 
 import pygame
@@ -18,7 +17,6 @@ from firmware.config import (
     FRAMES_DIR,
     TARGET_FPS,
 )
-from firmware.display.mask import apply_circle_mask, create_circle_mask
 
 
 def _init_pygame_display() -> pygame.Surface:
@@ -59,12 +57,12 @@ class HDMIRenderer:
         pygame.mouse.set_visible(False)
 
         self._clock = pygame.time.Clock()
-        self._mask = create_circle_mask()
         self._running = True
         self._current_media_id: str | None = None
-        self._frame_paths: list[Path] = []
-        self._frame_index = 0
+        self._surfaces: list[pygame.Surface] = []
         self._frame_durations: list[float] = []
+        self._frame_index = 0
+        self._accum = 0.0
         self._last_state_mtime = 0.0
         self._last_frames_mtime = 0.0
 
@@ -77,6 +75,15 @@ class HDMIRenderer:
             return max(mtimes)
         except OSError:
             return 0.0
+
+    def _load_surface(self, path: Path) -> pygame.Surface:
+        # Frames are already circular-masked RGB PNGs — load once, keep in RAM.
+        with Image.open(path) as img:
+            rgb = img.convert("RGB")
+            if rgb.size != (DISPLAY_WIDTH, DISPLAY_HEIGHT):
+                rgb = rgb.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.Resampling.BILINEAR)
+            surface = pygame.image.fromstring(rgb.tobytes(), rgb.size, "RGB")
+        return surface.convert()
 
     def _load_state(self) -> None:
         if not CURRENT_MEDIA_FILE.exists():
@@ -115,27 +122,31 @@ class HDMIRenderer:
             fps = float(data.get("fps") or TARGET_FPS)
             durations = [1.0 / max(fps, 1.0)] * len(paths)
 
+        print(f"Preloading media {media_id}: {len(paths)} frames into RAM…")
+        surfaces: list[pygame.Surface] = []
+        for path in paths:
+            try:
+                surfaces.append(self._load_surface(path))
+            except Exception as exc:  # noqa: BLE001
+                print(f"Skip frame {path.name}: {exc}")
+
+        if not surfaces:
+            return
+
+        # Drop previous set before assigning (help GC on Pi Zero)
+        self._surfaces = []
+        self._surfaces = surfaces
+        self._frame_durations = durations[: len(surfaces)]
+        if len(self._frame_durations) < len(surfaces):
+            pad = self._frame_durations[-1] if self._frame_durations else (1.0 / TARGET_FPS)
+            self._frame_durations.extend([pad] * (len(surfaces) - len(self._frame_durations)))
+
         self._current_media_id = media_id
-        self._frame_paths = paths
-        self._frame_durations = durations
         self._frame_index = 0
+        self._accum = 0.0
         self._last_state_mtime = state_mtime
         self._last_frames_mtime = frames_mtime
-        print(f"Loaded media {media_id}: {len(paths)} frames")
-    def _pil_to_surface(self, image: Image.Image) -> pygame.Surface:
-        masked = apply_circle_mask(image, self._mask)
-        rgb = masked.convert("RGB")
-        return pygame.image.fromstring(
-            rgb.tobytes(),
-            rgb.size,
-            "RGB",
-        )
-
-    def _show_frame_path(self, path: Path) -> None:
-        with Image.open(path) as img:
-            surface = self._pil_to_surface(img)
-        self._screen.blit(surface, (0, 0))
-        pygame.display.flip()
+        print(f"Loaded media {media_id}: {len(surfaces)} surfaces")
 
     def _handle_events(self) -> None:
         for event in pygame.event.get():
@@ -147,18 +158,28 @@ class HDMIRenderer:
     def run(self) -> None:
         print(f"Renderer started {DISPLAY_WIDTH}x{DISPLAY_HEIGHT} @ {TARGET_FPS}fps")
         while self._running:
+            dt = self._clock.tick(TARGET_FPS) / 1000.0
             self._handle_events()
             self._load_state()
 
-            if self._frame_paths:
-                self._show_frame_path(self._frame_paths[self._frame_index])
-                duration = self._frame_durations[self._frame_index]
-                self._frame_index = (self._frame_index + 1) % len(self._frame_paths)
-                self._clock.tick(max(1, int(1.0 / duration)))
-            else:
+            if not self._surfaces:
                 self._screen.fill((0, 0, 0))
                 pygame.display.flip()
-                self._clock.tick(TARGET_FPS)
+                continue
+
+            self._accum += dt
+            # Advance as many frames as needed (avoids spiral-of-death hitching)
+            guard = 0
+            while (
+                guard < len(self._surfaces)
+                and self._accum >= self._frame_durations[self._frame_index]
+            ):
+                self._accum -= self._frame_durations[self._frame_index]
+                self._frame_index = (self._frame_index + 1) % len(self._surfaces)
+                guard += 1
+
+            self._screen.blit(self._surfaces[self._frame_index], (0, 0))
+            pygame.display.flip()
 
         pygame.quit()
 

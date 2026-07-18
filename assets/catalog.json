@@ -53,21 +53,21 @@
     "name": "Project 1",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/project1.webm"
+    "file": "bmw/project1.gif"
   },
   {
     "id": "builtin-bmw-project2",
     "name": "Project 2",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/project2.webm"
+    "file": "bmw/project2.gif"
   },
   {
     "id": "builtin-bmw-project3",
     "name": "Project 3",
     "category": "bmw",
     "type": "animation",
-    "file": "bmw/project3.webm"
+    "file": "bmw/project3.gif"
   },
   {
     "id": "builtin-emoji-smile",

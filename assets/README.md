@@ -24,11 +24,12 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | quiet_r.gif | Quiet R | animation |
 | quiet_w.gif | Quiet W | animation |
 | radar.gif | Radar | animation |
-| project1.webm | Project 1 | video (WebM → HDMI frames via ffmpeg) |
-| project2.webm | Project 2 | video (WebM → HDMI frames via ffmpeg) |
-| project3.webm | Project 3 | video (WebM → HDMI frames via ffmpeg) |
+| project1.gif | Project 1 | animation |
+| project2.gif | Project 2 | animation |
+| project3.gif | Project 3 | animation |
 
-WebM/MP4 require `ffmpeg` on the Pi (`sudo apt install -y ffmpeg`).
+Prefer **GIF** for built-in gallery items on Pi Zero (more stable than WebM).
+WebM/MP4 uploads still work via ffmpeg, but GIF is recommended.
 
 ## Emoji collection (9 items)
 
