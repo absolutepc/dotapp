@@ -13,7 +13,7 @@ sudo rm -rf /var/lib/bmw-logo/frames/builtin-*
 sudo systemctl restart bmw-logo-api bmw-logo-display
 ```
 
-## Gallery animations (10 items)
+## Gallery animations (12 items)
 
 | File | Name | Type |
 |------|------|------|
@@ -24,6 +24,8 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | quiet_r.gif | Quiet R | animation |
 | quiet_w.gif | Quiet W | animation |
 | radar.gif | Radar | animation |
+| radar4.gif | Radar 4 | animation |
+| anim1.gif | Anim 1 | animation |
 | project1.gif | Project 1 | animation |
 | project2.gif | Project 2 | animation |
 | project3.gif | Project 3 | animation |
