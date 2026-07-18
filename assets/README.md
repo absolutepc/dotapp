@@ -2,6 +2,16 @@
 
 Custom animations and emoji for the round display. Prefer your own uploads via the iPhone app (**My Media** / Custom) for personal logos.
 
+## Switch animation on Pi
+
+```bash
+cd ~/dotapp
+./scripts/show            # list
+./scripts/show anim3
+./scripts/show project1
+./scripts/show status
+```
+
 ## Refresh on Pi
 
 ```bash
