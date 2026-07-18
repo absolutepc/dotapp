@@ -1,58 +1,53 @@
 #!/usr/bin/env bash
-# Short helper to switch the round display animation.
-#
-#   ./scripts/show            # list
-#   ./scripts/show anim3
-#   ./scripts/show project1
-#   ./scripts/show status
+# Switch animation on the round display.
+# Usage: show <name> | show list | show status
+# Examples: show anim3 | show project1 | show default | show radar4
 
 set -euo pipefail
 
 API="${BMW_LOGO_API:-http://127.0.0.1:8080}"
-NAME="${1:-}"
+NAME="${1:-list}"
 
 list_gallery() {
-  curl -sf "${API}/api/gallery" | python3 -c '
+  curl -s "${API}/api/gallery" | python3 -c '
 import sys, json
 items = json.load(sys.stdin)
 for i in items:
-    mid = i["id"]
+    mid = i.get("id", "")
     if not mid.startswith("builtin-bmw-"):
         continue
     short = mid.replace("builtin-bmw-", "")
-    print("%-12s  %s" % (short, i["name"]))
+    print("%-12s  %s" % (short, i.get("name", "")))
 '
 }
 
 resolve_id() {
-  local raw="$1"
-  raw="${raw,,}"
-  raw="${raw%.webm}"
-  raw="${raw%.mp4}"
-  raw="${raw%.gif}"
-  raw="${raw// /}"
-  raw="${raw//-/}"
+  local raw="${1,,}"
+  raw="${raw%.webm}"; raw="${raw%.mp4}"; raw="${raw%.gif}"
+  raw="${raw// /}"; raw="${raw//-/}"
 
   case "$raw" in
-    quiet_r|quietr) echo "builtin-bmw-quiet_r"; return 0 ;;
-    quiet_w|quietw) echo "builtin-bmw-quiet_w"; return 0 ;;
-    itachi) echo "builtin-bmw-Itachi"; return 0 ;;
+    quietr) raw="quiet_r" ;;
+    quietw) raw="quiet_w" ;;
   esac
 
-  echo "builtin-bmw-${raw}"
+  if [[ "$raw" == "itachi" ]]; then
+    echo "builtin-bmw-Itachi"
+  else
+    echo "builtin-bmw-${raw}"
+  fi
 }
 
-case "$NAME" in
-  ""|list|ls)
-    list_gallery
-    exit 0
-    ;;
-  status|st)
-    curl -sf "${API}/api/status"
-    echo
-    exit 0
-    ;;
-esac
+if [[ "$NAME" == "list" || "$NAME" == "ls" || -z "$NAME" ]]; then
+  list_gallery
+  exit 0
+fi
+
+if [[ "$NAME" == "status" || "$NAME" == "st" ]]; then
+  curl -s "${API}/api/status"
+  echo
+  exit 0
+fi
 
 if [[ "$NAME" == builtin-* ]]; then
   MEDIA_ID="$NAME"
@@ -61,7 +56,14 @@ else
 fi
 
 echo "→ ${MEDIA_ID}"
-curl -sf -X POST "${API}/api/display" \
+# Do not use curl -f: always print body so errors are visible
+RESP="$(curl -s -w "\n%{http_code}" -X POST "${API}/api/display" \
   -H 'Content-Type: application/json' \
-  -d "{\"media_id\":\"${MEDIA_ID}\"}"
-echo
+  -d "{\"media_id\":\"${MEDIA_ID}\"}")"
+BODY="$(printf '%s' "$RESP" | sed '$d')"
+CODE="$(printf '%s' "$RESP" | tail -n1)"
+echo "$BODY"
+if [[ "$CODE" != "200" ]]; then
+  echo "HTTP $CODE" >&2
+  exit 1
+fi
