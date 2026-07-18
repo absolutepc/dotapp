@@ -588,8 +588,33 @@
       return file.endsWith(".webm") || file.endsWith(".mp4") || file.endsWith(".mov");
     }
 
-    const THUMB_SIZE = 224; // 2x for retina; displayed at ~112 CSS px
-    const thumbCache = new Map();
+    function assetRelPath(item) {
+      const rel = item.file || item.filename || "";
+      return rel.replace(/^assets\//, "");
+    }
+
+    /** H.264 MP4 sibling for browser playback (Safari cannot play VP9 WebM). */
+    function siblingMp4Url(item) {
+      const rel = assetRelPath(item);
+      if (!/\.webm$/i.test(rel)) return "";
+      const mp4Rel = rel.replace(/\.webm$/i, ".mp4");
+      if (
+        location.protocol.startsWith("http") &&
+        /\/mockup(\/|$)/.test(location.pathname)
+      ) {
+        return encodeURI(`/assets/${mp4Rel}`);
+      }
+      if (item.file) {
+        return new URL(
+          `../../assets/${item.file.replace(/\.webm$/i, ".mp4")}`,
+          location.href
+        ).href;
+      }
+      if (location.protocol.startsWith("http")) {
+        return encodeURI(`/assets/${mp4Rel}`);
+      }
+      return "";
+    }
 
     function sourceUrl(item) {
       if (item.source_url) {
@@ -611,6 +636,16 @@
       }
       return "";
     }
+
+    function playUrl(item) {
+      if (isVideo(item)) {
+        return siblingMp4Url(item) || sourceUrl(item);
+      }
+      return sourceUrl(item);
+    }
+
+    const THUMB_SIZE = 224; // 2x for retina; displayed at ~112 CSS px
+    const thumbCache = new Map();
 
     function previewUrl(item) {
       if (item.preview_url) {
@@ -709,7 +744,7 @@
         }
       }
 
-      const url = sourceUrl(item);
+      const url = playUrl(item) || sourceUrl(item);
       if (!url) return "";
 
       const canvas = document.createElement("canvas");
@@ -824,7 +859,6 @@
 
     function openPreview(item) {
       selected = item;
-      const url = sourceUrl(item);
       const img = document.getElementById("previewThumb");
       const video = document.getElementById("previewVideo");
       if (isVideo(item)) {
@@ -832,32 +866,61 @@
         img.removeAttribute("src");
         video.style.display = "block";
         video.muted = true;
+        video.defaultMuted = true;
+        video.autoplay = true;
+        video.loop = true;
         video.playsInline = true;
         video.setAttribute("playsinline", "");
         video.setAttribute("webkit-playsinline", "");
-        video.loop = true;
-        video.src = url;
-        video.onerror = () => {
-          showToast("WebM не воспроизводится в этом браузере");
+        video.setAttribute("muted", "");
+        video.controls = false;
+
+        const mp4 = siblingMp4Url(item);
+        const webm = sourceUrl(item);
+        let tryingFallback = false;
+
+        const kick = () => {
+          const p = video.play();
+          if (p && typeof p.then === "function") {
+            p.catch(() => {
+              // Autoplay block — retry muted
+              video.muted = true;
+              video.play().catch(() => {});
+            });
+          }
         };
-        const play = () => video.play().catch(() => {});
-        video.onloadeddata = play;
-        play();
+
+        video.onerror = () => {
+          if (!tryingFallback && mp4 && webm && video.src.includes(".mp4")) {
+            tryingFallback = true;
+            video.src = webm;
+            video.load();
+            return;
+          }
+          showToast("Видео не воспроизводится в этом браузере");
+        };
+        video.onloadeddata = kick;
+        video.oncanplay = kick;
+        video.src = mp4 || webm;
+        video.load();
+        kick();
       } else {
         video.pause();
         video.removeAttribute("src");
         video.load();
         video.style.display = "none";
         img.style.display = "block";
+        const url = sourceUrl(item);
         img.onerror = () => showToast("Не удалось загрузить анимацию");
-        img.src = url;
+        // Cache-bust so GIF restarts animation when reopening
+        img.src = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
         img.alt = item.name;
       }
       document.getElementById("previewName").textContent = item.name;
       document.getElementById("previewMeta").textContent = isVideo(item)
-        ? "Video · WebM"
-        : (item.type === "animation" || (item.file || "").endsWith(".gif")
-          ? `Animation · ${Math.round(item.fps || 60)} fps`
+        ? "Video · preview MP4 / WebM"
+        : (item.type === "animation" || (item.file || item.filename || "").endsWith(".gif")
+          ? "Animation · GIF"
           : "Static image");
       document.getElementById("btnDelete").style.display =
         item.builtin === false || mediaCategory(item) === "custom" ? "block" : "none";

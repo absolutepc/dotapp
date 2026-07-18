@@ -40,6 +40,10 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 GIF and WebM are both supported. WebM/MP4 are decoded via ffmpeg into a PNG frame
 cache (up to **360 frames**) with a visibility lift for dark neon/radar clips.
 
+For the HTML mockup, each WebM has a matching **`.mp4` (H.264)** sibling so Safari
+and iPhone can play the preview (VP9 WebM often does not). The Pi display still
+uses the `.webm` from `catalog.json`.
+
 Shorter clips preload into RAM; longer ones stream from disk with a small frame cache.
 First select of a WebM rebuilds its cache (can take a minute on Pi Zero).
 

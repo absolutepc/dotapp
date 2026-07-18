@@ -116,12 +116,15 @@ class MediaStorage:
                     ".jpeg",
                     ".webp",
                     ".webm",
-                    ".mp4",
+                    # .mp4 siblings are browser-only mockup previews for WebM; skip
                 }:
                     continue
                 asset_id = f"builtin-{category}-{path.stem}"
-                is_anim = path.suffix.lower() in {".gif", ".webm", ".mp4", ".webp"}
+                is_anim = path.suffix.lower() in {".gif", ".webm", ".webp"}
                 name = display_names.get(asset_id, path.stem.replace("-", " ").title())
+                # Prefer catalog-listed assets when present (skip orphan mp4/etc.)
+                if catalog_path.exists() and asset_id not in display_names:
+                    continue
                 items.append(
                     MediaItem(
                         id=asset_id,
