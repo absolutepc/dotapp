@@ -7,7 +7,7 @@ Custom animations and emoji for the round display. Prefer your own uploads via t
 ```bash
 cd ~/dotapp
 git pull origin main
-# do NOT run refresh-gallery.sh / generate_assets.py (wipes custom GIFs)
+# do NOT run refresh-gallery.sh / generate_assets.py (wipes custom assets)
 sudo rm -f /var/lib/bmw-logo/manifest.json
 sudo rm -rf /var/lib/bmw-logo/frames/builtin-*
 sudo systemctl restart bmw-logo-api bmw-logo-display
@@ -24,21 +24,17 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | quiet_r.gif | Quiet R | animation |
 | quiet_w.gif | Quiet W | animation |
 | radar.gif | Radar | animation |
-| radar4.gif | Radar 4 | animation |
-| anim1.gif | Anim 1 | animation |
-| project1.gif | Project 1 | animation |
-| project2.gif | Project 2 | animation |
-| project3.gif | Project 3 | animation |
+| radar4.webm | Radar 4 | animation |
+| anim1.webm | Anim 1 | animation |
+| project1.webm | Project 1 | animation |
+| project2.webm | Project 2 | animation |
+| project3.webm | Project 3 | animation |
 
-Prefer **GIF** for built-in gallery items on Pi Zero (more stable than WebM).
-WebM/MP4 uploads still work via ffmpeg, but GIF is recommended.
+GIF and WebM are both supported. WebM/MP4 are decoded via ffmpeg into a PNG frame
+cache (up to **360 frames**) with a visibility lift for dark neon/radar clips.
 
-Firmware accepts up to **360 frames** per GIF/video. Shorter clips preload into RAM;
-longer ones (e.g. Project 1–3) stream from disk with a small frame cache.
-
-Dark neon/radar clips are auto-brightened when building the frame cache so they
-stay visible on dim round HDMI panels. After pulling updates, wipe `frames/` as
-above — the first select rebuilds cache (may take a minute on Pi Zero).
+Shorter clips preload into RAM; longer ones stream from disk with a small frame cache.
+First select of a WebM rebuilds its cache (can take a minute on Pi Zero).
 
 ## Emoji collection (9 items)
 
@@ -56,6 +52,6 @@ above — the first select rebuilds cache (may take a minute on Pi Zero).
 
 ## Add your own
 
-Copy PNG/GIF/WebP (ideally 480×480) into `bmw/` or `emoji/`, update `catalog.json` names if needed, then run `refresh-gallery.sh`.
+Copy PNG/GIF/WebP/WebM (ideally 480×480) into `bmw/` or `emoji/`, update `catalog.json` names if needed, then run `refresh-gallery.sh`.
 
 Or upload from iPhone — no repo changes required.
