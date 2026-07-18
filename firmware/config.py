@@ -30,8 +30,8 @@ API_PORT = 8080
 DEVICE_NAME = "bmw-logo"
 
 # Upload limits
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024
-MAX_GIF_FRAMES = 180
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+MAX_GIF_FRAMES = 360
 
 # Wi-Fi AP defaults (see scripts/setup-wifi-ap.sh)
 AP_SSID_PREFIX = "BMW-Logo"

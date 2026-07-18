@@ -31,6 +31,9 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 Prefer **GIF** for built-in gallery items on Pi Zero (more stable than WebM).
 WebM/MP4 uploads still work via ffmpeg, but GIF is recommended.
 
+Firmware accepts up to **360 frames** per GIF/video. Shorter clips preload into RAM;
+longer ones (e.g. Project 1–3) stream from disk with a small frame cache.
+
 ## Emoji collection (9 items)
 
 | File | Name | Type |

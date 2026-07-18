@@ -17,8 +17,8 @@ from firmware.media.storage import MediaItem, MediaStorage
 logger = logging.getLogger(__name__)
 
 VIDEO_SUFFIXES = {".webm", ".mp4", ".mov"}
-MAX_VIDEO_FRAMES = 120
-VIDEO_TARGET_FPS = 15.0
+MAX_VIDEO_FRAMES = 360
+VIDEO_TARGET_FPS = 24.0
 
 
 class MediaProcessor:
@@ -247,6 +247,15 @@ class MediaProcessor:
                 except Exception:
                     needs_rebuild = True
             else:
+                needs_rebuild = True
+        elif source.suffix.lower() == ".gif":
+            # Rebuild when source grew (e.g. 120 → 360 frames) or cache is truncated.
+            try:
+                with Image.open(source) as im:
+                    source_frames = min(int(getattr(im, "n_frames", 1) or 1), MAX_GIF_FRAMES)
+                if len(existing) < source_frames:
+                    needs_rebuild = True
+            except Exception:
                 needs_rebuild = True
 
         if not needs_rebuild:

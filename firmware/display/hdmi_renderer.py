@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections import OrderedDict
 from pathlib import Path
 
 import pygame
@@ -17,6 +18,13 @@ from firmware.config import (
     FRAMES_DIR,
     TARGET_FPS,
 )
+
+# Full preload is smooth but RAM-heavy on Pi Zero 2W (~0.66MB/frame RGB).
+# Animations up to MAX_GIF_FRAMES (360) stream from disk with an LRU cache
+# plus short lookahead prefetch so sequential playback stays smooth.
+PRELOAD_FRAME_LIMIT = 180
+SURFACE_CACHE_SIZE = 64
+PREFETCH_AHEAD = 8
 
 
 def _init_pygame_display() -> pygame.Surface:
@@ -59,10 +67,13 @@ class HDMIRenderer:
         self._clock = pygame.time.Clock()
         self._running = True
         self._current_media_id: str | None = None
-        self._surfaces: list[pygame.Surface] = []
+        self._frame_paths: list[Path] = []
+        self._surfaces: list[pygame.Surface | None] = []
         self._frame_durations: list[float] = []
         self._frame_index = 0
         self._accum = 0.0
+        self._preload_all = True
+        self._cache: OrderedDict[int, pygame.Surface] = OrderedDict()
         self._last_state_mtime = 0.0
         self._last_frames_mtime = 0.0
 
@@ -77,13 +88,51 @@ class HDMIRenderer:
             return 0.0
 
     def _load_surface(self, path: Path) -> pygame.Surface:
-        # Frames are already circular-masked RGB PNGs — load once, keep in RAM.
         with Image.open(path) as img:
             rgb = img.convert("RGB")
             if rgb.size != (DISPLAY_WIDTH, DISPLAY_HEIGHT):
                 rgb = rgb.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.Resampling.BILINEAR)
             surface = pygame.image.fromstring(rgb.tobytes(), rgb.size, "RGB")
         return surface.convert()
+
+    def _cache_put(self, index: int, surface: pygame.Surface) -> None:
+        self._cache[index] = surface
+        self._cache.move_to_end(index)
+        while len(self._cache) > SURFACE_CACHE_SIZE:
+            self._cache.popitem(last=False)
+
+    def _load_cached(self, index: int) -> pygame.Surface | None:
+        if index < 0 or index >= len(self._frame_paths):
+            return None
+        if index in self._cache:
+            self._cache.move_to_end(index)
+            return self._cache[index]
+        try:
+            surface = self._load_surface(self._frame_paths[index])
+        except Exception as exc:  # noqa: BLE001
+            print(f"Skip frame {index}: {exc}")
+            return None
+        self._cache_put(index, surface)
+        return surface
+
+    def _prefetch(self, index: int) -> None:
+        """Warm the next few frames while the current one is on screen."""
+        if self._preload_all:
+            return
+        n = len(self._frame_paths)
+        if n == 0:
+            return
+        for offset in range(1, PREFETCH_AHEAD + 1):
+            self._load_cached((index + offset) % n)
+
+    def _get_surface(self, index: int) -> pygame.Surface | None:
+        if self._preload_all:
+            if 0 <= index < len(self._surfaces):
+                return self._surfaces[index]
+            return None
+        surface = self._load_cached(index)
+        self._prefetch(index)
+        return surface
 
     def _load_state(self) -> None:
         if not CURRENT_MEDIA_FILE.exists():
@@ -122,31 +171,40 @@ class HDMIRenderer:
             fps = float(data.get("fps") or TARGET_FPS)
             durations = [1.0 / max(fps, 1.0)] * len(paths)
 
-        print(f"Preloading media {media_id}: {len(paths)} frames into RAM…")
-        surfaces: list[pygame.Surface] = []
-        for path in paths:
-            try:
-                surfaces.append(self._load_surface(path))
-            except Exception as exc:  # noqa: BLE001
-                print(f"Skip frame {path.name}: {exc}")
-
-        if not surfaces:
-            return
-
-        # Drop previous set before assigning (help GC on Pi Zero)
+        self._cache.clear()
         self._surfaces = []
-        self._surfaces = surfaces
-        self._frame_durations = durations[: len(surfaces)]
-        if len(self._frame_durations) < len(surfaces):
+        self._frame_paths = paths
+        self._preload_all = len(paths) <= PRELOAD_FRAME_LIMIT
+
+        if self._preload_all:
+            print(f"Preloading media {media_id}: {len(paths)} frames into RAM…")
+            surfaces: list[pygame.Surface | None] = []
+            for path in paths:
+                try:
+                    surfaces.append(self._load_surface(path))
+                except Exception as exc:  # noqa: BLE001
+                    print(f"Skip frame {path.name}: {exc}")
+                    surfaces.append(None)
+            self._surfaces = surfaces
+            mode = "RAM preload"
+        else:
+            print(
+                f"Streaming media {media_id}: {len(paths)} frames "
+                f"(cache {SURFACE_CACHE_SIZE}, avoids RAM overrun)"
+            )
+            mode = "disk+cache"
+
+        self._frame_durations = durations[: len(paths)]
+        if len(self._frame_durations) < len(paths):
             pad = self._frame_durations[-1] if self._frame_durations else (1.0 / TARGET_FPS)
-            self._frame_durations.extend([pad] * (len(surfaces) - len(self._frame_durations)))
+            self._frame_durations.extend([pad] * (len(paths) - len(self._frame_durations)))
 
         self._current_media_id = media_id
         self._frame_index = 0
         self._accum = 0.0
         self._last_state_mtime = state_mtime
         self._last_frames_mtime = frames_mtime
-        print(f"Loaded media {media_id}: {len(surfaces)} surfaces")
+        print(f"Loaded media {media_id}: {len(paths)} frames ({mode})")
 
     def _handle_events(self) -> None:
         for event in pygame.event.get():
@@ -162,23 +220,24 @@ class HDMIRenderer:
             self._handle_events()
             self._load_state()
 
-            if not self._surfaces:
+            if not self._frame_paths:
                 self._screen.fill((0, 0, 0))
                 pygame.display.flip()
                 continue
 
             self._accum += dt
-            # Advance as many frames as needed (avoids spiral-of-death hitching)
             guard = 0
-            while (
-                guard < len(self._surfaces)
-                and self._accum >= self._frame_durations[self._frame_index]
-            ):
+            n = len(self._frame_paths)
+            while guard < n and self._accum >= self._frame_durations[self._frame_index]:
                 self._accum -= self._frame_durations[self._frame_index]
-                self._frame_index = (self._frame_index + 1) % len(self._surfaces)
+                self._frame_index = (self._frame_index + 1) % n
                 guard += 1
 
-            self._screen.blit(self._surfaces[self._frame_index], (0, 0))
+            surface = self._get_surface(self._frame_index)
+            if surface is not None:
+                self._screen.blit(surface, (0, 0))
+            else:
+                self._screen.fill((0, 0, 0))
             pygame.display.flip()
 
         pygame.quit()
