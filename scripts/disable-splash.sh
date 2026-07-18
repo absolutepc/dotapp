@@ -25,21 +25,17 @@ echo "[ok] ${CONFIG}: disable_splash=1"
 #    The word "splash" in cmdline ENABLES it — remove it.
 cp -a "${CMDLINE}" "${CMDLINE}.bak.$(date +%s)"
 # Keep as a single line; strip splash-related tokens
-python3 - <<'PY' "${CMDLINE}"
-import re, sys
+python3 - "${CMDLINE}" <<'PY'
+import sys
 path = sys.argv[1]
-text = open(path).read().strip()
-tokens = text.split()
+tokens = open(path).read().strip().split()
 drop = {"splash", "nosplash", "plymouth.ignore-serial-consoles"}
 kept = [t for t in tokens if t not in drop]
-# rewrite console=tty1 -> tty3 (hide kernel on visible console)
 kept = ["console=tty3" if t == "console=tty1" else t for t in kept]
 for need in ("quiet", "loglevel=0", "logo.nologo", "vt.global_cursor_default=0", "consoleblank=0"):
-    if need not in kept and not any(x.startswith(need.split("=")[0] + "=") and "=" in need for x in kept):
-        # avoid duplicate loglevel=
-        key = need.split("=")[0]
-        kept = [t for t in kept if not t.startswith(key + "=") and t != key]
-        kept.append(need)
+    key = need.split("=")[0]
+    kept = [t for t in kept if t != key and not t.startswith(key + "=")]
+    kept.append(need)
 open(path, "w").write(" ".join(kept) + "\n")
 print("[ok] cmdline rewritten")
 print(open(path).read())
