@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Short helper to switch the round display animation.
+#
+#   ./scripts/show            # list
+#   ./scripts/show anim3
+#   ./scripts/show project1
+#   ./scripts/show status
+
+set -euo pipefail
+
+API="${BMW_LOGO_API:-http://127.0.0.1:8080}"
+NAME="${1:-}"
+
+list_gallery() {
+  curl -sf "${API}/api/gallery" | python3 -c '
+import sys, json
+items = json.load(sys.stdin)
+for i in items:
+    mid = i["id"]
+    if not mid.startswith("builtin-bmw-"):
+        continue
+    short = mid.replace("builtin-bmw-", "")
+    print("%-12s  %s" % (short, i["name"]))
+'
+}
+
+resolve_id() {
+  local raw="$1"
+  raw="${raw,,}"
+  raw="${raw%.webm}"
+  raw="${raw%.mp4}"
+  raw="${raw%.gif}"
+  raw="${raw// /}"
+  raw="${raw//-/}"
+
+  case "$raw" in
+    quiet_r|quietr) echo "builtin-bmw-quiet_r"; return 0 ;;
+    quiet_w|quietw) echo "builtin-bmw-quiet_w"; return 0 ;;
+    itachi) echo "builtin-bmw-Itachi"; return 0 ;;
+  esac
+
+  echo "builtin-bmw-${raw}"
+}
+
+case "$NAME" in
+  ""|list|ls)
+    list_gallery
+    exit 0
+    ;;
+  status|st)
+    curl -sf "${API}/api/status"
+    echo
+    exit 0
+    ;;
+esac
+
+if [[ "$NAME" == builtin-* ]]; then
+  MEDIA_ID="$NAME"
+else
+  MEDIA_ID="$(resolve_id "$NAME")"
+fi
+
+echo "→ ${MEDIA_ID}"
+curl -sf -X POST "${API}/api/display" \
+  -H 'Content-Type: application/json' \
+  -d "{\"media_id\":\"${MEDIA_ID}\"}"
+echo
