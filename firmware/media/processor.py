@@ -95,6 +95,15 @@ class MediaProcessor:
             logger.warning("ffprobe failed for %s: %s", source, exc)
             return None
 
+    def _decode_source(self, source: Path) -> Path:
+        """Prefer H.264 .mp4 sibling — VP9 WebM decode is tiny on Pi Zero."""
+        if source.suffix.lower() == ".webm":
+            sibling = source.with_suffix(".mp4")
+            if sibling.exists():
+                logger.info("Decode via H.264 sibling %s (skip slow VP9)", sibling.name)
+                return sibling
+        return source
+
     def _extract_video_frames(self, source: Path, dest_dir: Path) -> tuple[list[Path], float]:
         """Extract WebM/MP4 directly to final 480x480 JPEGs (no per-frame Pillow)."""
         if shutil.which("ffmpeg") is None:
@@ -102,7 +111,8 @@ class MediaProcessor:
                 "ffmpeg is required for WebM/MP4. Install with: sudo apt install -y ffmpeg"
             )
 
-        duration = self._probe_duration(source)
+        decode_src = self._decode_source(source)
+        duration = self._probe_duration(decode_src) or self._probe_duration(source)
         if duration and duration > 0:
             fps = min(VIDEO_TARGET_FPS, MAX_VIDEO_FRAMES / duration)
         else:
@@ -112,7 +122,8 @@ class MediaProcessor:
         # All sizing + visibility lift in ffmpeg — Pillow per-frame was minutes on Pi Zero
         vf = (
             f"fps={fps:.4f},"
-            f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:force_original_aspect_ratio=increase,"
+            f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:flags=bilinear:"
+            f"force_original_aspect_ratio=increase,"
             f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT},"
             "eq=contrast=1.35:brightness=0.12:gamma=1.25"
         )
@@ -123,22 +134,29 @@ class MediaProcessor:
             "-loglevel",
             "error",
             "-y",
+            "-threads",
+            "2",
             "-i",
-            str(source),
+            str(decode_src),
             "-an",
             "-vf",
             vf,
             "-frames:v",
             str(MAX_VIDEO_FRAMES),
             "-q:v",
-            "3",
+            "5",
             str(pattern),
         ]
-        logger.info("ffmpeg extract %s → %s (fps=%.2f)", source.name, dest_dir, fps)
-        result = subprocess.run(cmd, check=False, capture_output=True, timeout=180)
+        logger.info(
+            "ffmpeg extract %s → %s (fps=%.2f)",
+            decode_src.name,
+            dest_dir,
+            fps,
+        )
+        result = subprocess.run(cmd, check=False, capture_output=True, timeout=420)
         if result.returncode != 0:
             err = (result.stderr or result.stdout or b"").decode("utf-8", errors="replace")
-            raise RuntimeError(f"ffmpeg failed for {source.name}: {err[-800:]}")
+            raise RuntimeError(f"ffmpeg failed for {decode_src.name}: {err[-800:]}")
 
         frames = list_frame_files(dest_dir)
         if not frames:
