@@ -21,11 +21,11 @@ MAX_VIDEO_FRAMES = 360
 # 15 fps keeps motion smooth enough and finishes in seconds on Pi Zero
 VIDEO_TARGET_FPS = 15.0
 # Bump when PNG/JPEG cache encoding changes so ensure_frames rebuilds on Pi.
-FRAME_CACHE_VERSION = 4
+FRAME_CACHE_VERSION = 5
 # Auto-zoom: fill this fraction of the round display with detected content.
 CONTENT_FILL = 0.94
 CONTENT_MIN_HEIGHT = 0.38
-MAX_AUTO_ZOOM = 2.6
+MAX_AUTO_ZOOM = 1.5
 
 
 def list_frame_files(frame_dir: Path) -> list[Path]:
