@@ -13,7 +13,7 @@ sudo rm -rf /var/lib/bmw-logo/frames/builtin-*
 sudo systemctl restart bmw-logo-api bmw-logo-display
 ```
 
-## Gallery animations (17 items)
+## Gallery animations (19 items)
 
 | File | Name | Type |
 |------|------|------|
@@ -31,6 +31,8 @@ sudo systemctl restart bmw-logo-api bmw-logo-display
 | anim5.webm | Anim 5 | animation |
 | anim6.webm | Anim 6 | animation |
 | anim7.webm | Anim 7 | animation |
+| anim8.webm | Anim 8 | animation |
+| anim9.webm | Anim 9 | animation |
 | project1.webm | Project 1 | animation |
 | project2.webm | Project 2 | animation |
 | project3.webm | Project 3 | animation |

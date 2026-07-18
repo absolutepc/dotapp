@@ -98,6 +98,20 @@
     "file": "bmw/anim7.webm"
   },
   {
+    "id": "builtin-bmw-anim8",
+    "name": "Anim 8",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim8.webm"
+  },
+  {
+    "id": "builtin-bmw-anim9",
+    "name": "Anim 9",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim9.webm"
+  },
+  {
     "id": "builtin-bmw-project1",
     "name": "Project 1",
     "category": "bmw",
