@@ -6,7 +6,9 @@ INSTALL_DIR="/opt/bmw-logo"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 sudo apt-get update
-sudo apt-get install -y ffmpeg python3-venv python3-pip rsync
+sudo apt-get install -y ffmpeg python3-venv python3-pip rsync \
+  libsdl2-2.0-0 libsdl2-image-2.0-0 libsdl2-mixer-2.0-0 libsdl2-ttf-2.0-0 \
+  libgbm1 libdrm2 libegl1 libxss1 libx11-6 python3-pygame
 
 echo "Installing to ${INSTALL_DIR}..."
 
@@ -17,7 +19,9 @@ sudo rsync -a --exclude '.git' --exclude 'ios' --exclude '.venv' \
 cd "${INSTALL_DIR}"
 python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
+# Prefer a source build of pygame so SDL sees x11/kmsdrm (pip wheels often lack them on Pi).
 .venv/bin/pip install -r firmware/requirements.txt
+.venv/bin/pip install --force-reinstall --no-binary=pygame 'pygame>=2.5.0' || true
 
 sudo mkdir -p /var/lib/bmw-logo/{media,frames,previews,state}
 sudo mkdir -p /var/run/bmw-logo
