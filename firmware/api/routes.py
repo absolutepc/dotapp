@@ -45,7 +45,11 @@ async def startup() -> None:
     if current:
         priority = storage.get(current)
     if priority is None:
-        priority = next((m for m in storage.list_all() if "default" in m.id), None)
+        # Prefer first BMW catalog animation (default.gif may be gone after gallery updates)
+        for item in storage.list_all():
+            if item.builtin and item.id.startswith("builtin-bmw-") and item.type == "animation":
+                priority = item
+                break
         if priority:
             set_current_media(priority.id, priority.fps)
 

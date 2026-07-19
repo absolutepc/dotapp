@@ -1,54 +1,5 @@
 [
   {
-    "id": "builtin-bmw-default",
-    "name": "Default",
-    "category": "bmw",
-    "type": "animation",
-    "file": "bmw/default.gif"
-  },
-  {
-    "id": "builtin-bmw-challenger",
-    "name": "Challenger",
-    "category": "bmw",
-    "type": "animation",
-    "file": "bmw/challenger.gif"
-  },
-  {
-    "id": "builtin-bmw-Itachi",
-    "name": "Itachi",
-    "category": "bmw",
-    "type": "animation",
-    "file": "bmw/Itachi.gif"
-  },
-  {
-    "id": "builtin-bmw-omnitrix",
-    "name": "Omnitrix",
-    "category": "bmw",
-    "type": "animation",
-    "file": "bmw/omnitrix.gif"
-  },
-  {
-    "id": "builtin-bmw-quiet_r",
-    "name": "Quiet R",
-    "category": "bmw",
-    "type": "animation",
-    "file": "bmw/quiet_r.gif"
-  },
-  {
-    "id": "builtin-bmw-quiet_w",
-    "name": "Quiet W",
-    "category": "bmw",
-    "type": "animation",
-    "file": "bmw/quiet_w.gif"
-  },
-  {
-    "id": "builtin-bmw-radar",
-    "name": "Radar",
-    "category": "bmw",
-    "type": "animation",
-    "file": "bmw/radar.gif"
-  },
-  {
     "id": "builtin-bmw-radar4",
     "name": "Radar 4",
     "category": "bmw",

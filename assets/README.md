@@ -5,7 +5,6 @@ Custom animations and emoji for the round display. Prefer your own uploads via t
 ## Switch animation on Pi
 
 ```bash
-cd ~/dotapp
 show            # list
 show anim3
 show project1
@@ -16,24 +15,17 @@ show status
 
 ```bash
 cd ~/dotapp
-git pull origin main
+git pull
 # do NOT run refresh-gallery.sh / generate_assets.py (wipes custom assets)
 sudo rm -f /var/lib/bmw-logo/manifest.json
 sudo rm -rf /var/lib/bmw-logo/frames/builtin-*
 sudo systemctl restart bmw-api bmw-display
 ```
 
-## Gallery animations (19 items)
+## Gallery animations (12 items)
 
 | File | Name | Type |
 |------|------|------|
-| default.gif | Default | animation |
-| challenger.gif | Challenger | animation |
-| Itachi.gif | Itachi | animation |
-| omnitrix.gif | Omnitrix | animation |
-| quiet_r.gif | Quiet R | animation |
-| quiet_w.gif | Quiet W | animation |
-| radar.gif | Radar | animation |
 | radar4.webm | Radar 4 | animation |
 | anim1.webm | Anim 1 | animation |
 | anim2.webm | Anim 2 | animation |
@@ -47,8 +39,8 @@ sudo systemctl restart bmw-api bmw-display
 | project2.webm | Project 2 | animation |
 | project3.webm | Project 3 | animation |
 
-GIF and WebM are both supported. WebM/MP4 are decoded via ffmpeg into a PNG frame
-cache (up to **360 frames**) with a visibility lift for dark neon/radar clips.
+WebM/MP4 are decoded via ffmpeg into a JPEG/PNG frame cache (up to **360 frames**)
+with a visibility lift for dark neon/radar clips.
 
 For the HTML mockup, each WebM has a matching **`.mp4` (H.264)** sibling so Safari
 and iPhone can play the preview (VP9 WebM often does not). The Pi display still
@@ -73,6 +65,6 @@ First select of a WebM rebuilds its cache (can take a minute on Pi Zero).
 
 ## Add your own
 
-Copy PNG/GIF/WebP/WebM (ideally 480×480) into `bmw/` or `emoji/`, update `catalog.json` names if needed, then run `refresh-gallery.sh`.
+Copy PNG/GIF/WebP/WebM (ideally 480×480) into `bmw/` or `emoji/`, update `catalog.json` names if needed, then restart `bmw-api`.
 
 Or upload from iPhone — no repo changes required.

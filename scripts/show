@@ -26,16 +26,12 @@ resolve_id() {
   raw="${raw%.webm}"; raw="${raw%.mp4}"; raw="${raw%.gif}"
   raw="${raw// /}"; raw="${raw//-/}"
 
+  # Aliases for friendly names
   case "$raw" in
-    quietr) raw="quiet_r" ;;
-    quietw) raw="quiet_w" ;;
+    default) raw="radar4" ;;
   esac
 
-  if [[ "$raw" == "itachi" ]]; then
-    echo "builtin-bmw-Itachi"
-  else
-    echo "builtin-bmw-${raw}"
-  fi
+  echo "builtin-bmw-${raw}"
 }
 
 if [[ "$NAME" == "list" || "$NAME" == "ls" || -z "$NAME" ]]; then
