@@ -5,13 +5,34 @@ set -euo pipefail
 
 PI_USER="${1:-${SUDO_USER:-pi}}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-INSTALL_DIR="${BMW_LOGO_INSTALL:-/opt/bmw-logo}"
-if [[ -d "${REPO_ROOT}/firmware" && ! -d "${INSTALL_DIR}/firmware" ]]; then
+
+# Prefer a tree that actually has firmware + a usable venv.
+# /opt/bmw-logo often exists as an empty/partial stub and must not win over ~/dotapp.
+_has_runtime() {
+  local root="$1"
+  [[ -d "${root}/firmware" ]] || return 1
+  [[ -x "${root}/venv/bin/python" || -x "${root}/.venv/bin/python" ]] || return 1
+  [[ -x "${root}/venv/bin/uvicorn" || -x "${root}/.venv/bin/uvicorn" ]] || return 1
+  return 0
+}
+
+if [[ -n "${BMW_LOGO_INSTALL:-}" ]]; then
+  INSTALL_DIR="${BMW_LOGO_INSTALL}"
+elif _has_runtime "${REPO_ROOT}"; then
   INSTALL_DIR="${REPO_ROOT}"
+elif _has_runtime /opt/bmw-logo; then
+  INSTALL_DIR="/opt/bmw-logo"
+elif [[ -d "${REPO_ROOT}/firmware" ]]; then
+  INSTALL_DIR="${REPO_ROOT}"
+else
+  INSTALL_DIR="/opt/bmw-logo"
 fi
 
 echo "Kiosk boot setup for user: ${PI_USER}"
 echo "Install dir: ${INSTALL_DIR}"
+if ! _has_runtime "${INSTALL_DIR}"; then
+  echo "WARNING: ${INSTALL_DIR} has no usable venv (expected venv/ or .venv/ with python+uvicorn)" >&2
+fi
 
 # --- Quiet boot: config.txt (hide rainbow + early Pi logos) ---
 CONFIG="/boot/firmware/config.txt"
@@ -76,18 +97,23 @@ sed "s|User=pi|User=${PI_USER}|g; s|/opt/bmw-logo|${INSTALL_DIR}|g" \
   "${INSTALL_DIR}/firmware/systemd/bmw-logo-display-kiosk.service" \
   >/etc/systemd/system/bmw-logo-display.service
 
-# Fix venv path (venv vs .venv)
-if [[ -x "${INSTALL_DIR}/venv/bin/python" ]]; then
-  sed -i "s|/.venv/bin/python|/venv/bin/python|g" /etc/systemd/system/bmw-logo-display.service
-fi
+# Fix venv path (venv vs .venv) for both units after path rewrite
+_fix_venv_paths() {
+  local unit="$1"
+  if [[ -x "${INSTALL_DIR}/venv/bin/python" ]]; then
+    sed -i "s|/\.venv/bin/|/venv/bin/|g" "${unit}"
+  elif [[ -x "${INSTALL_DIR}/.venv/bin/python" ]]; then
+    sed -i "s|/venv/bin|/\\.venv/bin|g" "${unit}"
+  fi
+}
+
+_fix_venv_paths /etc/systemd/system/bmw-logo-display.service
 
 # API service user/path
 sed "s|User=pi|User=${PI_USER}|g; s|/opt/bmw-logo|${INSTALL_DIR}|g" \
   "${INSTALL_DIR}/firmware/systemd/bmw-logo-api.service" \
   >/etc/systemd/system/bmw-logo-api.service
-if [[ -x "${INSTALL_DIR}/venv/bin/uvicorn" ]]; then
-  sed -i "s|/.venv/bin/uvicorn|/venv/bin/uvicorn|g" /etc/systemd/system/bmw-logo-api.service
-fi
+_fix_venv_paths /etc/systemd/system/bmw-logo-api.service
 
 # Ensure user can open DRM/KMS devices without desktop
 usermod -aG video,render "${PI_USER}" 2>/dev/null || usermod -aG video "${PI_USER}" 2>/dev/null || true
