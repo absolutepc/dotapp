@@ -73,7 +73,7 @@ echo ""
 echo "Install complete."
 echo "  API:     systemctl status bmw-api --no-pager"
 echo "  Display: systemctl status bmw-display --no-pager"
-echo "  Switch:  sudo -u ${PI_USER} ${INSTALL_DIR}/scripts/show anim3"
+echo "  Switch:  show anim3"
 echo ""
 if [[ "${MODE}" == "kiosk" ]]; then
   echo "Optional quiet kiosk boot:"
@@ -81,5 +81,5 @@ if [[ "${MODE}" == "kiosk" ]]; then
   echo "  sudo reboot"
 else
   echo "Desktop mode: animation uses X11 on :0 after graphical login."
-  echo "  After reboot, wait for desktop, then: ${INSTALL_DIR}/scripts/show anim3"
+  echo "  After reboot, wait for desktop, then: show anim3"
 fi

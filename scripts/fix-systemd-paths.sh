@@ -80,11 +80,15 @@ systemctl restart bmw-api
 # Display may need the desktop session; restart after a short wait
 systemctl restart bmw-display || true
 
+# Global CLI: `show anim3` from any directory
+install -m 755 "${ROOT}/scripts/show" /usr/local/bin/show
+
 echo "---"
 echo "Mode: ${MODE}"
 echo "User: ${PI_USER}"
 echo "Root: ${ROOT}"
 echo "Venv: ${VENV_BIN}"
+echo "CLI:  show anim3 | show list | show status"
 echo "---"
 systemctl cat bmw-api bmw-display | grep -E '^(# |User=|WorkingDirectory=|Environment=|ExecStart=)'
 echo "---"

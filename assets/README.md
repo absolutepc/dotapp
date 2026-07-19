@@ -6,10 +6,10 @@ Custom animations and emoji for the round display. Prefer your own uploads via t
 
 ```bash
 cd ~/dotapp
-./scripts/show            # list
-./scripts/show anim3
-./scripts/show project1
-./scripts/show status
+show            # list
+show anim3
+show project1
+show status
 ```
 
 ## Refresh on Pi
