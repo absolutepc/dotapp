@@ -20,7 +20,7 @@ git pull origin main
 # do NOT run refresh-gallery.sh / generate_assets.py (wipes custom assets)
 sudo rm -f /var/lib/bmw-logo/manifest.json
 sudo rm -rf /var/lib/bmw-logo/frames/builtin-*
-sudo systemctl restart bmw-logo-api bmw-logo-display
+sudo systemctl restart bmw-api bmw-display
 ```
 
 ## Gallery animations (19 items)

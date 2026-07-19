@@ -1,7 +1,7 @@
 [Unit]
 Description=BMW Logo HDMI Display Renderer (desktop / X11)
-After=graphical.target display-manager.service bmw-logo-api.service
-Wants=graphical.target bmw-logo-api.service
+After=graphical.target display-manager.service bmw-api.service
+Wants=graphical.target bmw-api.service
 
 [Service]
 Type=simple

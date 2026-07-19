@@ -34,15 +34,21 @@ if [[ "${MODE}" == "auto" ]]; then
 fi
 
 if [[ "${MODE}" == "desktop" ]]; then
-  DISPLAY_SRC="${ROOT}/firmware/systemd/bmw-logo-display.service"
+  DISPLAY_SRC="${ROOT}/firmware/systemd/bmw-display.service"
 else
-  DISPLAY_SRC="${ROOT}/firmware/systemd/bmw-logo-display-kiosk.service"
+  DISPLAY_SRC="${ROOT}/firmware/systemd/bmw-display-kiosk.service"
 fi
-API_SRC="${ROOT}/firmware/systemd/bmw-logo-api.service"
+API_SRC="${ROOT}/firmware/systemd/bmw-api.service"
 [[ -f "${DISPLAY_SRC}" && -f "${API_SRC}" ]] || {
   echo "ERROR: systemd templates missing under ${ROOT}/firmware/systemd" >&2
   exit 1
 }
+
+# Drop legacy long names from older installs
+for old in bmw-logo-api bmw-logo-display; do
+  systemctl disable --now "${old}" 2>/dev/null || true
+  rm -f "/etc/systemd/system/${old}.service"
+done
 
 rewrite_unit() {
   local src="$1" dest="$2" exec_bin="$3" exec_args="$4"
@@ -60,19 +66,19 @@ rewrite_unit() {
     "${dest}"
 }
 
-rewrite_unit "${DISPLAY_SRC}" /etc/systemd/system/bmw-logo-display.service \
+rewrite_unit "${DISPLAY_SRC}" /etc/systemd/system/bmw-display.service \
   "${VENV_BIN}/python" "-m firmware.display.hdmi_renderer"
 
-rewrite_unit "${API_SRC}" /etc/systemd/system/bmw-logo-api.service \
+rewrite_unit "${API_SRC}" /etc/systemd/system/bmw-api.service \
   "${VENV_BIN}/uvicorn" "firmware.main:app --host 0.0.0.0 --port 8080"
 
 usermod -aG video,render "${PI_USER}" 2>/dev/null || usermod -aG video "${PI_USER}" 2>/dev/null || true
 
 systemctl daemon-reload
-systemctl enable bmw-logo-api bmw-logo-display
-systemctl restart bmw-logo-api
+systemctl enable bmw-api bmw-display
+systemctl restart bmw-api
 # Display may need the desktop session; restart after a short wait
-systemctl restart bmw-logo-display || true
+systemctl restart bmw-display || true
 
 echo "---"
 echo "Mode: ${MODE}"
@@ -80,8 +86,8 @@ echo "User: ${PI_USER}"
 echo "Root: ${ROOT}"
 echo "Venv: ${VENV_BIN}"
 echo "---"
-systemctl cat bmw-logo-api bmw-logo-display | grep -E '^(# |User=|WorkingDirectory=|Environment=|ExecStart=)'
+systemctl cat bmw-api bmw-display | grep -E '^(# |User=|WorkingDirectory=|Environment=|ExecStart=)'
 echo "---"
 sleep 3
-systemctl is-active bmw-logo-api bmw-logo-display || true
-journalctl -u bmw-logo-display -n 25 --no-pager || true
+systemctl is-active bmw-api bmw-display || true
+journalctl -u bmw-display -n 25 --no-pager || true

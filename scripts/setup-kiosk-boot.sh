@@ -92,35 +92,31 @@ if [[ -f "${REPO_ROOT}/scripts/disable-splash.sh" ]]; then
   bash "${REPO_ROOT}/scripts/disable-splash.sh" || true
 fi
 
-# --- Kiosk display service ---
-sed "s|User=pi|User=${PI_USER}|g; s|/opt/bmw-logo|${INSTALL_DIR}|g" \
-  "${INSTALL_DIR}/firmware/systemd/bmw-logo-display-kiosk.service" \
-  >/etc/systemd/system/bmw-logo-display.service
-
-# Fix venv path (venv vs .venv) for both units after path rewrite
-_fix_venv_paths() {
-  local unit="$1"
+# Prefer shared path rewriter (short unit names bmw-api / bmw-display)
+if [[ -x "${INSTALL_DIR}/scripts/fix-systemd-paths.sh" ]]; then
+  bash "${INSTALL_DIR}/scripts/fix-systemd-paths.sh" "${PI_USER}" kiosk
+else
+  # Fallback: inline rewrite
+  for old in bmw-logo-api bmw-logo-display; do
+    systemctl disable --now "${old}" 2>/dev/null || true
+    rm -f "/etc/systemd/system/${old}.service"
+  done
+  sed "s|User=pi|User=${PI_USER}|g; s|/opt/bmw-logo|${INSTALL_DIR}|g" \
+    "${INSTALL_DIR}/firmware/systemd/bmw-display-kiosk.service" \
+    >/etc/systemd/system/bmw-display.service
+  sed "s|User=pi|User=${PI_USER}|g; s|/opt/bmw-logo|${INSTALL_DIR}|g" \
+    "${INSTALL_DIR}/firmware/systemd/bmw-api.service" \
+    >/etc/systemd/system/bmw-api.service
   if [[ -x "${INSTALL_DIR}/venv/bin/python" ]]; then
-    sed -i "s|/\.venv/bin/|/venv/bin/|g" "${unit}"
-  elif [[ -x "${INSTALL_DIR}/.venv/bin/python" ]]; then
-    sed -i "s|/venv/bin|/\\.venv/bin|g" "${unit}"
+    sed -i "s|/\.venv/bin/|/venv/bin/|g" \
+      /etc/systemd/system/bmw-display.service \
+      /etc/systemd/system/bmw-api.service
   fi
-}
-
-_fix_venv_paths /etc/systemd/system/bmw-logo-display.service
-
-# API service user/path
-sed "s|User=pi|User=${PI_USER}|g; s|/opt/bmw-logo|${INSTALL_DIR}|g" \
-  "${INSTALL_DIR}/firmware/systemd/bmw-logo-api.service" \
-  >/etc/systemd/system/bmw-logo-api.service
-_fix_venv_paths /etc/systemd/system/bmw-logo-api.service
-
-# Ensure user can open DRM/KMS devices without desktop
-usermod -aG video,render "${PI_USER}" 2>/dev/null || usermod -aG video "${PI_USER}" 2>/dev/null || true
-
-systemctl daemon-reload
-systemctl enable bmw-logo-api bmw-logo-display
-systemctl restart bmw-logo-api bmw-logo-display 2>/dev/null || true
+  usermod -aG video,render "${PI_USER}" 2>/dev/null || usermod -aG video "${PI_USER}" 2>/dev/null || true
+  systemctl daemon-reload
+  systemctl enable bmw-api bmw-display
+  systemctl restart bmw-api bmw-display 2>/dev/null || true
+fi
 
 echo ""
 echo "Kiosk boot configured."
@@ -129,7 +125,7 @@ echo "  - Logo renderer on tty1 (kmsdrm)"
 echo ""
 echo "Check now (before reboot):"
 echo "  systemctl --no-pager --failed"
-echo "  journalctl -u bmw-logo-display -n 30 --no-pager"
+echo "  journalctl -u bmw-display -n 30 --no-pager"
 echo ""
 echo "Reboot to apply quiet boot: sudo reboot"
 echo ""

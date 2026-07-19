@@ -2,7 +2,7 @@
 Description=BMW Logo HDMI Display Renderer (kiosk, no desktop)
 # Start as soon as local FS is up; API can come later (state file polled)
 After=local-fs.target
-Wants=bmw-logo-api.service
+Wants=bmw-api.service
 Before=getty@tty1.service
 Conflicts=getty@tty1.service
 

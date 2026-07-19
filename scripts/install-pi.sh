@@ -66,13 +66,13 @@ fi
 bash "${INSTALL_DIR}/scripts/fix-systemd-paths.sh" "${PI_USER}" "${MODE}"
 
 systemctl daemon-reload
-systemctl enable bmw-logo-api bmw-logo-display
-systemctl restart bmw-logo-api bmw-logo-display || true
+systemctl enable bmw-api bmw-display
+systemctl restart bmw-api bmw-display || true
 
 echo ""
 echo "Install complete."
-echo "  API:     systemctl status bmw-logo-api --no-pager"
-echo "  Display: systemctl status bmw-logo-display --no-pager"
+echo "  API:     systemctl status bmw-api --no-pager"
+echo "  Display: systemctl status bmw-display --no-pager"
 echo "  Switch:  sudo -u ${PI_USER} ${INSTALL_DIR}/scripts/show anim3"
 echo ""
 if [[ "${MODE}" == "kiosk" ]]; then
