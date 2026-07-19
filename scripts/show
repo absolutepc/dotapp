@@ -8,10 +8,44 @@ set -euo pipefail
 API="${BMW_LOGO_API:-http://127.0.0.1:8080}"
 NAME="${1:-list}"
 
+api_get() {
+  local path="$1"
+  local body code
+  # Retry briefly — API may still be starting after systemctl restart
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    RESP="$(curl -sS -m 3 -w "\n%{http_code}" "${API}${path}" 2>/dev/null || true)"
+    body="$(printf '%s' "$RESP" | sed '$d')"
+    code="$(printf '%s' "$RESP" | tail -n1)"
+    if [[ "$code" == "200" && -n "$body" ]]; then
+      printf '%s' "$body"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "API not ready at ${API}${path} (is bmw-api running?)" >&2
+  echo "  systemctl status bmw-api --no-pager" >&2
+  echo "  journalctl -u bmw-api -n 40 --no-pager" >&2
+  return 1
+}
+
 list_gallery() {
-  curl -s "${API}/api/gallery" | python3 -c '
+  local raw
+  raw="$(api_get /api/gallery)" || exit 1
+  printf '%s' "$raw" | python3 -c '
 import sys, json
-items = json.load(sys.stdin)
+raw = sys.stdin.read().strip()
+if not raw:
+    print("Empty gallery response", file=sys.stderr)
+    sys.exit(1)
+try:
+    items = json.loads(raw)
+except json.JSONDecodeError as exc:
+    print("Bad JSON from API:", exc, file=sys.stderr)
+    print(raw[:200], file=sys.stderr)
+    sys.exit(1)
+if not isinstance(items, list):
+    print("Unexpected gallery payload:", type(items).__name__, file=sys.stderr)
+    sys.exit(1)
 for i in items:
     mid = i.get("id", "")
     if not mid.startswith("builtin-bmw-"):
@@ -40,7 +74,7 @@ if [[ "$NAME" == "list" || "$NAME" == "ls" || -z "$NAME" ]]; then
 fi
 
 if [[ "$NAME" == "status" || "$NAME" == "st" ]]; then
-  curl -s "${API}/api/status"
+  api_get /api/status
   echo
   exit 0
 fi
@@ -53,13 +87,13 @@ fi
 
 echo "→ ${MEDIA_ID}"
 # Do not use curl -f: always print body so errors are visible
-RESP="$(curl -s -w "\n%{http_code}" -X POST "${API}/api/display" \
+RESP="$(curl -sS -m 120 -w "\n%{http_code}" -X POST "${API}/api/display" \
   -H 'Content-Type: application/json' \
-  -d "{\"media_id\":\"${MEDIA_ID}\"}")"
+  -d "{\"media_id\":\"${MEDIA_ID}\"}" 2>/dev/null || true)"
 BODY="$(printf '%s' "$RESP" | sed '$d')"
 CODE="$(printf '%s' "$RESP" | tail -n1)"
 echo "$BODY"
 if [[ "$CODE" != "200" ]]; then
-  echo "HTTP $CODE" >&2
+  echo "HTTP ${CODE:-000} — is bmw-api active?" >&2
   exit 1
 fi
