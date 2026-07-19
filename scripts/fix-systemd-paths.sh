@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rewrite bmw-logo systemd units to this checkout + user + venv/.venv.
+# Rewrite bmw systemd units (bmw-api / bmw-display) to this checkout + user + venv.
 # Run on Pi:
 #   sudo bash scripts/fix-systemd-paths.sh [username] [desktop|kiosk|auto]
 # desktop = with LXDE/lightdm (X11 fullscreen)
