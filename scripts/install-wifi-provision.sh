@@ -20,15 +20,18 @@ rm -f /usr/local/sbin/bmw-wifi-apply /usr/local/sbin/bmw-enter-setup-ap /etc/sud
 
 install -m 755 "${ROOT}/scripts/wifi-apply-client.sh" /usr/local/sbin/dot-wifi-apply
 install -m 755 "${ROOT}/scripts/enter-setup-ap.sh" /usr/local/sbin/dot-enter-setup-ap
+install -m 755 "${ROOT}/scripts/dot-wifi-boot.sh" /usr/local/sbin/dot-wifi-boot
 
 install -m 644 "${ROOT}/firmware/systemd/dot-wifi-apply.service" /etc/systemd/system/dot-wifi-apply.service
 install -m 644 "${ROOT}/firmware/systemd/dot-wifi-apply.path" /etc/systemd/system/dot-wifi-apply.path
+install -m 644 "${ROOT}/firmware/systemd/dot-wifi-boot.service" /etc/systemd/system/dot-wifi-boot.service
 
 # Passwordless apply for the service account (API runs as PI_USER)
 cat >/etc/sudoers.d/dot-wifi-apply <<EOF
 ${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-wifi-apply
 ${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-enter-setup-ap
 ${PI_USER} ALL=(root) NOPASSWD: /bin/systemctl start dot-wifi-apply.service
+${PI_USER} ALL=(root) NOPASSWD: /bin/systemctl start dot-wifi-boot.service
 EOF
 chmod 440 /etc/sudoers.d/dot-wifi-apply
 
@@ -40,8 +43,19 @@ chmod 664 "${STATE_DIR}/wifi-status.json" "${STATE_DIR}/wifi-mode.json"
 
 systemctl daemon-reload
 systemctl enable --now dot-wifi-apply.path
+systemctl enable dot-wifi-boot.service
+
+# If never configured, start setup AP now so the phone can finish first connect
+# without SSH / manual enter-setup-ap.
+if ! nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot"; then
+  echo "No phone-hotspot profile yet — starting Dot-Setup AP…"
+  systemctl start dot-wifi-boot.service || /usr/local/sbin/dot-enter-setup-ap || true
+else
+  echo "Phone-hotspot profile already present — boot service will join on next reboot."
+fi
 
 echo "Wi-Fi provisioning installed for user: ${PI_USER}"
-echo "  Start setup AP:  sudo dot-enter-setup-ap"
+echo "  First connect:   join Dot-Setup-… on iPhone → Dot app → Настройка Wi‑Fi"
+echo "  Setup AP now:    sudo systemctl start dot-wifi-boot  (or sudo dot-enter-setup-ap)"
 echo "  Portal:          http://192.168.4.1/setup/"
 echo "  Status API:      http://127.0.0.1:8080/api/wifi/status"

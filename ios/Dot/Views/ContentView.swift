@@ -42,8 +42,18 @@ struct ContentView: View {
                     }
                 }
             }
-            .task { await api.refresh() }
-            .refreshable { await api.refresh() }
+            .task {
+                await api.discoverAndConnect()
+                if api.shouldOfferWifiSetup {
+                    showWifiSetup = true
+                }
+            }
+            .refreshable { await api.discoverAndConnect() }
+            .onChange(of: api.shouldOfferWifiSetup) { needsSetup in
+                if needsSetup {
+                    showWifiSetup = true
+                }
+            }
             .sheet(item: $selectedItem) { item in
                 PreviewView(item: item, showSuccess: $showSuccess)
                     .environmentObject(api)

@@ -12,6 +12,8 @@ final class PiAPIClient: ObservableObject {
     @Published var isConnected = false
     @Published var isLoading = false
     @Published var errorMessage: String?
+    /// True when Pi is in first-time Dot-Setup AP mode (app should open Wi‑Fi setup).
+    @Published var shouldOfferWifiSetup = false
 
     /// Host only, e.g. `192.168.4.1` or `172.20.10.5` (no scheme/port).
     @Published var host: String {
@@ -51,6 +53,64 @@ final class PiAPIClient: ObservableObject {
         return value.isEmpty ? "192.168.4.1" : value
     }
 
+    /// Candidate Pi addresses: saved → setup AP → common iPhone hotspot LAN.
+    static func discoveryCandidates(preferred: String) -> [String] {
+        var list: [String] = []
+        func add(_ value: String) {
+            let host = sanitizeHost(value)
+            if !list.contains(host) {
+                list.append(host)
+            }
+        }
+        add(preferred)
+        add("192.168.4.1")
+        // iPhone Personal Hotspot typically NATs as 172.20.10.1; Pi often gets .2+.
+        for last in 2...15 {
+            add("172.20.10.\(last)")
+        }
+        return list
+    }
+
+    /// Probe hosts until one answers; used on launch so the user need not type an IP.
+    func discoverAndConnect() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        let candidates = Self.discoveryCandidates(preferred: host)
+        for candidate in candidates {
+            if let probed = await probe(host: candidate) {
+                host = candidate
+                wifi = probed
+                shouldOfferWifiSetup = probed.isSetupAP
+                do {
+                    status = try await get("/api/status", as: DeviceStatus.self)
+                    gallery = try await get("/api/gallery", as: [MediaItem].self)
+                    if let ip = probed.ip, !ip.isEmpty, probed.mode == "client" {
+                        host = ip
+                    }
+                    isConnected = true
+                    errorMessage = nil
+                    return
+                } catch {
+                    // Reachable wifi status but gallery failed — still treat as connected for setup.
+                    if probed.isSetupAP {
+                        isConnected = true
+                        shouldOfferWifiSetup = true
+                        errorMessage = nil
+                        return
+                    }
+                }
+            }
+        }
+
+        isConnected = false
+        shouldOfferWifiSetup = false
+        errorMessage =
+            "Не найден Dot. Для первого раза: Wi‑Fi → Dot-Setup-… (пароль dotsetup1), затем «Настройка Wi‑Fi». "
+            + "Обычная работа: включите Режим модема и подождите несколько секунд."
+    }
+
     func refresh() async {
         isLoading = true
         errorMessage = nil
@@ -60,28 +120,44 @@ final class PiAPIClient: ObservableObject {
             status = try await get("/api/status", as: DeviceStatus.self)
             gallery = try await get("/api/gallery", as: [MediaItem].self)
             wifi = try? await get("/api/wifi/status", as: WifiStatus.self)
-            if let ip = wifi?.ip, !ip.isEmpty, wifi?.mode == "client" {
-                host = ip
+            if let wifi {
+                shouldOfferWifiSetup = wifi.isSetupAP
+                if let ip = wifi.ip, !ip.isEmpty, wifi.mode == "client" {
+                    host = ip
+                }
             }
             isConnected = true
         } catch {
-            isConnected = false
-            errorMessage = error.localizedDescription
+            // Fall back to discovery instead of leaving the user stuck on a stale IP.
+            await discoverAndConnect()
         }
     }
 
     func wifiStatus() async throws -> WifiStatus {
         let status = try await get("/api/wifi/status", as: WifiStatus.self)
         wifi = status
+        shouldOfferWifiSetup = status.isSetupAP
         return status
+    }
+
+    /// Confirm the API is reachable on the current host before sending credentials.
+    func ensureReachableForSetup() async throws {
+        host = "192.168.4.1"
+        guard let status = await probe(host: host) else {
+            throw APIError.setupUnreachable
+        }
+        wifi = status
+        shouldOfferWifiSetup = status.isSetupAP
     }
 
     /// Send phone hotspot credentials while connected to Dot-Setup AP.
     func configureWifi(ssid: String, password: String) async throws -> WifiConfigureResponse {
+        try await ensureReachableForSetup()
+
         var request = URLRequest(url: baseURL.appending(path: "/api/wifi/configure"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30
+        request.timeoutInterval = 45
         request.httpBody = try JSONEncoder().encode([
             "ssid": ssid,
             "password": password,
@@ -142,8 +218,23 @@ final class PiAPIClient: ObservableObject {
         baseURL.appending(path: item.previewUrl ?? "/api/preview/\(item.id)")
     }
 
+    private func probe(host candidate: String) async -> WifiStatus? {
+        guard let url = URL(string: "http://\(candidate):8080/api/wifi/status") else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 2.5
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            return try JSONDecoder().decode(WifiStatus.self, from: data)
+        } catch {
+            return nil
+        }
+    }
+
     private func get<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
-        let (data, response) = try await URLSession.shared.data(from: baseURL.appending(path: path))
+        var request = URLRequest(url: baseURL.appending(path: path))
+        request.timeoutInterval = 8
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw APIError.requestFailed
         }
@@ -153,10 +244,14 @@ final class PiAPIClient: ObservableObject {
 
 enum APIError: LocalizedError {
     case requestFailed
+    case setupUnreachable
 
     var errorDescription: String? {
         switch self {
-        case .requestFailed: return "Request to Dot device failed"
+        case .requestFailed:
+            return "Request to Dot device failed"
+        case .setupUnreachable:
+            return "Pi недоступен на 192.168.4.1. Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль: dotsetup1) и повторите."
         }
     }
 }

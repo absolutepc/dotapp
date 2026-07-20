@@ -76,20 +76,48 @@ def _trigger_apply() -> None:
     logger.warning("Could not start wifi apply helper; relying on dot-wifi-apply.path")
 
 
+def _trigger_setup_ap() -> None:
+    """Re-enter Dot-Setup AP without SSH (for app /reprovision)."""
+    for cmd in (
+        ["sudo", "-n", "/usr/local/sbin/dot-enter-setup-ap"],
+        ["sudo", "-n", "systemctl", "start", "dot-wifi-boot.service"],
+    ):
+        try:
+            subprocess.Popen(  # noqa: S603
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            return
+        except Exception:  # noqa: BLE001
+            continue
+    logger.warning("Could not start setup AP helper")
+
+
+def _has_client_ssid() -> bool:
+    client = _read_json(WIFI_CLIENT)
+    return bool((client.get("ssid") or "").strip())
+
+
 @router.get("/status")
 def wifi_status() -> dict:
     status = _read_json(WIFI_STATUS)
     mode = _read_json(WIFI_MODE)
     client = _read_json(WIFI_CLIENT)
-    ip = status.get("ip") or client.get("ip") or _primary_ipv4()
+    resolved_mode = status.get("mode") or mode.get("mode") or "unknown"
+    ip = status.get("ip") or client.get("ip") or mode.get("ip") or _primary_ipv4()
+    needs_setup = resolved_mode == "setup_ap" or not _has_client_ssid()
     return {
-        "mode": status.get("mode") or mode.get("mode") or "unknown",
+        "mode": resolved_mode,
         "ok": bool(status.get("ok")) if status else False,
         "message": status.get("message") or mode.get("message"),
-        "ssid": client.get("ssid"),
+        "ssid": client.get("ssid") or mode.get("ssid"),
         "ip": ip,
         "updated_at": status.get("updated_at"),
         "setup_portal": "http://192.168.4.1/setup/",
+        "needs_setup": needs_setup,
+        "setup_ssid": mode.get("ssid") if resolved_mode == "setup_ap" else None,
     }
 
 
@@ -132,6 +160,30 @@ def wifi_configure(body: WifiConfigureRequest) -> dict:
     return {
         "ok": True,
         "message": "Сохранено. Pi выходит из сети настройки и подключается к точке iPhone…",
+    }
+
+
+@router.post("/reprovision")
+def wifi_reprovision() -> dict:
+    """Drop back into Dot-Setup AP so the user can re-enter hotspot credentials from the app."""
+    DATA_ROOT.mkdir(parents=True, exist_ok=True)
+    WIFI_STATUS.write_text(
+        json.dumps(
+            {
+                "ok": False,
+                "mode": "setup_ap",
+                "message": "Re-entering setup AP…",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _trigger_setup_ap()
+    return {
+        "ok": True,
+        "message": "Pi открывает сеть Dot-Setup. Подключите iPhone к ней и снова введите Режим модема.",
+        "setup_portal": "http://192.168.4.1/setup/",
     }
 
 

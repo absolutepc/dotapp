@@ -74,11 +74,19 @@ struct WifiStatus: Codable {
     let ip: String?
     let updatedAt: String?
     let setupPortal: String?
+    let needsSetup: Bool?
+    let setupSsid: String?
 
     enum CodingKeys: String, CodingKey {
         case mode, ok, message, ssid, ip
         case updatedAt = "updated_at"
         case setupPortal = "setup_portal"
+        case needsSetup = "needs_setup"
+        case setupSsid = "setup_ssid"
+    }
+
+    var isSetupAP: Bool {
+        mode == "setup_ap" || needsSetup == true
     }
 }
 
