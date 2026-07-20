@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Enter one-time Wi-Fi setup AP mode (phone joins this network to configure hotspot).
 # Run: sudo bash scripts/enter-setup-ap.sh [setup_password]
+# Tip: does NOT run apt-get update unless packages are missing (fast on Pi Zero).
 set -euo pipefail
 
 SETUP_PASS="${1:-dotsetup1}"
-SSID_SUFFIX="$(hostname 2>/dev/null | tr -cd 'A-Za-z0-9' | tail -c 5)"
+SSID_SUFFIX="$(hostname 2>/dev/null | tr -cd 'A-Za-z0-9' | tail -c 4)"
 SSID="Dot-Setup-${SSID_SUFFIX:-Pi}"
 AP_IP="192.168.4.1"
 STATE_DIR="/var/lib/dot"
@@ -12,8 +13,17 @@ mkdir -p "${STATE_DIR}"
 
 echo "Entering setup AP mode: ${SSID}"
 
-apt-get update -qq
-apt-get install -y -qq hostapd dnsmasq network-manager >/dev/null
+need_pkgs=()
+command -v hostapd >/dev/null || need_pkgs+=(hostapd)
+command -v dnsmasq >/dev/null || need_pkgs+=(dnsmasq)
+command -v nmcli >/dev/null || need_pkgs+=(network-manager)
+if ((${#need_pkgs[@]})); then
+  echo "Installing packages: ${need_pkgs[*]} (needs internet)…"
+  apt-get update -qq
+  apt-get install -y -qq "${need_pkgs[@]}"
+else
+  echo "Packages already installed — skipping apt."
+fi
 
 # Stop any client connection on wlan0
 systemctl stop hostapd dnsmasq 2>/dev/null || true
@@ -71,8 +81,14 @@ ip addr flush dev wlan0 2>/dev/null || true
 ip addr replace ${AP_IP}/24 dev wlan0 || true
 
 systemctl unmask hostapd
-systemctl enable hostapd dnsmasq
-systemctl restart dnsmasq hostapd
+systemctl enable hostapd dnsmasq >/dev/null 2>&1 || true
+echo "Starting hostapd + dnsmasq…"
+systemctl restart dnsmasq
+systemctl restart hostapd
+
+sleep 1
+systemctl is-active hostapd dnsmasq || true
+ip -4 addr show wlan0 | sed -n '1,6p' || true
 
 cat >"${STATE_DIR}/wifi-mode.json" <<EOF
 {"mode":"setup_ap","ssid":"${SSID}","ip":"${AP_IP}","portal":"http://${AP_IP}/setup/"}
@@ -82,6 +98,6 @@ echo ""
 echo "Setup AP ready."
 echo "  1. On iPhone: join Wi-Fi  ${SSID}"
 echo "  2. Password:              ${SETUP_PASS}"
-echo "  3. Open Safari:           http://${AP_IP}/setup/"
+echo "  3. Open Dot app → Wi-Fi setup  (or http://${AP_IP}/setup/)"
 echo "  4. Enter your iPhone Personal Hotspot name + password"
 echo ""
