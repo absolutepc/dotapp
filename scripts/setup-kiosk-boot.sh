@@ -73,13 +73,18 @@ fi
 systemctl set-default multi-user.target
 systemctl disable lightdm 2>/dev/null || true
 systemctl disable gdm 2>/dev/null || true
+systemctl disable gdm3 2>/dev/null || true
 systemctl disable wayfire 2>/dev/null || true
 systemctl disable labwc 2>/dev/null || true
+systemctl mask lightdm 2>/dev/null || true
+# Keep tty1 free for the kiosk renderer (kmsdrm)
+systemctl disable getty@tty1 2>/dev/null || true
+systemctl mask getty@tty1 2>/dev/null || true
 for svc in plymouth-start plymouth-read-write plymouth-quit plymouth-quit-wait plymouth-reboot plymouth-halt plymouth-kexec; do
   systemctl disable "${svc}" 2>/dev/null || true
   systemctl mask "${svc}" 2>/dev/null || true
 done
-echo "Default target: multi-user (no desktop, Plymouth masked)"
+echo "Default target: multi-user (no desktop, Plymouth masked, tty1 for logo)"
 
 # Also via raspi-config noninteractive if available (1 = Splash Screen No)
 if command -v raspi-config >/dev/null 2>&1; then
@@ -122,16 +127,20 @@ echo ""
 echo "Kiosk boot configured."
 echo "  - No desktop / no Plymouth / no cloud-init spam"
 echo "  - Logo renderer on tty1 (kmsdrm)"
+echo "  - Last selected animation starts via /var/lib/dot/state (API prepares it on boot)"
 echo ""
 echo "Check now (before reboot):"
-echo "  systemctl --no-pager --failed"
+echo "  systemctl get-default"
+echo "  systemctl is-enabled dot-api dot-display"
+echo "  systemctl cat dot-display | grep -E 'User=|ExecStart=|SDL_'"
 echo "  journalctl -u dot-display -n 30 --no-pager"
 echo ""
-echo "Reboot to apply quiet boot: sudo reboot"
+echo "Reboot to apply: sudo reboot"
 echo ""
 echo "To restore desktop:"
 echo "  sudo systemctl set-default graphical.target"
+echo "  sudo systemctl unmask lightdm getty@tty1 plymouth-start"
 echo "  sudo systemctl enable lightdm"
-echo "  sudo systemctl unmask plymouth-start"
+echo "  sudo bash scripts/fix-systemd-paths.sh ${PI_USER} desktop"
 echo "  sudo rm -f /etc/cloud/cloud-init.disabled"
 echo "  sudo reboot"

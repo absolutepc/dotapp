@@ -51,6 +51,15 @@ Or via raspi-config: `1 System Options → S7 Splash Screen → No`.
 
 ```bash
 sudo systemctl set-default graphical.target
+sudo systemctl unmask lightdm getty@tty1 plymouth-start
+sudo systemctl enable lightdm
+sudo bash scripts/fix-systemd-paths.sh mercy119 desktop
+sudo rm -f /etc/cloud/cloud-init.disabled
+sudo reboot
+```
+
+```bash
+sudo systemctl set-default graphical.target
 sudo systemctl enable lightdm
 sudo systemctl unmask plymouth-start
 sudo reboot
