@@ -1,5 +1,6 @@
 import PhotosUI
 import SwiftUI
+import UIKit
 
 struct PhotoUploadView: View {
     @EnvironmentObject private var api: PiAPIClient
