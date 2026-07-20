@@ -65,6 +65,11 @@ fi
 # Point systemd at this install + user + mode
 bash "${INSTALL_DIR}/scripts/fix-systemd-paths.sh" "${PI_USER}" "${MODE}"
 
+# Wi-Fi provisioning helpers (setup AP → iPhone hotspot)
+if [[ -f "${INSTALL_DIR}/scripts/install-wifi-provision.sh" ]]; then
+  bash "${INSTALL_DIR}/scripts/install-wifi-provision.sh" "${PI_USER}" || true
+fi
+
 systemctl daemon-reload
 systemctl enable bmw-api bmw-display
 systemctl restart bmw-api bmw-display || true
@@ -74,6 +79,8 @@ echo "Install complete."
 echo "  API:     systemctl status bmw-api --no-pager"
 echo "  Display: systemctl status bmw-display --no-pager"
 echo "  Switch:  show anim3"
+echo "  Wi-Fi:   sudo bash ${INSTALL_DIR}/scripts/enter-setup-ap.sh"
+echo "           then open http://192.168.4.1/setup/ on iPhone"
 echo ""
 if [[ "${MODE}" == "kiosk" ]]; then
   echo "Optional quiet kiosk boot:"
