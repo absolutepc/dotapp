@@ -16,11 +16,17 @@ if command -v fbset >/dev/null 2>&1; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TEST_IMAGE="${REPO_ROOT}/assets/bmw/default.gif"
-
-if [[ ! -f "$TEST_IMAGE" ]]; then
-  echo "Generating default test image..."
-  python3 "${REPO_ROOT}/scripts/generate_assets.py"
+TEST_IMAGE="${REPO_ROOT}/assets/bmw/anim3.webm"
+# fbi needs a raster image; extract one frame if possible
+TEST_FRAME="${REPO_ROOT}/assets/bmw/.hardware-test-frame.jpg"
+if command -v ffmpeg >/dev/null 2>&1 && [[ -f "$TEST_IMAGE" ]]; then
+  ffmpeg -y -i "$TEST_IMAGE" -vframes 1 "$TEST_FRAME" >/dev/null 2>&1 || true
+fi
+if [[ -f "$TEST_FRAME" ]]; then
+  TEST_IMAGE="$TEST_FRAME"
+elif [[ ! -f "$TEST_IMAGE" ]]; then
+  echo "No test media found under assets/bmw/" >&2
+  exit 1
 fi
 
 if command -v fbi >/dev/null 2>&1; then

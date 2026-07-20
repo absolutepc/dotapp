@@ -15,9 +15,12 @@ if [[ -w "${DATA_ROOT}" || -w "${DATA_ROOT}/manifest.json" 2>/dev/null ]]; then
   rm -f "${DATA_ROOT}/previews"/builtin-*.jpg
 fi
 
-if systemctl is-active bmw-logo-api >/dev/null 2>&1; then
+if systemctl is-active bmw-api >/dev/null 2>&1; then
+  sudo systemctl restart bmw-api
+  echo "Restarted bmw-api"
+elif systemctl is-active bmw-logo-api >/dev/null 2>&1; then
   sudo systemctl restart bmw-logo-api
-  echo "Restarted bmw-logo-api"
+  echo "Restarted bmw-logo-api (legacy name)"
 fi
 
 echo "Gallery refreshed. Open /api/gallery to verify."

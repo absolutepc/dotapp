@@ -109,11 +109,22 @@ class MediaStorage:
             if not cat_dir.is_dir():
                 continue
             for path in sorted(cat_dir.iterdir()):
-                if path.suffix.lower() not in {".png", ".gif", ".jpg", ".jpeg", ".webp"}:
+                if path.suffix.lower() not in {
+                    ".png",
+                    ".gif",
+                    ".jpg",
+                    ".jpeg",
+                    ".webp",
+                    ".webm",
+                    # .mp4 siblings are browser-only mockup previews for WebM; skip
+                }:
                     continue
                 asset_id = f"builtin-{category}-{path.stem}"
-                is_anim = path.suffix.lower() == ".gif"
+                is_anim = path.suffix.lower() in {".gif", ".webm", ".webp"}
                 name = display_names.get(asset_id, path.stem.replace("-", " ").title())
+                # Prefer catalog-listed assets when present (skip orphan mp4/etc.)
+                if catalog_path.exists() and asset_id not in display_names:
+                    continue
                 items.append(
                     MediaItem(
                         id=asset_id,

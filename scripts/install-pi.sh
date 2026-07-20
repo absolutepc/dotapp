@@ -1,31 +1,85 @@
 #!/usr/bin/env bash
 # Install BMW Logo firmware on Raspberry Pi.
+# Usage:
+#   cd ~/dotapp
+#   sudo bash scripts/install-pi.sh [username] [desktop|kiosk]
+#
+# Default: install in-place (this checkout), not /opt/bmw-logo.
+# Set BMW_LOGO_INSTALL=/opt/bmw-logo to copy into /opt instead.
 set -euo pipefail
 
-INSTALL_DIR="/opt/bmw-logo"
+PI_USER="${1:-${SUDO_USER:-pi}}"
+MODE="${2:-desktop}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+INSTALL_DIR="${BMW_LOGO_INSTALL:-${REPO_ROOT}}"
 
-echo "Installing to ${INSTALL_DIR}..."
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "Run with sudo: sudo bash scripts/install-pi.sh [username] [desktop|kiosk]" >&2
+  exit 1
+fi
 
-sudo mkdir -p "${INSTALL_DIR}"
-sudo rsync -a --exclude '.git' --exclude 'ios' --exclude '.venv' \
-  "${REPO_ROOT}/" "${INSTALL_DIR}/"
+echo "User: ${PI_USER}"
+echo "Mode: ${MODE}"
+echo "Install dir: ${INSTALL_DIR}"
+
+apt-get update
+apt-get install -y ffmpeg python3-venv python3-pip rsync git \
+  libsdl2-2.0-0 libsdl2-image-2.0-0 libsdl2-mixer-2.0-0 libsdl2-ttf-2.0-0 \
+  libgbm1 libdrm2 libegl1 libxss1 libx11-6 libxext6 python3-pygame
+
+if [[ "${INSTALL_DIR}" != "${REPO_ROOT}" ]]; then
+  echo "Syncing ${REPO_ROOT} → ${INSTALL_DIR}…"
+  mkdir -p "${INSTALL_DIR}"
+  rsync -a --delete \
+    --exclude '.git' \
+    --exclude 'ios' \
+    --exclude 'venv' \
+    --exclude '.venv' \
+    --exclude '__pycache__' \
+    "${REPO_ROOT}/" "${INSTALL_DIR}/"
+fi
 
 cd "${INSTALL_DIR}"
-python3 -m venv .venv
-.venv/bin/pip install --upgrade pip
-.venv/bin/pip install -r firmware/requirements.txt
 
-sudo mkdir -p /var/lib/bmw-logo/{media,frames,previews,state}
-sudo mkdir -p /var/run/bmw-logo
-sudo chown -R pi:pi /var/lib/bmw-logo /var/run/bmw-logo "${INSTALL_DIR}"
+# Prefer venv/ (no leading dot) — matches existing Pi setups
+if [[ ! -x venv/bin/python ]]; then
+  python3 -m venv venv
+fi
+venv/bin/pip install --upgrade pip
+venv/bin/pip install -r firmware/requirements.txt
+# Pip wheels often lack x11/kmsdrm on Pi — rebuild against system SDL
+venv/bin/pip install --no-cache-dir --force-reinstall --no-binary=pygame 'pygame>=2.5.0' \
+  || echo "WARNING: pygame source build failed; trying binary wheel" >&2
 
-python3 scripts/generate_assets.py
+mkdir -p /var/lib/bmw-logo/{media,frames,previews,state}
+mkdir -p /var/run/bmw-logo
+chown -R "${PI_USER}:${PI_USER}" /var/lib/bmw-logo /var/run/bmw-logo
+# Do not chown the whole git tree if it already belongs to the user
+chown -R "${PI_USER}:${PI_USER}" "${INSTALL_DIR}/venv" 2>/dev/null || true
 
-sudo cp firmware/systemd/bmw-logo-api.service /etc/systemd/system/
-sudo cp firmware/systemd/bmw-logo-display.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable bmw-logo-api bmw-logo-display
+# NEVER run generate_assets.py here — it wipes custom gallery WebM/GIF under assets/bmw/
+if [[ ! -f assets/catalog.json ]]; then
+  echo "WARNING: assets/catalog.json missing — gallery will be empty until you sync assets" >&2
+fi
 
-echo "Install complete. Start services:"
-echo "  sudo systemctl start bmw-logo-api bmw-logo-display"
+# Point systemd at this install + user + mode
+bash "${INSTALL_DIR}/scripts/fix-systemd-paths.sh" "${PI_USER}" "${MODE}"
+
+systemctl daemon-reload
+systemctl enable bmw-api bmw-display
+systemctl restart bmw-api bmw-display || true
+
+echo ""
+echo "Install complete."
+echo "  API:     systemctl status bmw-api --no-pager"
+echo "  Display: systemctl status bmw-display --no-pager"
+echo "  Switch:  show anim3"
+echo ""
+if [[ "${MODE}" == "kiosk" ]]; then
+  echo "Optional quiet kiosk boot:"
+  echo "  sudo bash ${INSTALL_DIR}/scripts/setup-kiosk-boot.sh ${PI_USER}"
+  echo "  sudo reboot"
+else
+  echo "Desktop mode: animation uses X11 on :0 after graphical login."
+  echo "  After reboot, wait for desktop, then: show anim3"
+fi

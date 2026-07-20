@@ -22,6 +22,7 @@ sudo reboot
 After boot:
 
 - Display shows default roundel animation
+- Switch logo: `show anim3` (also `show list`, `show status`)
 - API: `http://192.168.4.1:8080/api/status`
 - Wi‑Fi AP: `BMW-Logo-XXXX`
 

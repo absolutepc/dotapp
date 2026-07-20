@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>BMW Logo — gallery preview</title>
+  <style>
+    :root {
+      --bg: #f2f2f7;
+      --card: #ffffff;
+      --secondary-bg: #e5e5ea;
+      --label: #000000;
+      --secondary-label: #8e8e93;
+      --blue: #007aff;
+      --red: #ff3b30;
+      --orange: #ff9500;
+      --green: #34c759;
+      --separator: rgba(60, 60, 67, 0.12);
+      --shadow: rgba(0, 0, 0, 0.18);
+      --phone-w: 390px;
+      --phone-h: 844px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 20% 0%, #2c2c2e 0%, transparent 55%),
+        radial-gradient(900px 500px at 90% 20%, #1c1c1e 0%, transparent 50%),
+        #0d0d0f;
+      color: var(--label);
+      display: grid;
+      place-items: center;
+      min-height: 100%;
+      padding: 24px 16px 40px;
+      gap: 16px;
+    }
+
+    .page-note {
+      max-width: 460px;
+      color: #c7c7cc;
+      font-size: 13px;
+      line-height: 1.45;
+      text-align: center;
+    }
+    .page-note code {
+      background: #2c2c2e;
+      padding: 1px 6px;
+      border-radius: 6px;
+      color: #fff;
+    }
+    .toolbar-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 520px;
+    }
+    .toolbar-btns button, .toolbar-btns input {
+      border: 0;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font: inherit;
+      font-size: 13px;
+      background: #3a3a3c;
+      color: #fff;
+    }
+    .toolbar-btns button { cursor: pointer; }
+    .toolbar-btns button.active { background: var(--blue); }
+    .toolbar-btns input {
+      width: min(220px, 70vw);
+      background: #1c1c1e;
+      border: 1px solid #48484a;
+    }
+
+    .phone {
+      width: var(--phone-w);
+      height: var(--phone-h);
+      border-radius: 48px;
+      background: #111;
+      padding: 12px;
+      box-shadow: 0 0 0 2px #3a3a3c, 0 30px 80px rgba(0,0,0,.55);
+      position: relative;
+    }
+    .phone-notch {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 118px;
+      height: 34px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 5;
+    }
+    .screen {
+      height: 100%;
+      border-radius: 38px;
+      overflow: hidden;
+      background: var(--bg);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status-bar {
+      height: 54px;
+      padding: 14px 28px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-size: 15px;
+      font-weight: 600;
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+    .status-bar .right { font-size: 13px; }
+
+    .nav {
+      height: 44px;
+      display: grid;
+      grid-template-columns: 56px 1fr 56px;
+      align-items: center;
+      padding: 0 8px;
+      background: var(--bg);
+      border-bottom: 0.5px solid var(--separator);
+      flex-shrink: 0;
+    }
+    .nav h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .nav-btn {
+      border: 0;
+      background: transparent;
+      color: var(--blue);
+      font: inherit;
+      font-size: 17px;
+      cursor: pointer;
+      padding: 8px;
+    }
+    .nav-btn.icon { font-size: 20px; line-height: 1; }
+
+    .view { display: none; flex: 1; min-height: 0; flex-direction: column; }
+    .view.active { display: flex; }
+
+    .connection {
+      padding: 28px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+      text-align: center;
+    }
+    .connection h2 { margin: 0; font-size: 22px; font-weight: 700; }
+    .steps {
+      width: 100%;
+      text-align: left;
+      background: var(--secondary-bg);
+      border-radius: 12px;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      font-size: 15px;
+    }
+    .step { display: flex; gap: 10px; align-items: flex-start; }
+    .badge {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--blue); color: #fff; font-size: 12px; font-weight: 700;
+      display: grid; place-items: center; flex-shrink: 0;
+    }
+    .err { color: var(--red); font-size: 12px; max-width: 300px; min-height: 1em; }
+    .addr { color: var(--secondary-label); font-size: 12px; }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 15px;
+      color: var(--secondary-label);
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+    }
+    .status-row .res { margin-left: auto; font-size: 12px; }
+
+    .segmented {
+      margin: 8px 16px 12px;
+      background: var(--secondary-bg);
+      border-radius: 9px;
+      padding: 2px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2px;
+    }
+    .segmented button {
+      border: 0;
+      background: transparent;
+      border-radius: 7px;
+      padding: 7px 4px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .segmented button.active {
+      background: var(--card);
+      box-shadow: 0 1px 3px rgba(0,0,0,.12);
+    }
+
+    .grid-wrap {
+      flex: 1;
+      overflow: auto;
+      padding: 0 16px 24px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font: inherit;
+      color: inherit;
+    }
+    .thumb {
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #d1d1d6;
+      display: block;
+      image-rendering: auto;
+      -ms-interpolation-mode: bicubic;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+    }
+    .thumb.is-loading {
+      background: linear-gradient(90deg, #e5e5ea, #f2f2f7, #e5e5ea);
+      background-size: 200% 100%;
+      animation: shimmer 1.1s linear infinite;
+    }
+    @keyframes shimmer {
+      from { background-position: 100% 0; }
+      to { background-position: -100% 0; }
+    }
+    video.thumb {
+      pointer-events: none;
+    }
+    .thumb-fallback {
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      background: var(--secondary-bg);
+      display: grid;
+      place-items: center;
+      color: var(--secondary-label);
+      font-size: 12px;
+    }
+    .thumb.upload {
+      background: var(--secondary-bg);
+      color: var(--blue);
+      border-radius: 12px;
+      width: 100%;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      font-size: 32px;
+      font-weight: 600;
+    }
+    .tile span {
+      font-size: 11px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.28);
+      display: none;
+      z-index: 10;
+    }
+    .sheet-backdrop.show { display: block; }
+    .sheet {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      top: 56px;
+      background: var(--bg);
+      border-radius: 16px 16px 0 0;
+      z-index: 11;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 -8px 30px var(--shadow);
+    }
+    .sheet.show { display: flex; }
+    .sheet .nav {
+      border-radius: 16px 16px 0 0;
+      background: rgba(242,242,247,.92);
+      backdrop-filter: blur(12px);
+    }
+
+    .preview-body {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      text-align: center;
+      overflow: auto;
+    }
+    .preview-circle {
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 8px 24px rgba(0,0,0,.2);
+      background: #d1d1d6;
+      display: block;
+      image-rendering: auto;
+    }
+    video.preview-circle {
+      background: #000;
+    }
+    .preview-body h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .meta {
+      color: var(--secondary-label);
+      font-size: 15px;
+      margin-top: -8px;
+    }
+    .btn {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font: inherit;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-primary:disabled { opacity: .45; }
+    .btn-danger { background: transparent; color: var(--red); font-weight: 400; }
+
+    .upload-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--secondary-label);
+      text-align: center;
+    }
+
+    .home-indicator {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%);
+      width: 134px;
+      height: 5px;
+      border-radius: 3px;
+      background: #000;
+      opacity: .7;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .toast {
+      position: absolute;
+      left: 24px; right: 24px; top: 90px;
+      background: rgba(30,30,30,.92);
+      color: #fff;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 14px;
+      z-index: 30;
+      display: none;
+      text-align: center;
+    }
+    .toast.show { display: block; animation: fade .25s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(-6px); } }
+
+    .loading {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--secondary-label);
+      font-size: 14px;
+    }
+
+    @media (max-width: 430px) {
+      body { padding: 0; align-items: stretch; }
+      .phone {
+        width: 100%;
+        height: 100dvh;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+      .phone-notch, .page-note, .toolbar-btns { display: none; }
+      .screen { border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <p class="page-note">
+    Макет с <strong>реальной галереей и GIF-анимациями</strong>.
+    Локально: откройте через сервер из корня репо
+    (<code>python3 -m http.server 5500</code> →
+    <code>http://localhost:5500/ios/mockup/</code>).
+    На Pi: <code>http://192.168.4.1:8080/mockup/</code>
+  </p>
+  <div class="toolbar-btns">
+    <button type="button" id="btnLocal" class="active" onclick="useLocal()">Local assets</button>
+    <button type="button" id="btnLive" onclick="useLive()">Live Pi</button>
+    <input id="apiBase" type="text" value="http://192.168.4.1:8080" title="Pi API base" />
+    <button type="button" onclick="reloadGallery()">↻ Refresh</button>
+  </div>
+
+  <div class="phone" aria-label="iPhone mockup">
+    <div class="phone-notch"></div>
+    <div class="screen">
+      <div class="status-bar">
+        <div id="clock">9:41</div>
+        <div class="right">▌▌▌▌ ▉</div>
+      </div>
+
+      <section id="view-gallery" class="view active">
+        <div class="nav">
+          <div></div>
+          <h1>BMW Logo</h1>
+          <button class="nav-btn icon" type="button" title="Refresh" onclick="reloadGallery()">↻</button>
+        </div>
+        <div class="status-row">
+          <span class="dot"></span>
+          <span id="currentName">Loading…</span>
+          <span class="res" id="resolution">480x480</span>
+        </div>
+        <div class="segmented" role="tablist">
+          <button type="button" class="active" data-cat="bmw" onclick="setCategory('bmw', this)">Gallery</button>
+          <button type="button" data-cat="emoji" onclick="setCategory('emoji', this)">Emoji</button>
+          <button type="button" data-cat="custom" onclick="setCategory('custom', this)">My Media</button>
+        </div>
+        <div class="grid-wrap">
+          <div class="loading" id="loading">Loading gallery…</div>
+          <div class="grid" id="grid" hidden></div>
+        </div>
+      </section>
+
+      <section id="view-connection" class="view">
+        <div class="nav">
+          <div></div>
+          <h1>BMW Logo</h1>
+          <button class="nav-btn icon" type="button" onclick="useLive()">↻</button>
+        </div>
+        <div class="connection">
+          <div aria-hidden="true">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+              <path d="M8 26c13-12 35-12 48 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
+              <path d="M16 34c9-8 23-8 32 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
+              <path d="M24 42c5-4 11-4 16 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="32" cy="50" r="3.5" fill="#ff9500"/>
+              <path d="M46 10 L54 28" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="54" cy="33" r="2.8" fill="#ff9500"/>
+            </svg>
+          </div>
+          <h2>Connect to BMW Logo Wi‑Fi</h2>
+          <div class="steps">
+            <div class="step"><span class="badge">1</span><span>Open Settings → Wi‑Fi</span></div>
+            <div class="step"><span class="badge">2</span><span>Join network BMW-Logo-XXXX</span></div>
+            <div class="step"><span class="badge">3</span><span>Return here and tap Refresh</span></div>
+          </div>
+          <div class="err" id="connError"></div>
+          <div class="addr" id="connAddr">Device address: 192.168.4.1:8080</div>
+        </div>
+      </section>
+
+      <div class="sheet-backdrop" id="backdrop" onclick="closeSheets()"></div>
+
+      <div class="sheet" id="sheet-preview">
+        <div class="nav">
+          <button class="nav-btn" type="button" onclick="closeSheets()">Close</button>
+          <h1>Preview</h1>
+          <div></div>
+        </div>
+        <div class="preview-body">
+          <img class="preview-circle" id="previewThumb" alt="" />
+          <video class="preview-circle" id="previewVideo" autoplay muted loop playsinline style="display:none"></video>
+          <h2 id="previewName">Default</h2>
+          <div class="meta" id="previewMeta">Animation</div>
+          <button class="btn btn-primary" type="button" id="btnApply" onclick="applyItem()">Apply to Display</button>
+          <button class="btn btn-danger" type="button" id="btnDelete" style="display:none" onclick="deleteItem()">Delete</button>
+        </div>
+      </div>
+
+      <div class="sheet" id="sheet-upload">
+        <div class="nav">
+          <button class="nav-btn" type="button" onclick="closeSheets()">Close</button>
+          <h1>Upload</h1>
+          <div></div>
+        </div>
+        <div class="upload-body">
+          <input id="fileInput" type="file" accept="image/*,.gif,.webp,.webm,.mp4,video/*" hidden />
+          <button class="btn btn-primary" type="button" onclick="document.getElementById('fileInput').click()">Choose from Photos</button>
+          <div class="hint">Images are resized on the Pi after upload. GIF and WebM both play on the round display (up to 360 frames).</div>
+          <div class="hint" id="uploadHint">Upload works in Live Pi mode.</div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast"></div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <script>
+    const FALLBACK_CATALOG = [
+      { id: "builtin-bmw-radar4", name: "Radar 4", category: "bmw", type: "animation", file: "bmw/radar4.webm" },
+      { id: "builtin-bmw-anim1", name: "Anim 1", category: "bmw", type: "animation", file: "bmw/anim1.webm" },
+      { id: "builtin-bmw-anim2", name: "Anim 2", category: "bmw", type: "animation", file: "bmw/anim2.webm" },
+      { id: "builtin-bmw-anim3", name: "Anim 3", category: "bmw", type: "animation", file: "bmw/anim3.webm" },
+      { id: "builtin-bmw-anim5", name: "Anim 5", category: "bmw", type: "animation", file: "bmw/anim5.webm" },
+      { id: "builtin-bmw-anim6", name: "Anim 6", category: "bmw", type: "animation", file: "bmw/anim6.webm" },
+      { id: "builtin-bmw-anim7", name: "Anim 7", category: "bmw", type: "animation", file: "bmw/anim7.webm" },
+      { id: "builtin-bmw-anim8", name: "Anim 8", category: "bmw", type: "animation", file: "bmw/anim8.webm" },
+      { id: "builtin-bmw-anim9", name: "Anim 9", category: "bmw", type: "animation", file: "bmw/anim9.webm" },
+      { id: "builtin-bmw-project1", name: "Project 1", category: "bmw", type: "animation", file: "bmw/project1.webm" },
+      { id: "builtin-bmw-project2", name: "Project 2", category: "bmw", type: "animation", file: "bmw/project2.webm" },
+      { id: "builtin-bmw-project3", name: "Project 3", category: "bmw", type: "animation", file: "bmw/project3.webm" },
+      { id: "builtin-emoji-smile", name: "Smile", category: "emoji", type: "image", file: "emoji/smile.png" },
+      { id: "builtin-emoji-cool", name: "Cool", category: "emoji", type: "image", file: "emoji/cool.png" },
+      { id: "builtin-emoji-heart-eyes", name: "Heart Eyes", category: "emoji", type: "image", file: "emoji/heart-eyes.png" },
+      { id: "builtin-emoji-star", name: "Star", category: "emoji", type: "image", file: "emoji/star.png" },
+      { id: "builtin-emoji-fire", name: "Fire", category: "emoji", type: "image", file: "emoji/fire.png" },
+      { id: "builtin-emoji-party", name: "Party", category: "emoji", type: "image", file: "emoji/party.png" },
+      { id: "builtin-emoji-wink", name: "Wink", category: "emoji", type: "animation", file: "emoji/wink.gif" },
+      { id: "builtin-emoji-bounce", name: "Bounce", category: "emoji", type: "animation", file: "emoji/bounce.gif" },
+      { id: "builtin-emoji-laugh", name: "Laugh", category: "emoji", type: "animation", file: "emoji/laugh.gif" },
+    ];
+
+    let mode = "local"; // local | live
+    let category = "bmw";
+    let items = [];
+    let selected = null;
+    let status = { current_name: "Ready", resolution: "480x480" };
+
+    function apiBase() {
+      return document.getElementById("apiBase").value.replace(/\/$/, "");
+    }
+
+    function mediaCategory(item) {
+      if (item.category) return item.category;
+      const id = item.id || "";
+      if (id.includes("emoji")) return "emoji";
+      if (item.builtin === false || (!id.includes("builtin-"))) return "custom";
+      return "bmw";
+    }
+
+    function isVideo(item) {
+      const file = (item.file || item.filename || item.source_url || "").toLowerCase();
+      return file.endsWith(".webm") || file.endsWith(".mp4") || file.endsWith(".mov");
+    }
+
+    function assetRelPath(item) {
+      const rel = item.file || item.filename || "";
+      return rel.replace(/^assets\//, "");
+    }
+
+    /** H.264 MP4 sibling for browser playback (Safari cannot play VP9 WebM). */
+    function siblingMp4Url(item) {
+      const rel = assetRelPath(item);
+      if (!/\.webm$/i.test(rel)) return "";
+      const mp4Rel = rel.replace(/\.webm$/i, ".mp4");
+      if (
+        location.protocol.startsWith("http") &&
+        /\/mockup(\/|$)/.test(location.pathname)
+      ) {
+        return encodeURI(`/assets/${mp4Rel}`);
+      }
+      if (item.file) {
+        return new URL(
+          `../../assets/${item.file.replace(/\.webm$/i, ".mp4")}`,
+          location.href
+        ).href;
+      }
+      if (location.protocol.startsWith("http")) {
+        return encodeURI(`/assets/${mp4Rel}`);
+      }
+      return "";
+    }
+
+    function sourceUrl(item) {
+      if (item.source_url) {
+        const raw = item.source_url.startsWith("http")
+          ? item.source_url
+          : `${apiBase()}${item.source_url}`;
+        return encodeURI(raw);
+      }
+      if (item.file) {
+        // Pi API serves StaticFiles at /assets when mockup is at /mockup/
+        if (
+          location.protocol.startsWith("http") &&
+          /\/mockup(\/|$)/.test(location.pathname)
+        ) {
+          return encodeURI(`/assets/${item.file}`);
+        }
+        // file:// or static open of ios/mockup/index.html
+        return new URL(`../../assets/${item.file}`, location.href).href;
+      }
+      return "";
+    }
+
+    function playUrl(item) {
+      if (isVideo(item)) {
+        return siblingMp4Url(item) || sourceUrl(item);
+      }
+      return sourceUrl(item);
+    }
+
+    const THUMB_SIZE = 224; // 2x for retina; displayed at ~112 CSS px
+    const thumbCache = new Map();
+
+    function previewUrl(item) {
+      if (item.preview_url) {
+        const raw = item.preview_url.startsWith("http")
+          ? item.preview_url
+          : `${apiBase()}${item.preview_url}`;
+        return encodeURI(raw);
+      }
+      return "";
+    }
+
+    function coverDraw(ctx, source, size) {
+      const sw = source.videoWidth || source.naturalWidth || source.width;
+      const sh = source.videoHeight || source.naturalHeight || source.height;
+      if (!sw || !sh) return;
+      const scale = Math.max(size / sw, size / sh);
+      const dw = sw * scale;
+      const dh = sh * scale;
+      const dx = (size - dw) / 2;
+      const dy = (size - dh) / 2;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(source, dx, dy, dw, dh);
+    }
+
+    function loadImage(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
+
+    function loadVideoFrame(url) {
+      return new Promise((resolve, reject) => {
+        const video = document.createElement("video");
+        video.muted = true;
+        video.defaultMuted = true;
+        video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.preload = "auto";
+        video.crossOrigin = "anonymous";
+        let settled = false;
+        const cleanup = () => {
+          video.pause();
+          video.removeAttribute("src");
+          video.load();
+        };
+        const fail = () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error("video thumb failed"));
+        };
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolve({ video, cleanup });
+        };
+        video.onloadeddata = () => {
+          const seekTo = Math.min(0.12, (video.duration || 1) * 0.05);
+          if (video.readyState >= 2) {
+            try {
+              video.currentTime = seekTo;
+            } catch (_) {
+              finish();
+              return;
+            }
+          }
+          video.onseeked = finish;
+          setTimeout(finish, 400);
+        };
+        video.onerror = fail;
+        setTimeout(fail, 8000);
+        video.src = url;
+      });
+    }
+
+    async function makeSmoothThumb(item) {
+      const key = item.id + ":" + (item.file || item.source_url || item.preview_url || "");
+      if (thumbCache.has(key)) return thumbCache.get(key);
+
+      // Live Pi: prefer API JPEG preview when it already exists
+      const apiPreview = previewUrl(item);
+      if (apiPreview && mode === "live") {
+        try {
+          await loadImage(apiPreview + (apiPreview.includes("?") ? "&" : "?") + "t=" + Date.now());
+          thumbCache.set(key, apiPreview);
+          return apiPreview;
+        } catch (_) {
+          // fall through — WebM may not have a preview until first display
+        }
+      }
+
+      const url = playUrl(item) || sourceUrl(item);
+      if (!url) return "";
+
+      const canvas = document.createElement("canvas");
+      canvas.width = THUMB_SIZE;
+      canvas.height = THUMB_SIZE;
+      const ctx = canvas.getContext("2d", { alpha: false });
+      ctx.fillStyle = "#111";
+      ctx.fillRect(0, 0, THUMB_SIZE, THUMB_SIZE);
+
+      try {
+        if (isVideo(item)) {
+          const { video, cleanup } = await loadVideoFrame(url);
+          coverDraw(ctx, video, THUMB_SIZE);
+          cleanup();
+        } else {
+          const img = await loadImage(url);
+          coverDraw(ctx, img, THUMB_SIZE);
+        }
+        // Mild blur+sharpen substitute: draw again slightly inset for softer edges
+        const soft = document.createElement("canvas");
+        soft.width = THUMB_SIZE;
+        soft.height = THUMB_SIZE;
+        const sctx = soft.getContext("2d");
+        sctx.imageSmoothingEnabled = true;
+        sctx.imageSmoothingQuality = "high";
+        sctx.filter = "blur(0.35px)";
+        sctx.drawImage(canvas, 0, 0);
+        sctx.filter = "none";
+        sctx.globalAlpha = 0.65;
+        sctx.drawImage(canvas, 0, 0);
+        const dataUrl = soft.toDataURL("image/jpeg", 0.92);
+        thumbCache.set(key, dataUrl);
+        return dataUrl;
+      } catch (_) {
+        // Last resort: raw URL (GIF/PNG work as <img>; WebM may still fail as img)
+        return isVideo(item) ? "" : url;
+      }
+    }
+
+    function setConnected(on, err = "") {
+      document.getElementById("view-gallery").classList.toggle("active", on);
+      document.getElementById("view-connection").classList.toggle("active", !on);
+      document.getElementById("connError").textContent = err || "";
+      document.getElementById("connAddr").textContent = `Device address: ${apiBase().replace(/^https?:\/\//, "")}`;
+    }
+
+    function setCategory(cat, btn) {
+      category = cat;
+      document.querySelectorAll(".segmented button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderGrid();
+    }
+
+    function showLoading(on, text = "Loading gallery…") {
+      document.getElementById("loading").hidden = !on;
+      document.getElementById("loading").textContent = text;
+      document.getElementById("grid").hidden = on;
+    }
+
+    function renderStatus() {
+      document.getElementById("currentName").textContent = status.current_name || status.current || "Ready";
+      document.getElementById("resolution").textContent = status.resolution || "480x480";
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      if (category === "custom") {
+        const upload = document.createElement("button");
+        upload.className = "tile";
+        upload.type = "button";
+        upload.innerHTML = `<div class="thumb upload">＋<div style="font-size:12px;margin-top:4px">Upload</div></div><span></span>`;
+        upload.onclick = () => openUpload();
+        grid.appendChild(upload);
+      }
+
+      const filtered = items.filter((m) => mediaCategory(m) === category);
+      filtered.forEach((item) => {
+        const b = document.createElement("button");
+        b.className = "tile";
+        b.type = "button";
+        const img = document.createElement("img");
+        img.className = "thumb is-loading";
+        img.alt = item.name;
+        img.width = 112;
+        img.height = 112;
+        const label = document.createElement("span");
+        label.textContent = item.name;
+        b.append(img, label);
+        b.onclick = () => openPreview(item);
+        grid.appendChild(b);
+
+        makeSmoothThumb(item).then((src) => {
+          if (!src) {
+            img.replaceWith(Object.assign(document.createElement("div"), {
+              className: "thumb-fallback",
+              textContent: "?",
+            }));
+            return;
+          }
+          img.onload = () => img.classList.remove("is-loading");
+          img.onerror = () => {
+            img.replaceWith(Object.assign(document.createElement("div"), {
+              className: "thumb-fallback",
+              textContent: "?",
+            }));
+          };
+          img.src = src;
+        });
+      });
+    }
+
+    function openPreview(item) {
+      selected = item;
+      const img = document.getElementById("previewThumb");
+      const video = document.getElementById("previewVideo");
+      if (isVideo(item)) {
+        img.style.display = "none";
+        img.removeAttribute("src");
+        video.style.display = "block";
+        video.muted = true;
+        video.defaultMuted = true;
+        video.autoplay = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.setAttribute("muted", "");
+        video.controls = false;
+
+        const mp4 = siblingMp4Url(item);
+        const webm = sourceUrl(item);
+        let tryingFallback = false;
+
+        const kick = () => {
+          const p = video.play();
+          if (p && typeof p.then === "function") {
+            p.catch(() => {
+              // Autoplay block — retry muted
+              video.muted = true;
+              video.play().catch(() => {});
+            });
+          }
+        };
+
+        video.onerror = () => {
+          if (!tryingFallback && mp4 && webm && video.src.includes(".mp4")) {
+            tryingFallback = true;
+            video.src = webm;
+            video.load();
+            return;
+          }
+          showToast("Видео не воспроизводится в этом браузере");
+        };
+        video.onloadeddata = kick;
+        video.oncanplay = kick;
+        video.src = mp4 || webm;
+        video.load();
+        kick();
+      } else {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+        video.style.display = "none";
+        img.style.display = "block";
+        const url = sourceUrl(item);
+        img.onerror = () => showToast("Не удалось загрузить анимацию");
+        // Cache-bust so GIF restarts animation when reopening
+        img.src = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
+        img.alt = item.name;
+      }
+      document.getElementById("previewName").textContent = item.name;
+      document.getElementById("previewMeta").textContent = isVideo(item)
+        ? "Video · preview MP4 / WebM"
+        : (item.type === "animation" || (item.file || item.filename || "").endsWith(".gif")
+          ? "Animation · GIF"
+          : "Static image");
+      document.getElementById("btnDelete").style.display =
+        item.builtin === false || mediaCategory(item) === "custom" ? "block" : "none";
+      document.getElementById("btnApply").disabled = mode !== "live";
+      document.getElementById("btnApply").textContent =
+        mode === "live" ? "Apply to Display" : "Apply (Live Pi only)";
+      document.getElementById("backdrop").classList.add("show");
+      document.getElementById("sheet-preview").classList.add("show");
+      document.getElementById("sheet-upload").classList.remove("show");
+    }
+
+    function openUpload() {
+      document.getElementById("uploadHint").textContent =
+        mode === "live"
+          ? "Choose an image/GIF to upload to the Pi."
+          : "Switch to Live Pi mode to upload.";
+      document.getElementById("backdrop").classList.add("show");
+      document.getElementById("sheet-upload").classList.add("show");
+      document.getElementById("sheet-preview").classList.remove("show");
+    }
+
+    function closeSheets() {
+      document.getElementById("backdrop").classList.remove("show");
+      document.getElementById("sheet-preview").classList.remove("show");
+      document.getElementById("sheet-upload").classList.remove("show");
+    }
+
+    async function applyItem() {
+      if (!selected || mode !== "live") {
+        showToast("Подключите Live Pi, чтобы отправить на дисплей");
+        return;
+      }
+      const btn = document.getElementById("btnApply");
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${apiBase()}/api/display`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ media_id: selected.id }),
+        });
+        if (!res.ok) throw new Error("display failed");
+        status.current_name = selected.name;
+        renderStatus();
+        closeSheets();
+        showToast("Applied — Image sent to the round display.");
+      } catch (e) {
+        showToast("Не удалось отправить на дисплей");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function deleteItem() {
+      if (!selected || mode !== "live") return;
+      try {
+        const res = await fetch(`${apiBase()}/api/media/${selected.id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("delete failed");
+        closeSheets();
+        await reloadGallery();
+        showToast("Deleted");
+      } catch (e) {
+        showToast("Cannot delete");
+      }
+    }
+
+    async function loadLocal() {
+      showLoading(true);
+      let catalog = FALLBACK_CATALOG;
+      const candidates = [
+        "../../assets/catalog.json",
+        "/assets/catalog.json",
+        "../assets/catalog.json",
+      ];
+      for (const path of candidates) {
+        try {
+          const res = await fetch(path, { cache: "no-store" });
+          if (res.ok) {
+            catalog = await res.json();
+            break;
+          }
+        } catch (_) {}
+      }
+      items = catalog.map((e) => ({
+        id: e.id,
+        name: e.name,
+        category: e.category,
+        type: e.type,
+        file: e.file,
+        builtin: true,
+        fps: 60,
+      }));
+      status = { current_name: items[0]?.name || "Ready", resolution: "480x480" };
+      renderStatus();
+      showLoading(false);
+      renderGrid();
+      setConnected(true);
+    }
+
+    async function loadLive() {
+      showLoading(true, "Connecting to Pi…");
+      try {
+        const [statusRes, galleryRes] = await Promise.all([
+          fetch(`${apiBase()}/api/status`, { cache: "no-store" }),
+          fetch(`${apiBase()}/api/gallery`, { cache: "no-store" }),
+        ]);
+        if (!statusRes.ok || !galleryRes.ok) throw new Error("API error");
+        status = await statusRes.json();
+        const gallery = await galleryRes.json();
+        items = gallery.map((e) => ({
+          ...e,
+          category: mediaCategory(e),
+        }));
+        renderStatus();
+        showLoading(false);
+        renderGrid();
+        setConnected(true);
+        document.getElementById("btnLocal").classList.remove("active");
+        document.getElementById("btnLive").classList.add("active");
+      } catch (e) {
+        showLoading(false);
+        setConnected(false, e.message || "Cannot reach Pi API");
+        document.getElementById("view-gallery").classList.remove("active");
+        document.getElementById("view-connection").classList.add("active");
+      }
+    }
+
+    async function useLocal() {
+      mode = "local";
+      thumbCache.clear();
+      document.getElementById("btnLocal").classList.add("active");
+      document.getElementById("btnLive").classList.remove("active");
+      await loadLocal();
+    }
+
+    async function useLive() {
+      mode = "live";
+      thumbCache.clear();
+      document.getElementById("btnLive").classList.add("active");
+      document.getElementById("btnLocal").classList.remove("active");
+      await loadLive();
+    }
+
+    async function reloadGallery() {
+      thumbCache.clear();
+      if (mode === "live") await loadLive();
+      else await loadLocal();
+      showToast("Галерея обновлена");
+    }
+
+    function showToast(text) {
+      const t = document.getElementById("toast");
+      t.textContent = text;
+      t.classList.add("show");
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => t.classList.remove("show"), 2200);
+    }
+
+    document.getElementById("fileInput").addEventListener("change", async (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      ev.target.value = "";
+      if (!file) return;
+      if (mode !== "live") {
+        showToast("Переключитесь в Live Pi для upload");
+        return;
+      }
+      const body = new FormData();
+      body.append("file", file, file.name);
+      try {
+        const res = await fetch(`${apiBase()}/api/upload`, { method: "POST", body });
+        if (!res.ok) throw new Error("upload failed");
+        const data = await res.json();
+        await fetch(`${apiBase()}/api/display`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ media_id: data.media_id }),
+        });
+        closeSheets();
+        await loadLive();
+        showToast("Applied — Image sent to the round display.");
+      } catch (e) {
+        showToast("Upload failed");
+      }
+    });
+
+    function tickClock() {
+      const d = new Date();
+      document.getElementById("clock").textContent =
+        d.getHours().toString().padStart(2, "0") + ":" +
+        d.getMinutes().toString().padStart(2, "0");
+    }
+    tickClock();
+    setInterval(tickClock, 10000);
+
+    // Auto: if opened from Pi API host, prefer live
+    if (location.port === "8080" || location.hostname === "192.168.4.1") {
+      document.getElementById("apiBase").value = location.origin;
+      useLive();
+    } else {
+      useLocal();
+    }
+  </script>
+</body>
+</html>

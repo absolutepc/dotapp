@@ -14,7 +14,7 @@ Native **SwiftUI** app for iPhone (iOS 16+).
 
 1. Connect iPhone to Pi Wi‑Fi AP (`BMW-Logo-XXXX`, password set via `scripts/setup-wifi-ap.sh`).
 2. Open the app — it connects to `http://192.168.4.1:8080`.
-3. Browse BMW / Emoji / My Media tabs, tap an item, **Apply to Display**.
+3. Browse Gallery / Emoji / My Media tabs, tap an item, **Apply to Display**.
 
 ## Bundled vs Pi gallery
 

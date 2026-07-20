@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -19,6 +20,8 @@ from firmware.media.processor import MediaProcessor
 from firmware.media.storage import MediaStorage
 from firmware.state import get_current_media_id, set_current_media
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api")
 storage = MediaStorage()
 processor = MediaProcessor(storage)
@@ -30,18 +33,32 @@ class DisplayRequest(BaseModel):
 
 @router.on_event("startup")
 async def startup() -> None:
+    """Register catalog and prepare only the active logo quickly.
+
+    Full gallery frame caches are built lazily on /api/display. Preparing every
+    360-frame GIF at boot left the HDMI renderer on a black screen for minutes.
+    """
     storage.register_builtin_assets()
-    for item in storage.list_all():
-        try:
-            processor.ensure_frames(item)
-        except FileNotFoundError:
-            continue
 
     current = get_current_media_id()
-    if not current:
-        default = next((m for m in storage.list_all() if "default" in m.id), None)
-        if default:
-            set_current_media(default.id, default.fps)
+    priority = None
+    if current:
+        priority = storage.get(current)
+    if priority is None:
+        # Prefer first BMW catalog animation (default.gif may be gone after gallery updates)
+        for item in storage.list_all():
+            if item.builtin and item.id.startswith("builtin-bmw-") and item.type == "animation":
+                priority = item
+                break
+        if priority:
+            set_current_media(priority.id, priority.fps)
+
+    if priority is not None:
+        try:
+            processor.ensure_frames(priority)
+            logger.info("Prepared startup media %s (%s frames)", priority.id, priority.frame_count)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to prepare startup media %s: %s", priority.id, exc)
 
 
 @router.get("/status")
@@ -65,6 +82,7 @@ def gallery() -> list[dict]:
             {
                 **item.to_dict(),
                 "preview_url": f"/api/preview/{item.id}",
+                "source_url": f"/api/source/{item.id}",
             }
         )
     return items
@@ -80,7 +98,7 @@ async def upload(file: UploadFile = File(...)) -> dict:
         raise HTTPException(status_code=400, detail="Missing filename")
 
     suffix = Path(file.filename).suffix.lower()
-    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".webm", ".mp4"}
     if suffix not in allowed:
         raise HTTPException(status_code=400, detail=f"Unsupported type: {suffix}")
 
@@ -96,9 +114,26 @@ def display(req: DisplayRequest) -> dict:
     if not item:
         raise HTTPException(status_code=404, detail="Media not found")
 
-    processor.ensure_frames(item)
+    logger.info("Display request for %s (%s)", item.id, item.filename)
+    try:
+        processor.ensure_frames(item)
+    except Exception as exc:  # noqa: BLE001 - surface prepare errors to clients
+        logger.exception("Failed to prepare %s", item.id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to prepare media: {exc}",
+        ) from exc
+
+    # Re-read after ensure_frames (fps/frame_count may have been updated)
+    item = storage.get(req.media_id) or item
     set_current_media(item.id, item.fps)
-    return {"ok": True, "media_id": item.id}
+    logger.info("Display set %s frames=%s fps=%s", item.id, item.frame_count, item.fps)
+    return {
+        "ok": True,
+        "media_id": item.id,
+        "fps": item.fps,
+        "frame_count": item.frame_count,
+    }
 
 
 @router.delete("/media/{media_id}")
@@ -127,3 +162,31 @@ def preview(media_id: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Preview not found")
 
     return FileResponse(path, media_type="image/jpeg")
+
+
+@router.get("/source/{media_id}")
+def source(media_id: str) -> FileResponse:
+    """Original uploaded/builtin file (GIF/PNG) for web preview / animations."""
+    item = storage.get(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Not found")
+    path = storage.resolve_source_path(item)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Source file not found")
+
+    suffix = path.suffix.lower()
+    media_types = {
+        ".gif": "image/gif",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".webm": "video/webm",
+        ".mp4": "video/mp4",
+    }
+    # Do not set filename=… — that forces Content-Disposition: attachment and
+    # breaks <img>/<video> playback inside the HTML mockup.
+    return FileResponse(
+        path,
+        media_type=media_types.get(suffix, "application/octet-stream"),
+    )
