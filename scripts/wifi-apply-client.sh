@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Apply pending Wi-Fi client config (iPhone Personal Hotspot).
-# Invoked by systemd when /var/lib/bmw-logo/wifi-request.json appears.
+# Invoked by systemd when /var/lib/dot/wifi-request.json appears.
 # Or manually: sudo bash scripts/wifi-apply-client.sh
 set -euo pipefail
 
-STATE_DIR="/var/lib/bmw-logo"
+STATE_DIR="/var/lib/dot"
 REQUEST="${STATE_DIR}/wifi-request.json"
 STATUS="${STATE_DIR}/wifi-status.json"
 MODE="${STATE_DIR}/wifi-mode.json"
-CONN_NAME="bmw-phone-hotspot"
+CONN_NAME="dot-phone-hotspot"
 
 mkdir -p "${STATE_DIR}"
 
@@ -60,7 +60,7 @@ systemctl stop hostapd dnsmasq 2>/dev/null || true
 systemctl disable hostapd 2>/dev/null || true
 
 # Return wlan0 to NetworkManager
-rm -f /etc/NetworkManager/conf.d/99-bmw-logo-unmanaged.conf
+rm -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf
 systemctl reload NetworkManager 2>/dev/null || true
 nmcli device set wlan0 managed yes 2>/dev/null || true
 nmcli radio wifi on 2>/dev/null || true

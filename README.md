@@ -1,11 +1,11 @@
-# dotapp — BMW Electronic Logo
+# dotapp — Dot electronic logo
 
 Round **480×480 @ 60 Hz** display driven by **Raspberry Pi Zero 2W** via **UEDX6911-HDMI V2.0**, controlled from an **iPhone** app over Wi‑Fi.
 
 ## Architecture
 
 - **Pi firmware** (`firmware/`): FastAPI server + Pygame HDMI renderer with circular mask
-- **iOS app** (`ios/BMWLogo/`): SwiftUI gallery, upload, apply to display
+- **iOS app** (`ios/Dot/`): SwiftUI gallery, upload, apply to display
 - **Assets** (`assets/`): Built-in roundel animations and emoji placeholders
 
 ## Quick start (Raspberry Pi)
@@ -20,7 +20,7 @@ sudo bash scripts/install-wifi-provision.sh
 sudo bash scripts/enter-setup-ap.sh
 ```
 
-After setup AP is up, on iPhone join `BMW-Setup-XXXX`, open `http://192.168.4.1/setup/`, enter hotspot name/password.
+After setup AP is up, on iPhone join `Dot-Setup-XXXX`, open `http://192.168.4.1/setup/`, enter hotspot name/password.
 
 Day-to-day in the car: enable **Personal Hotspot** on iPhone → Pi joins automatically → use the app with the Pi LAN IP (`GET /api/wifi/status`).
 

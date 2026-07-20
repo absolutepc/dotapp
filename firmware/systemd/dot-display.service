@@ -1,0 +1,21 @@
+[Unit]
+Description=Dot HDMI Display Renderer (desktop / X11)
+After=graphical.target display-manager.service dot-api.service
+Wants=graphical.target dot-api.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/dot
+Environment=PYTHONPATH=/opt/dot
+Environment=DISPLAY=:0
+Environment=SDL_VIDEODRIVER=x11
+# Xauthority is rewritten by fix-systemd-paths / setup for the real user
+Environment=XAUTHORITY=/home/pi/.Xauthority
+ExecStartPre=/bin/sleep 2
+ExecStart=/opt/dot/.venv/bin/python -m firmware.display.hdmi_renderer
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target

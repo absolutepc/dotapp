@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rewrite bmw systemd units (bmw-api / bmw-display) to this checkout + user + venv.
+# Rewrite Dot systemd units (dot-api / dot-display) to this checkout + user + venv.
 # Run on Pi:
 #   sudo bash scripts/fix-systemd-paths.sh [username] [desktop|kiosk|auto]
 # desktop = with LXDE/lightdm (X11 fullscreen)
@@ -34,18 +34,18 @@ if [[ "${MODE}" == "auto" ]]; then
 fi
 
 if [[ "${MODE}" == "desktop" ]]; then
-  DISPLAY_SRC="${ROOT}/firmware/systemd/bmw-display.service"
+  DISPLAY_SRC="${ROOT}/firmware/systemd/dot-display.service"
 else
-  DISPLAY_SRC="${ROOT}/firmware/systemd/bmw-display-kiosk.service"
+  DISPLAY_SRC="${ROOT}/firmware/systemd/dot-display-kiosk.service"
 fi
-API_SRC="${ROOT}/firmware/systemd/bmw-api.service"
+API_SRC="${ROOT}/firmware/systemd/dot-api.service"
 [[ -f "${DISPLAY_SRC}" && -f "${API_SRC}" ]] || {
   echo "ERROR: systemd templates missing under ${ROOT}/firmware/systemd" >&2
   exit 1
 }
 
-# Drop legacy long names from older installs
-for old in bmw-logo-api bmw-logo-display; do
+# Drop legacy unit names from older installs
+for old in bmw-logo-api bmw-logo-display bmw-api bmw-display; do
   systemctl disable --now "${old}" 2>/dev/null || true
   rm -f "/etc/systemd/system/${old}.service"
 done
@@ -54,7 +54,7 @@ rewrite_unit() {
   local src="$1" dest="$2" exec_bin="$3" exec_args="$4"
   sed \
     -e "s|^User=.*|User=${PI_USER}|" \
-    -e "s|/opt/bmw-logo|${ROOT}|g" \
+    -e "s|/opt/dot|${ROOT}|g" \
     -e "s|/home/pi/|/home/${PI_USER}/|g" \
     "${src}" >"${dest}"
   if grep -q '^ExecStart=' "${dest}"; then
@@ -66,19 +66,19 @@ rewrite_unit() {
     "${dest}"
 }
 
-rewrite_unit "${DISPLAY_SRC}" /etc/systemd/system/bmw-display.service \
+rewrite_unit "${DISPLAY_SRC}" /etc/systemd/system/dot-display.service \
   "${VENV_BIN}/python" "-m firmware.display.hdmi_renderer"
 
-rewrite_unit "${API_SRC}" /etc/systemd/system/bmw-api.service \
+rewrite_unit "${API_SRC}" /etc/systemd/system/dot-api.service \
   "${VENV_BIN}/uvicorn" "firmware.main:app --host 0.0.0.0 --port 8080"
 
 usermod -aG video,render "${PI_USER}" 2>/dev/null || usermod -aG video "${PI_USER}" 2>/dev/null || true
 
 systemctl daemon-reload
-systemctl enable bmw-api bmw-display
-systemctl restart bmw-api
+systemctl enable dot-api dot-display
+systemctl restart dot-api
 # Display may need the desktop session; restart after a short wait
-systemctl restart bmw-display || true
+systemctl restart dot-display || true
 
 # Global CLI: `show anim3` from any directory
 install -m 755 "${ROOT}/scripts/show" /usr/local/bin/show
@@ -90,8 +90,8 @@ echo "Root: ${ROOT}"
 echo "Venv: ${VENV_BIN}"
 echo "CLI:  show anim3 | show list | show status"
 echo "---"
-systemctl cat bmw-api bmw-display | grep -E '^(# |User=|WorkingDirectory=|Environment=|ExecStart=)'
+systemctl cat dot-api dot-display | grep -E '^(# |User=|WorkingDirectory=|Environment=|ExecStart=)'
 echo "---"
 sleep 3
-systemctl is-active bmw-api bmw-display || true
-journalctl -u bmw-display -n 25 --no-pager || true
+systemctl is-active dot-api dot-display || true
+journalctl -u dot-display -n 25 --no-pager || true

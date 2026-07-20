@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct BMWLogoApp: App {
+struct DotApp: App {
     @StateObject private var api = PiAPIClient()
 
     var body: some Scene {

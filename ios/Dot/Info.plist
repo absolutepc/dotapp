@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>BMW Logo</string>
+	<string>Dot</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -23,7 +23,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Приложение подключается к устройству BMW Logo по локальной Wi‑Fi сети</string>
+	<string>Приложение подключается к устройству Dot по локальной Wi‑Fi сети</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Для загрузки своих изображений на дисплей</string>
 	<key>UIApplicationSceneManifest</key>

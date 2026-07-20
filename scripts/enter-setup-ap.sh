@@ -3,11 +3,11 @@
 # Run: sudo bash scripts/enter-setup-ap.sh [setup_password]
 set -euo pipefail
 
-SETUP_PASS="${1:-bmwsetup1}"
+SETUP_PASS="${1:-dotsetup1}"
 SSID_SUFFIX="$(hostname 2>/dev/null | tr -cd 'A-Za-z0-9' | tail -c 5)"
-SSID="BMW-Setup-${SSID_SUFFIX:-Pi}"
+SSID="Dot-Setup-${SSID_SUFFIX:-Pi}"
 AP_IP="192.168.4.1"
-STATE_DIR="/var/lib/bmw-logo"
+STATE_DIR="/var/lib/dot"
 mkdir -p "${STATE_DIR}"
 
 echo "Entering setup AP mode: ${SSID}"
@@ -22,7 +22,7 @@ nmcli device disconnect wlan0 2>/dev/null || true
 
 # Let hostapd own wlan0
 mkdir -p /etc/NetworkManager/conf.d
-cat >/etc/NetworkManager/conf.d/99-bmw-logo-unmanaged.conf <<EOF
+cat >/etc/NetworkManager/conf.d/99-dot-unmanaged.conf <<EOF
 [keyfile]
 unmanaged-devices=interface-name:wlan0
 EOF
@@ -57,13 +57,13 @@ else
 fi
 
 mkdir -p /etc/dnsmasq.d
-cat >/etc/dnsmasq.d/bmw-logo.conf <<EOF
+cat >/etc/dnsmasq.d/dot.conf <<EOF
 interface=wlan0
 bind-interfaces
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
 domain=local
-address=/bmw-logo.local/${AP_IP}
-address=/setup.bmw/${AP_IP}
+address=/dot.local/${AP_IP}
+address=/setup.dot/${AP_IP}
 EOF
 
 ip link set wlan0 up || true

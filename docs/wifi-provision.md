@@ -19,7 +19,7 @@ sudo bash scripts/enter-setup-ap.sh
 
 Then on the iPhone:
 
-1. Join Wi-Fi `BMW-Setup-XXXX` (password default: `bmwsetup1`)
+1. Join Wi-Fi `Dot-Setup-XXXX` (password default: `dotsetup1`)
 2. Open Safari: `http://192.168.4.1/setup/`
 3. Enter your **Personal Hotspot** name + password  
    (Settings → Personal Hotspot / Режим модема)
@@ -37,16 +37,16 @@ After that, day-to-day use is:
 | Action | Command |
 |--------|---------|
 | Install helpers | `sudo bash scripts/install-wifi-provision.sh` |
-| Enter setup AP again | `sudo bmw-enter-setup-ap` |
+| Enter setup AP again | `sudo dot-enter-setup-ap` |
 | Wi-Fi status | `curl -s http://127.0.0.1:8080/api/wifi/status` |
-| Force re-apply | `sudo bmw-wifi-apply` (needs `wifi-request.json`) |
+| Force re-apply | `sudo dot-wifi-apply` (needs `wifi-request.json`) |
 
 ## Files
 
-- Request (API → root helper): `/var/lib/bmw-logo/wifi-request.json`
-- Status: `/var/lib/bmw-logo/wifi-status.json`
-- Saved SSID (no password): `/var/lib/bmw-logo/wifi-client.json`
-- NM profile name: `bmw-phone-hotspot`
+- Request (API → root helper): `/var/lib/dot/wifi-request.json`
+- Status: `/var/lib/dot/wifi-status.json`
+- Saved SSID (no password): `/var/lib/dot/wifi-client.json`
+- NM profile name: `dot-phone-hotspot`
 
 ## Notes
 

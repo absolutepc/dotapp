@@ -52,5 +52,5 @@ PY
 
 echo ""
 echo "If at least one driver printed OK, restart display:"
-echo "  sudo systemctl restart bmw-display"
+echo "  sudo systemctl restart dot-display"
 echo "  show anim3"

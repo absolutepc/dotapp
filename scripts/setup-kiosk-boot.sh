@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Boot straight to BMW logo: no desktop, no splash screens.
+# Boot straight to Dot logo: no desktop, no splash screens.
 # Run on Pi: sudo bash scripts/setup-kiosk-boot.sh [username]
 set -euo pipefail
 
@@ -7,7 +7,7 @@ PI_USER="${1:-${SUDO_USER:-pi}}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Prefer a tree that actually has firmware + a usable venv.
-# /opt/bmw-logo often exists as an empty/partial stub and must not win over ~/dotapp.
+# /opt/dot often exists as an empty/partial stub and must not win over ~/dotapp.
 _has_runtime() {
   local root="$1"
   [[ -d "${root}/firmware" ]] || return 1
@@ -16,16 +16,16 @@ _has_runtime() {
   return 0
 }
 
-if [[ -n "${BMW_LOGO_INSTALL:-}" ]]; then
-  INSTALL_DIR="${BMW_LOGO_INSTALL}"
+if [[ -n "${DOT_INSTALL:-}" ]]; then
+  INSTALL_DIR="${DOT_INSTALL}"
 elif _has_runtime "${REPO_ROOT}"; then
   INSTALL_DIR="${REPO_ROOT}"
-elif _has_runtime /opt/bmw-logo; then
-  INSTALL_DIR="/opt/bmw-logo"
+elif _has_runtime /opt/dot; then
+  INSTALL_DIR="/opt/dot"
 elif [[ -d "${REPO_ROOT}/firmware" ]]; then
   INSTALL_DIR="${REPO_ROOT}"
 else
-  INSTALL_DIR="/opt/bmw-logo"
+  INSTALL_DIR="/opt/dot"
 fi
 
 echo "Kiosk boot setup for user: ${PI_USER}"
@@ -92,30 +92,30 @@ if [[ -f "${REPO_ROOT}/scripts/disable-splash.sh" ]]; then
   bash "${REPO_ROOT}/scripts/disable-splash.sh" || true
 fi
 
-# Prefer shared path rewriter (short unit names bmw-api / bmw-display)
+# Prefer shared path rewriter (short unit names dot-api / dot-display)
 if [[ -x "${INSTALL_DIR}/scripts/fix-systemd-paths.sh" ]]; then
   bash "${INSTALL_DIR}/scripts/fix-systemd-paths.sh" "${PI_USER}" kiosk
 else
   # Fallback: inline rewrite
-  for old in bmw-logo-api bmw-logo-display; do
+  for old in bmw-logo-api bmw-logo-display bmw-api bmw-display; do
     systemctl disable --now "${old}" 2>/dev/null || true
     rm -f "/etc/systemd/system/${old}.service"
   done
-  sed "s|User=pi|User=${PI_USER}|g; s|/opt/bmw-logo|${INSTALL_DIR}|g" \
-    "${INSTALL_DIR}/firmware/systemd/bmw-display-kiosk.service" \
-    >/etc/systemd/system/bmw-display.service
-  sed "s|User=pi|User=${PI_USER}|g; s|/opt/bmw-logo|${INSTALL_DIR}|g" \
-    "${INSTALL_DIR}/firmware/systemd/bmw-api.service" \
-    >/etc/systemd/system/bmw-api.service
+  sed "s|User=pi|User=${PI_USER}|g; s|/opt/dot|${INSTALL_DIR}|g" \
+    "${INSTALL_DIR}/firmware/systemd/dot-display-kiosk.service" \
+    >/etc/systemd/system/dot-display.service
+  sed "s|User=pi|User=${PI_USER}|g; s|/opt/dot|${INSTALL_DIR}|g" \
+    "${INSTALL_DIR}/firmware/systemd/dot-api.service" \
+    >/etc/systemd/system/dot-api.service
   if [[ -x "${INSTALL_DIR}/venv/bin/python" ]]; then
     sed -i "s|/\.venv/bin/|/venv/bin/|g" \
-      /etc/systemd/system/bmw-display.service \
-      /etc/systemd/system/bmw-api.service
+      /etc/systemd/system/dot-display.service \
+      /etc/systemd/system/dot-api.service
   fi
   usermod -aG video,render "${PI_USER}" 2>/dev/null || usermod -aG video "${PI_USER}" 2>/dev/null || true
   systemctl daemon-reload
-  systemctl enable bmw-api bmw-display
-  systemctl restart bmw-api bmw-display 2>/dev/null || true
+  systemctl enable dot-api dot-display
+  systemctl restart dot-api dot-display 2>/dev/null || true
 fi
 
 echo ""
@@ -125,7 +125,7 @@ echo "  - Logo renderer on tty1 (kmsdrm)"
 echo ""
 echo "Check now (before reboot):"
 echo "  systemctl --no-pager --failed"
-echo "  journalctl -u bmw-display -n 30 --no-pager"
+echo "  journalctl -u dot-display -n 30 --no-pager"
 echo ""
 echo "Reboot to apply quiet boot: sudo reboot"
 echo ""

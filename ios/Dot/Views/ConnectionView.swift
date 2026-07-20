@@ -9,12 +9,12 @@ struct ConnectionView: View {
                 .font(.system(size: 56))
                 .foregroundStyle(.orange)
 
-            Text("Connect to BMW Logo Wi‑Fi")
+            Text("Connect to Dot Wi‑Fi")
                 .font(.title2.bold())
 
             VStack(alignment: .leading, spacing: 12) {
                 Label("Open Settings → Wi‑Fi", systemImage: "1.circle.fill")
-                Label("Join network BMW-Logo-XXXX", systemImage: "2.circle.fill")
+                Label("Join network Dot-XXXX", systemImage: "2.circle.fill")
                 Label("Return here and tap Refresh", systemImage: "3.circle.fill")
             }
             .font(.subheadline)

@@ -1,4 +1,4 @@
-"""REST API routes for BMW Logo device."""
+"""REST API routes for Dot device."""
 
 from __future__ import annotations
 

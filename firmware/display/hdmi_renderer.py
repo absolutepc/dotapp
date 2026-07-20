@@ -61,7 +61,7 @@ def _init_pygame_display() -> pygame.Surface:
 class HDMIRenderer:
     def __init__(self) -> None:
         self._screen = _init_pygame_display()
-        pygame.display.set_caption("BMW Logo")
+        pygame.display.set_caption("Dot")
         pygame.mouse.set_visible(False)
 
         self._clock = pygame.time.Clock()

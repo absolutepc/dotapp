@@ -20,7 +20,7 @@ struct ContentView: View {
                     ConnectionView(errorMessage: api.errorMessage)
                 }
             }
-            .navigationTitle("BMW Logo")
+            .navigationTitle("Dot")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

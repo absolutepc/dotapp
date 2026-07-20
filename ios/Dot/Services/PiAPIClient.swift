@@ -91,7 +91,7 @@ enum APIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .requestFailed: return "Request to BMW Logo device failed"
+        case .requestFailed: return "Request to Dot device failed"
         }
     }
 }

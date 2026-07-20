@@ -1,4 +1,4 @@
-"""FastAPI entrypoint for BMW Logo Raspberry Pi service."""
+"""FastAPI entrypoint for Dot Raspberry Pi service."""
 
 import json
 from pathlib import Path
@@ -12,7 +12,7 @@ from firmware.api.wifi import router as wifi_router
 from firmware.api.wifi import setup_pages
 from firmware.config import BUILTIN_ASSETS, DATA_ROOT, REPO_ROOT
 
-app = FastAPI(title="BMW Logo API", version="1.0.0")
+app = FastAPI(title="Dot API", version="1.0.0")
 app.include_router(router)
 app.include_router(wifi_router)
 app.include_router(setup_pages)

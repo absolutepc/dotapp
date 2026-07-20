@@ -1,11 +1,11 @@
 # Kiosk boot — logo only, no desktop
 
-Boot the Pi directly into the BMW logo renderer without the Raspberry Pi splash screen and without the desktop environment.
+Boot the Pi directly into the Dot logo renderer without the Raspberry Pi splash screen and without the desktop environment.
 
 ## Quick setup
 
 ```bash
-cd ~/dotapp   # or /opt/bmw-logo
+cd ~/dotapp   # or /opt/dot
 sudo bash scripts/setup-kiosk-boot.sh mercy119
 sudo reboot
 ```
@@ -19,13 +19,13 @@ Replace `mercy119` with your Pi username.
 3. Adds quiet boot flags (`quiet`, `logo.nologo`, …)
 4. Sets default target to `multi-user.target` (no GUI)
 5. Disables / masks desktop + Plymouth services
-6. Installs kiosk `bmw-display.service` (SDL: kmsdrm → fbcon → x11)
+6. Installs kiosk `dot-display.service` (SDL: kmsdrm → fbcon → x11)
 
 ## Expected boot sequence
 
 1. Power on
 2. ~20–40 s (Pi Zero 2W) — mostly black screen
-3. BMW logo animation on the round display
+3. Dot logo animation on the round display
 
 ## If splash still appears
 
@@ -59,7 +59,7 @@ sudo reboot
 ## Troubleshooting
 
 ```bash
-sudo journalctl -u bmw-display -n 30 --no-pager
+sudo journalctl -u dot-display -n 30 --no-pager
 systemctl get-default
 ```
 

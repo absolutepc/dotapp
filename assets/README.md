@@ -17,9 +17,9 @@ show status
 cd ~/dotapp
 git pull
 # do NOT run refresh-gallery.sh / generate_assets.py (wipes custom assets)
-sudo rm -f /var/lib/bmw-logo/manifest.json
-sudo rm -rf /var/lib/bmw-logo/frames/builtin-*
-sudo systemctl restart bmw-api bmw-display
+sudo rm -f /var/lib/dot/manifest.json
+sudo rm -rf /var/lib/dot/frames/builtin-*
+sudo systemctl restart dot-api dot-display
 ```
 
 ## Gallery animations (12 items)
@@ -65,6 +65,6 @@ First select of a WebM rebuilds its cache (can take a minute on Pi Zero).
 
 ## Add your own
 
-Copy PNG/GIF/WebP/WebM (ideally 480×480) into `bmw/` or `emoji/`, update `catalog.json` names if needed, then restart `bmw-api`.
+Copy PNG/GIF/WebP/WebM (ideally 480×480) into `bmw/` or `emoji/`, update `catalog.json` names if needed, then restart `dot-api`.
 
 Or upload from iPhone — no repo changes required.

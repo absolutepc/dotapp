@@ -59,9 +59,9 @@ def _primary_ipv4() -> str | None:
 def _trigger_apply() -> None:
     """Ask root helpers to apply the pending wifi-request.json."""
     for cmd in (
-        ["sudo", "-n", "/usr/local/sbin/bmw-wifi-apply"],
-        ["sudo", "-n", "systemctl", "start", "bmw-wifi-apply.service"],
-        ["systemctl", "start", "bmw-wifi-apply.service"],
+        ["sudo", "-n", "/usr/local/sbin/dot-wifi-apply"],
+        ["sudo", "-n", "systemctl", "start", "dot-wifi-apply.service"],
+        ["systemctl", "start", "dot-wifi-apply.service"],
     ):
         try:
             subprocess.Popen(  # noqa: S603
@@ -73,7 +73,7 @@ def _trigger_apply() -> None:
             return
         except Exception:  # noqa: BLE001
             continue
-    logger.warning("Could not start wifi apply helper; relying on bmw-wifi-apply.path")
+    logger.warning("Could not start wifi apply helper; relying on dot-wifi-apply.path")
 
 
 @router.get("/status")
