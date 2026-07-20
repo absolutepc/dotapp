@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 struct ContentView: View {
@@ -6,6 +7,7 @@ struct ContentView: View {
     @State private var selectedItem: MediaItem?
     @State private var showPhotoPicker = false
     @State private var showSuccess = false
+    @State private var showWifiSetup = false
 
     var filteredItems: [MediaItem] {
         api.gallery.filter { $0.category == selectedCategory || (selectedCategory == .custom && !$0.builtin) }
@@ -17,11 +19,21 @@ struct ContentView: View {
                 if api.isConnected {
                     galleryContent
                 } else {
-                    ConnectionView(errorMessage: api.errorMessage)
+                    ConnectionView(errorMessage: api.errorMessage) {
+                        showWifiSetup = true
+                    }
                 }
             }
             .navigationTitle("Dot")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showWifiSetup = true
+                    } label: {
+                        Image(systemName: "wifi")
+                    }
+                    .accessibilityLabel("Wi-Fi setup")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await api.refresh() }
@@ -34,6 +46,10 @@ struct ContentView: View {
             .refreshable { await api.refresh() }
             .sheet(item: $selectedItem) { item in
                 PreviewView(item: item, showSuccess: $showSuccess)
+                    .environmentObject(api)
+            }
+            .sheet(isPresented: $showWifiSetup) {
+                WifiSetupView()
                     .environmentObject(api)
             }
             .alert("Applied", isPresented: $showSuccess) {

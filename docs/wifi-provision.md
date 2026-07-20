@@ -20,10 +20,12 @@ sudo bash scripts/enter-setup-ap.sh
 Then on the iPhone:
 
 1. Join Wi-Fi `Dot-Setup-XXXX` (password default: `dotsetup1`)
-2. Open Safari: `http://192.168.4.1/setup/`
+2. Open the **Dot** app → **Настройка Wi‑Fi** (or the Wi‑Fi button)
 3. Enter your **Personal Hotspot** name + password  
    (Settings → Personal Hotspot / Режим модема)
-4. Tap **Save & connect**
+4. Tap **Сохранить и подключить**
+
+Safari is optional; the same form still exists at `http://192.168.4.1/setup/` if you prefer a browser.
 
 The Pi leaves the setup network and connects to your hotspot.  
 After that, day-to-day use is:

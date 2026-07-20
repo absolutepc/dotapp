@@ -15,9 +15,11 @@ If Xcode reports `ObservableObject` / `@Published` errors, ensure `import Combin
 
 ## Usage
 
-1. Prefer **Personal Hotspot** mode (see [docs/wifi-provision.md](../docs/wifi-provision.md)): enable hotspot, wait for Pi to join, open the app.
-2. Or use one-time setup portal at `http://192.168.4.1/setup/` while on `Dot-Setup-XXXX`.
+1. **First time:** on Pi run `sudo dot-enter-setup-ap`, join `Dot-Setup-…` on iPhone, open the app → **Настройка Wi‑Fi** → enter Personal Hotspot name/password (no Safari).
+2. **Every day:** enable Personal Hotspot → Pi joins → enter Pi IP if needed → Refresh.
 3. Browse Gallery / Emoji / My Media, tap an item, **Apply to Display**.
+
+The API host is saved in UserDefaults (`dot.api.host`).
 
 ## Bundled vs Pi gallery
 

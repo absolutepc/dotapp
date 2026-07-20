@@ -65,3 +65,25 @@ struct DisplayResponse: Codable {
         case mediaId = "media_id"
     }
 }
+
+struct WifiStatus: Codable {
+    let mode: String
+    let ok: Bool
+    let message: String?
+    let ssid: String?
+    let ip: String?
+    let updatedAt: String?
+    let setupPortal: String?
+
+    enum CodingKeys: String, CodingKey {
+        case mode, ok, message, ssid, ip
+        case updatedAt = "updated_at"
+        case setupPortal = "setup_portal"
+    }
+}
+
+struct WifiConfigureResponse: Codable {
+    let ok: Bool
+    let message: String?
+}
+

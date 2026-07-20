@@ -1,16 +1,54 @@
+import Combine
 import Foundation
 import UIKit
 
 @MainActor
 final class PiAPIClient: ObservableObject {
+    private static let hostKey = "dot.api.host"
+
     @Published var status: DeviceStatus?
     @Published var gallery: [MediaItem] = []
+    @Published var wifi: WifiStatus?
     @Published var isConnected = false
     @Published var isLoading = false
     @Published var errorMessage: String?
 
+    /// Host only, e.g. `192.168.4.1` or `172.20.10.5` (no scheme/port).
+    @Published var host: String {
+        didSet {
+            let cleaned = Self.sanitizeHost(host)
+            if cleaned != host {
+                host = cleaned
+                return
+            }
+            UserDefaults.standard.set(cleaned, forKey: Self.hostKey)
+        }
+    }
+
+    init() {
+        let saved = UserDefaults.standard.string(forKey: Self.hostKey) ?? "192.168.4.1"
+        self.host = Self.sanitizeHost(saved)
+    }
+
     var baseURL: URL {
-        URL(string: "http://192.168.4.1:8080")!
+        URL(string: "http://\(host):8080")!
+    }
+
+    static func sanitizeHost(_ raw: String) -> String {
+        var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        value = value.replacingOccurrences(of: "https://", with: "")
+        value = value.replacingOccurrences(of: "http://", with: "")
+        if let slash = value.firstIndex(of: "/") {
+            value = String(value[..<slash])
+        }
+        if let colon = value.firstIndex(of: ":") {
+            // strip :8080 if user pasted full URL host:port
+            let after = value[value.index(after: colon)...]
+            if after.allSatisfy(\.isNumber) {
+                value = String(value[..<colon])
+            }
+        }
+        return value.isEmpty ? "192.168.4.1" : value
     }
 
     func refresh() async {
@@ -21,11 +59,38 @@ final class PiAPIClient: ObservableObject {
         do {
             status = try await get("/api/status", as: DeviceStatus.self)
             gallery = try await get("/api/gallery", as: [MediaItem].self)
+            wifi = try? await get("/api/wifi/status", as: WifiStatus.self)
+            if let ip = wifi?.ip, !ip.isEmpty, wifi?.mode == "client" {
+                host = ip
+            }
             isConnected = true
         } catch {
             isConnected = false
             errorMessage = error.localizedDescription
         }
+    }
+
+    func wifiStatus() async throws -> WifiStatus {
+        let status = try await get("/api/wifi/status", as: WifiStatus.self)
+        wifi = status
+        return status
+    }
+
+    /// Send phone hotspot credentials while connected to Dot-Setup AP.
+    func configureWifi(ssid: String, password: String) async throws -> WifiConfigureResponse {
+        var request = URLRequest(url: baseURL.appending(path: "/api/wifi/configure"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+        request.httpBody = try JSONEncoder().encode([
+            "ssid": ssid,
+            "password": password,
+        ])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw APIError.requestFailed
+        }
+        return try JSONDecoder().decode(WifiConfigureResponse.self, from: data)
     }
 
     func display(_ item: MediaItem) async throws {
