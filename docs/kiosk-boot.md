@@ -58,13 +58,6 @@ sudo rm -f /etc/cloud/cloud-init.disabled
 sudo reboot
 ```
 
-```bash
-sudo systemctl set-default graphical.target
-sudo systemctl enable lightdm
-sudo systemctl unmask plymouth-start
-sudo reboot
-```
-
 ## Troubleshooting
 
 ```bash
