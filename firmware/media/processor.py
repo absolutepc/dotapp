@@ -21,7 +21,7 @@ MAX_VIDEO_FRAMES = 360
 # 12 fps keeps motion readable and finishes faster on Pi Zero first prepare
 VIDEO_TARGET_FPS = 12.0
 # Bump when PNG/JPEG cache encoding changes so ensure_frames rebuilds on Pi.
-FRAME_CACHE_VERSION = 7
+FRAME_CACHE_VERSION = 6
 
 
 def list_frame_files(frame_dir: Path) -> list[Path]:
