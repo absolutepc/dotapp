@@ -19,10 +19,10 @@ from firmware.config import (
     TARGET_FPS,
 )
 
-# Full preload is smooth but RAM-heavy on Pi Zero 2W (~0.66MB/frame RGB).
-# Keep preload tiny so switching between cached animations stays responsive;
-# longer clips stream from disk with an LRU cache + short lookahead prefetch.
-PRELOAD_FRAME_LIMIT = 48
+# Never RAM-preload full clips on Pi Zero: blocking the loop makes the X11/SDL
+# window look like it closed, and long stalls can trip the window manager.
+# Always stream from disk with a small LRU + lookahead prefetch.
+PRELOAD_FRAME_LIMIT = 0
 SURFACE_CACHE_SIZE = 48
 PREFETCH_AHEAD = 12
 
@@ -187,25 +187,11 @@ class HDMIRenderer:
         self._cache.clear()
         self._surfaces = []
         self._frame_paths = paths
-        self._preload_all = len(paths) <= PRELOAD_FRAME_LIMIT
-
-        if self._preload_all:
-            print(f"Preloading media {media_id}: {len(paths)} frames into RAM…")
-            surfaces: list[pygame.Surface | None] = []
-            for path in paths:
-                try:
-                    surfaces.append(self._load_surface(path))
-                except Exception as exc:  # noqa: BLE001
-                    print(f"Skip frame {path.name}: {exc}")
-                    surfaces.append(None)
-            self._surfaces = surfaces
-            mode = "RAM preload"
-        else:
-            print(
-                f"Streaming media {media_id}: {len(paths)} frames "
-                f"(cache {SURFACE_CACHE_SIZE}, avoids RAM overrun)"
-            )
-            mode = "disk+cache"
+        self._preload_all = False
+        print(
+            f"Streaming media {media_id}: {len(paths)} frames "
+            f"(cache {SURFACE_CACHE_SIZE})"
+        )
 
         self._frame_durations = durations[: len(paths)]
         if len(self._frame_durations) < len(paths):
@@ -217,13 +203,22 @@ class HDMIRenderer:
         self._accum = 0.0
         self._last_state_mtime = state_mtime
         self._last_frames_mtime = frames_mtime
-        print(f"Loaded media {media_id}: {len(paths)} frames ({mode})")
+        # Show first frame immediately so the window never goes blank/closed-looking
+        first = self._load_cached(0)
+        if first is not None:
+            self._screen.blit(first, (0, 0))
+            pygame.display.flip()
+        print(f"Loaded media {media_id}: {len(paths)} frames (disk+cache)")
 
     def _handle_events(self) -> None:
         for event in pygame.event.get():
+            # Ignore QUIT: under X11 a transient WM event can kill the process;
+            # systemd then restarts it as a *new* window when switching logos.
             if event.type == pygame.QUIT:
-                self._running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                print("Ignoring SDL QUIT (keep display process alive)")
+                continue
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                print("ESC pressed — exiting renderer")
                 self._running = False
 
     def run(self) -> None:

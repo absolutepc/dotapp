@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct PreviewView: View {
     @EnvironmentObject private var api: PiAPIClient
@@ -7,6 +8,8 @@ struct PreviewView: View {
     let item: MediaItem
     @Binding var showSuccess: Bool
     @State private var isApplying = false
+    @State private var applied = false
+    @State private var errorText: String?
 
     var body: some View {
         NavigationStack {
@@ -29,6 +32,19 @@ struct PreviewView: View {
                 Text(item.isAnimation ? "Animation · \(Int(item.fps)) fps" : "Static image")
                     .foregroundStyle(.secondary)
 
+                if applied {
+                    Text("На экране Dot")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.green)
+                }
+
+                if let errorText {
+                    Text(errorText)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                }
+
                 Button {
                     Task { await apply() }
                 } label: {
@@ -36,7 +52,7 @@ struct PreviewView: View {
                         if isApplying {
                             ProgressView().tint(.white)
                         } else {
-                            Text("Apply to Display")
+                            Text(applied ? "Ещё раз на экран" : "Apply to Display")
                                 .font(.headline)
                         }
                     }
@@ -70,14 +86,17 @@ struct PreviewView: View {
 
     private func apply() async {
         isApplying = true
+        errorText = nil
         defer { isApplying = false }
         do {
             try await api.display(item)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+            applied = true
             showSuccess = true
-            dismiss()
+            // Keep preview open — do not dismiss (avoids sheet close/reopen feel)
         } catch {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
+            errorText = error.localizedDescription
         }
     }
 }
