@@ -586,27 +586,28 @@
       return rel.replace(/^assets\//, "");
     }
 
+    /** Repo assets root: works on GitHub Pages, file://, and Pi /mockup/. */
+    function staticAssetsRoot() {
+      const onPiMockup =
+        location.protocol.startsWith("http") &&
+        /\/mockup(\/|$)/.test(location.pathname) &&
+        !location.hostname.endsWith("github.io");
+      if (onPiMockup) {
+        return `${location.origin}/assets/`;
+      }
+      return new URL("../../assets/", location.href).href;
+    }
+
+    function staticAssetUrl(relPath) {
+      const rel = (relPath || "").replace(/^assets\//, "");
+      return encodeURI(staticAssetsRoot() + rel);
+    }
+
     /** H.264 MP4 sibling for browser playback (Safari cannot play VP9 WebM). */
     function siblingMp4Url(item) {
       const rel = assetRelPath(item);
       if (!/\.webm$/i.test(rel)) return "";
-      const mp4Rel = rel.replace(/\.webm$/i, ".mp4");
-      if (
-        location.protocol.startsWith("http") &&
-        /\/mockup(\/|$)/.test(location.pathname)
-      ) {
-        return encodeURI(`/assets/${mp4Rel}`);
-      }
-      if (item.file) {
-        return new URL(
-          `../../assets/${item.file.replace(/\.webm$/i, ".mp4")}`,
-          location.href
-        ).href;
-      }
-      if (location.protocol.startsWith("http")) {
-        return encodeURI(`/assets/${mp4Rel}`);
-      }
-      return "";
+      return staticAssetUrl(rel.replace(/\.webm$/i, ".mp4"));
     }
 
     function sourceUrl(item) {
@@ -617,15 +618,7 @@
         return encodeURI(raw);
       }
       if (item.file) {
-        // Pi API serves StaticFiles at /assets when mockup is at /mockup/
-        if (
-          location.protocol.startsWith("http") &&
-          /\/mockup(\/|$)/.test(location.pathname)
-        ) {
-          return encodeURI(`/assets/${item.file}`);
-        }
-        // file:// or static open of ios/mockup/index.html
-        return new URL(`../../assets/${item.file}`, location.href).href;
+        return staticAssetUrl(item.file);
       }
       return "";
     }
@@ -983,9 +976,8 @@
       showLoading(true);
       let catalog = FALLBACK_CATALOG;
       const candidates = [
+        new URL("../../assets/catalog.json", location.href).href,
         "../../assets/catalog.json",
-        "/assets/catalog.json",
-        "../assets/catalog.json",
       ];
       for (const path of candidates) {
         try {
