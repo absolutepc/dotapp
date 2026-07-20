@@ -45,7 +45,7 @@ struct PhotoUploadView: View {
                     Button("Close") { dismiss() }
                 }
             }
-            .onChange(of: pickerItem) { _, newItem in
+            .onChange(of: pickerItem) { newItem in
                 guard let newItem else { return }
                 Task { await upload(item: newItem) }
             }
