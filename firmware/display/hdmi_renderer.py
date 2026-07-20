@@ -20,11 +20,11 @@ from firmware.config import (
 )
 
 # Full preload is smooth but RAM-heavy on Pi Zero 2W (~0.66MB/frame RGB).
-# Animations up to MAX_GIF_FRAMES (360) stream from disk with an LRU cache
-# plus short lookahead prefetch so sequential playback stays smooth.
-PRELOAD_FRAME_LIMIT = 180
-SURFACE_CACHE_SIZE = 64
-PREFETCH_AHEAD = 8
+# Keep preload tiny so switching between cached animations stays responsive;
+# longer clips stream from disk with an LRU cache + short lookahead prefetch.
+PRELOAD_FRAME_LIMIT = 48
+SURFACE_CACHE_SIZE = 48
+PREFETCH_AHEAD = 12
 
 
 def _init_pygame_display() -> pygame.Surface:
@@ -88,6 +88,15 @@ class HDMIRenderer:
             return 0.0
 
     def _load_surface(self, path: Path) -> pygame.Surface:
+        # Prefer pygame loader for already-sized JPEG/PNG caches (much faster than Pillow).
+        suffix = path.suffix.lower()
+        if suffix in {".jpg", ".jpeg", ".png"}:
+            try:
+                surface = pygame.image.load(str(path))
+                if surface.get_size() == (DISPLAY_WIDTH, DISPLAY_HEIGHT):
+                    return surface.convert()
+            except pygame.error:
+                pass
         with Image.open(path) as img:
             rgb = img.convert("RGB")
             if rgb.size != (DISPLAY_WIDTH, DISPLAY_HEIGHT):

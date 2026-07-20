@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 VIDEO_SUFFIXES = {".webm", ".mp4", ".mov"}
 MAX_VIDEO_FRAMES = 360
-# 15 fps keeps motion smooth enough and finishes in seconds on Pi Zero
-VIDEO_TARGET_FPS = 15.0
+# 12 fps keeps motion readable and finishes faster on Pi Zero first prepare
+VIDEO_TARGET_FPS = 12.0
 # Bump when PNG/JPEG cache encoding changes so ensure_frames rebuilds on Pi.
-FRAME_CACHE_VERSION = 6
+FRAME_CACHE_VERSION = 7
 
 
 def list_frame_files(frame_dir: Path) -> list[Path]:
@@ -134,7 +134,7 @@ class MediaProcessor:
             "error",
             "-y",
             "-threads",
-            "2",
+            "1",
             "-i",
             str(decode_src),
             "-an",
@@ -143,7 +143,7 @@ class MediaProcessor:
             "-frames:v",
             str(MAX_VIDEO_FRAMES),
             "-q:v",
-            "5",
+            "6",
             str(pattern),
         ]
         logger.info(
