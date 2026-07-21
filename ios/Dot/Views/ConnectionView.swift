@@ -39,7 +39,7 @@ struct ConnectionView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Первый раз")
                         .font(.subheadline.weight(.semibold))
-                    Label("На Pi должна появиться сеть `Dot-Setup-…` (сама после установки)", systemImage: "1.circle.fill")
+                    Label("На Dot должна появиться сеть `Dot-Setup-…` (сама после установки)", systemImage: "1.circle.fill")
                     Label("Подключите iPhone к ней (пароль: `dotsetup1`)", systemImage: "2.circle.fill")
                     Label("Нажмите «Настройка Wi‑Fi» и введите Режим модема", systemImage: "3.circle.fill")
                 }
@@ -53,7 +53,7 @@ struct ConnectionView: View {
                     Text("Обычная работа")
                         .font(.subheadline.weight(.semibold))
                     Label("Включите Режим модема на iPhone", systemImage: "1.circle.fill")
-                    Label("Подождите несколько секунд — Pi подключится сам", systemImage: "2.circle.fill")
+                    Label("Подождите несколько секунд — Dot подключится сам", systemImage: "2.circle.fill")
                     Label("Нажмите «Найти автоматически»", systemImage: "3.circle.fill")
                 }
                 .font(.subheadline)
@@ -63,7 +63,7 @@ struct ConnectionView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Адрес Pi (если нужно вручную)")
+                    Text("Адрес Dot (если нужно вручную)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     TextField("192.168.4.1 или 172.20.10.x", text: $api.host)

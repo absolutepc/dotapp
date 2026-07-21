@@ -221,7 +221,7 @@ final class PiAPIClient: ObservableObject {
         }
         let decoded = try JSONDecoder().decode(DisplayResponse.self, from: data)
         if decoded.preparing == true {
-            applyProgress = decoded.message ?? "Готовим кадры на Pi…"
+            applyProgress = decoded.message ?? "Готовим кадры на Dot…"
             try await pollDisplayReady(mediaId: item.id)
         } else {
             applyProgress = decoded.message ?? "На экране"
@@ -347,9 +347,9 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .requestFailed:
-            return "Request to Dot device failed"
+            return "Не удалось связаться с Dot"
         case .setupUnreachable:
-            return "Pi недоступен на 192.168.4.1. Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль: dotsetup1) и повторите."
+            return "Dot недоступен на 192.168.4.1. Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль: dotsetup1) и повторите."
         case .prepareFailed(let message):
             return message
         }

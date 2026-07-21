@@ -260,7 +260,7 @@ def display(req: DisplayRequest) -> dict:
         write_prepare_status(
             media_id=item.id,
             state="preparing",
-            message="Готовим кадры на Pi…",
+            message="Готовим кадры на Dot…",
             progress=0.05,
         )
         threading.Thread(
@@ -276,7 +276,7 @@ def display(req: DisplayRequest) -> dict:
         "fps": item.fps,
         "frame_count": item.frame_count,
         "preparing": True,
-        "message": "Готовим кадры на Pi…",
+        "message": "Готовим кадры на Dot…",
     }
 
 

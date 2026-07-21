@@ -180,7 +180,7 @@ def wifi_configure(body: WifiConfigureRequest) -> dict:
     logger.info("Wi-Fi configure requested for ssid=%s", ssid)
     return {
         "ok": True,
-        "message": "Сохранено. Pi выходит из сети настройки и подключается к точке iPhone…",
+        "message": "Сохранено. Dot выходит из сети настройки и подключается к точке iPhone…",
     }
 
 
@@ -203,7 +203,7 @@ def wifi_reprovision() -> dict:
     _trigger_setup_ap()
     return {
         "ok": True,
-        "message": "Pi открывает сеть Dot-Setup. Подключите iPhone к ней и снова введите Режим модема.",
+        "message": "Dot открывает сеть Dot-Setup. Подключите iPhone к ней и снова введите Режим модема.",
         "setup_portal": "http://192.168.4.1/setup/",
     }
 

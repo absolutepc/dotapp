@@ -16,12 +16,12 @@ struct OnboardingView: View {
         OnboardingSlide(
             symbol: "wifi",
             title: "Первое подключение",
-            body: "Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль dotsetup1), откройте настройку Wi‑Fi в приложении и введите имя и пароль Режима модема. Терминал на Pi не нужен."
+            body: "Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль dotsetup1), откройте настройку Wi‑Fi в приложении и введите имя и пароль Режима модема. Терминал на Dot не нужен."
         ),
         OnboardingSlide(
             symbol: "iphone.and.arrow.forward",
             title: "Обычный день",
-            body: "Включите Режим модема — Pi подключится сам. В галерее выберите картинку и нажмите Apply. Свои фото — во вкладке Custom."
+            body: "Включите Режим модема — Dot подключится сам. В галерее выберите картинку и нажмите Apply. Свои фото — во вкладке Custom."
         ),
     ]
 
@@ -38,12 +38,12 @@ struct OnboardingView: View {
             )
             .ignoresSafeArea()
 
-            // Soft atmosphere — not a flat fill
             Circle()
                 .fill(Color(red: 0.35, green: 0.55, blue: 0.75).opacity(0.18))
                 .frame(width: 320, height: 320)
                 .blur(radius: 40)
                 .offset(x: 110, y: -220)
+                .allowsHitTesting(false)
 
             VStack(spacing: 0) {
                 HStack {
@@ -60,24 +60,56 @@ struct OnboardingView: View {
                 }
                 .frame(height: 44)
 
-                TabView(selection: $page) {
+                // Manual slides (not TabView) so «Далее» is never eaten by page gestures.
+                ZStack {
                     ForEach(Array(slides.enumerated()), id: \.offset) { index, slide in
                         slidePage(slide, index: index)
-                            .tag(index)
+                            .opacity(page == index ? 1 : 0)
+                            .allowsHitTesting(page == index)
+                            .accessibilityHidden(page != index)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut(duration: 0.35), value: page)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .gesture(
+                    DragGesture(minimumDistance: 40)
+                        .onEnded { value in
+                            let dx = value.translation.width
+                            if dx < -40, page < slides.count - 1 {
+                                withAnimation(.easeInOut(duration: 0.28)) { page += 1 }
+                            } else if dx > 40, page > 0 {
+                                withAnimation(.easeInOut(duration: 0.28)) { page -= 1 }
+                            }
+                        }
+                )
 
                 pageDots
                     .padding(.bottom, 20)
 
-                primaryButton
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 36)
+                Button(action: advance) {
+                    Text(page < slides.count - 1 ? "Далее" : "Начать")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .foregroundStyle(Color(red: 0.07, green: 0.09, blue: 0.12))
+                        .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 36)
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private func advance() {
+        if page < slides.count - 1 {
+            withAnimation(.easeInOut(duration: 0.28)) {
+                page += 1
+            }
+        } else {
+            finish()
+        }
     }
 
     private func slidePage(_ slide: OnboardingSlide, index: Int) -> some View {
@@ -147,26 +179,6 @@ struct OnboardingView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Слайд \(page + 1) из \(slides.count)")
-    }
-
-    private var primaryButton: some View {
-        Button {
-            if page < slides.count - 1 {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    page += 1
-                }
-            } else {
-                finish()
-            }
-        } label: {
-            Text(page < slides.count - 1 ? "Далее" : "Начать")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(Color(red: 0.07, green: 0.09, blue: 0.12))
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func finish() {

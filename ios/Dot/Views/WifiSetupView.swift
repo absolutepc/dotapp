@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First-time setup: while on Dot-Setup Wi-Fi, send Personal Hotspot credentials to the Pi.
+/// First-time setup: while on Dot-Setup Wi-Fi, send Personal Hotspot credentials to Dot.
 struct WifiSetupView: View {
     @EnvironmentObject private var api: PiAPIClient
     @Environment(\.dismiss) private var dismiss
@@ -12,7 +12,7 @@ struct WifiSetupView: View {
     @State private var statusText: String?
     @State private var statusIsError = false
     @State private var didSucceed = false
-    @State private var piReachable = false
+    @State private var deviceReachable = false
 
     var body: some View {
         NavigationStack {
@@ -24,18 +24,18 @@ struct WifiSetupView: View {
                         Label("На iPhone откройте Wi‑Fi и зайдите в `Dot-Setup-…`", systemImage: "1.circle.fill")
                         Label("Пароль сети настройки: `dotsetup1`", systemImage: "2.circle.fill")
                         Label("Ниже введите имя и пароль Режима модема iPhone", systemImage: "3.circle.fill")
-                        Label("После успеха включите Режим модема — Pi подключится сам", systemImage: "4.circle.fill")
+                        Label("После успеха включите Режим модема — Dot подключится сам", systemImage: "4.circle.fill")
                     }
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 }
 
-                Section("Связь с Pi") {
+                Section("Связь с Dot") {
                     HStack {
                         Circle()
-                            .fill(piReachable ? Color.green : Color.orange)
+                            .fill(deviceReachable ? Color.green : Color.orange)
                             .frame(width: 8, height: 8)
-                        Text(piReachable ? "Pi на связи (\(api.host))" : "Pi не найден — зайдите в Dot-Setup")
+                        Text(deviceReachable ? "Dot на связи (\(api.host))" : "Dot не найден — зайдите в Dot-Setup")
                             .font(.subheadline)
                         Spacer()
                         if isChecking {
@@ -88,15 +88,15 @@ struct WifiSetupView: View {
 
                 if didSucceed {
                     Section("Дальше") {
-                        Text("1. Выйдите из Dot-Setup и включите Режим модема.\n2. Подождите 5–15 секунд.\n3. Закройте этот экран — приложение само найдёт IP Pi.")
+                        Text("1. Выйдите из Dot-Setup и включите Режим модема.\n2. Подождите 5–15 секунд.\n3. Закройте этот экран — приложение само найдёт адрес Dot.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                        Button("Найти Pi в сети модема") {
+                        Button("Найти Dot в сети модема") {
                             Task {
                                 await api.discoverAndConnect()
                                 if api.isConnected, api.wifi?.mode == "client" {
                                     statusIsError = false
-                                    statusText = "Найден Pi: \(api.host)"
+                                    statusText = "Найден Dot: \(api.host)"
                                     dismiss()
                                 } else {
                                     statusIsError = true
@@ -124,17 +124,17 @@ struct WifiSetupView: View {
         api.host = "192.168.4.1"
         do {
             let status = try await api.wifiStatus()
-            piReachable = true
+            deviceReachable = true
             statusIsError = false
             if let setup = status.setupSsid, !setup.isEmpty {
                 statusText = "Сеть настройки: \(setup). Можно вводить Режим модема."
             } else if status.isSetupAP {
-                statusText = "Pi в режиме настройки. Можно вводить Режим модема."
+                statusText = "Dot в режиме настройки. Можно вводить Режим модема."
             } else {
-                statusText = "Pi отвечает (\(status.mode)). Для смены точки снова откройте Dot-Setup на Pi."
+                statusText = "Dot отвечает (\(status.mode)). Для смены точки снова откройте Dot-Setup на устройстве."
             }
         } catch {
-            piReachable = false
+            deviceReachable = false
             statusIsError = true
             statusText = "Нет связи с 192.168.4.1. Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль dotsetup1)."
         }
@@ -150,15 +150,15 @@ struct WifiSetupView: View {
 
         isSubmitting = true
         statusIsError = false
-        statusText = "Проверяю связь и отправляю на Pi…"
+        statusText = "Проверяю связь и отправляю на Dot…"
         defer { isSubmitting = false }
 
         do {
             let response = try await api.configureWifi(ssid: ssid, password: hotspotPassword)
             didSucceed = true
-            piReachable = false
+            deviceReachable = false
             statusText = response.message
-                ?? "Pi переключается на точку iPhone. Включите Режим модема и нажмите «Найти Pi»."
+                ?? "Dot переключается на точку iPhone. Включите Режим модема и нажмите «Найти Dot»."
             await pollAfterSwitch()
         } catch {
             statusIsError = true
@@ -174,7 +174,7 @@ struct WifiSetupView: View {
                 if status.mode == "client", status.ok, let ip = status.ip, !ip.isEmpty {
                     api.host = ip
                     statusIsError = false
-                    statusText = "Подключено к «\(status.ssid ?? hotspotSSID)». IP Pi: \(ip)."
+                    statusText = "Подключено к «\(status.ssid ?? hotspotSSID)». Адрес Dot: \(ip)."
                     return
                 }
                 if status.mode == "error" {
@@ -187,9 +187,9 @@ struct WifiSetupView: View {
                     statusText = message
                 }
             } else {
-                // Expected when Pi leaves setup AP — phone must enable Personal Hotspot next.
+                // Expected when Dot leaves setup AP — phone must enable Personal Hotspot next.
                 statusIsError = false
-                statusText = "Сеть настройки пропала — так и должно быть. Включите Режим модема и нажмите «Найти Pi в сети модема»."
+                statusText = "Сеть настройки пропала — так и должно быть. Включите Режим модема и нажмите «Найти Dot в сети модема»."
                 return
             }
         }
