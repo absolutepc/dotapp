@@ -71,4 +71,7 @@ sudo systemctl start dot-wifi-boot
 - If you change the iPhone hotspot password, re-enter setup AP (app reprovision or `sudo dot-enter-setup-ap`) and save again.
 - While in setup AP, the round HDMI shows SSID / password / QR (`setup-info` frame).
 - Day-to-day discovery also tries `dot.local` / `<hostname>.local` (Avahi) plus the hotspot LAN.
+- Join helper (`dot-wifi-join`) is **anti-flap**: if already connected with IP, it does not rescan / modify / reconnect.
+- Apply uses a lock so API + systemd cannot start two joins at once.
+- Tip: leave the iPhone unlocked; enable **Maximize Compatibility** on Personal Hotspot if Dot keeps dropping.
 - Legacy always-on AP: `scripts/setup-wifi-ap.sh` (phone loses internet while connected).
