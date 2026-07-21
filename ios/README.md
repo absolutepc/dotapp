@@ -15,13 +15,22 @@ If Xcode reports `ObservableObject` / `@Published` errors, ensure `import Combin
 
 ## Usage
 
-1. **First launch:** the app shows 3 short onboarding slides (once; stored as `dot.onboarding.completed`).
-2. **First Wi‑Fi (step by step):** join `Dot-Setup-…` → enter hotspot name/password with modem **off** → leave Dot-Setup → enable Personal Hotspot → **Найти Dot**. Do not run Dot-Setup Wi‑Fi and Personal Hotspot at the same time.
-3. **Every day:** enable Personal Hotspot → Dot joins → app auto-discovers via parallel probe / `*.local` / hotspot LAN.
-4. Browse gallery, tap an item, **Apply to Display** (shows prepare progress if Dot is building frames). Custom photos → **Custom** tab.
-5. **Где Dot** (toolbar pin): last place the iPhone saw Dot (phone GPS while connected). Shown in the Dot app and Apple Maps — **not** Apple Find My / Локатор (that requires Apple accessory certification).
+1. **First launch (onboarding slides):** shown once per iPhone install, flag `UserDefaults` key `dot.onboarding.completed`. To see them again: connection screen → **Показать введение** (or delete/reinstall the app).
+2. **First Wi‑Fi pairing (Dot device):** while Dot is in `wifi-role=setup`, join `Dot-Setup-…`, run the in-app Wi‑Fi wizard, then enable Personal Hotspot. Dot switches to `wifi-role=client`.
+3. **Every later day:** enable Personal Hotspot → Dot joins alone (boot + watch) → open app → **Найти автоматически** (probes saved IP, `dot.local`, `172.20.10.x`). No Setup AP needed.
+4. Browse gallery, tap an item, **Apply to Display**. Custom photos → **Custom** tab.
+5. **Где Dot** (toolbar pin): last place the iPhone saw Dot while connected — **not** Apple Find My.
 
-The API host is saved in UserDefaults (`dot.api.host`). Preview images are cached under Caches/DotPreviews. Last-seen coordinates use `dot.lastSeen.v1`.
+### How the app knows “first” vs “later”
+
+| What | Where stored | Meaning |
+|------|----------------|---------|
+| Onboarding slides done | iPhone `dot.onboarding.completed` | User saw intro slides |
+| Saved Dot address | iPhone `dot.api.host` + mDNS cache | Faster rediscovery |
+| Modem paired | Dot `/var/lib/dot/wifi-role` = `client` + NM profile `dot-phone-hotspot` | Auto-join hotspot |
+| Needs pairing UI | Dot API `mode=setup_ap` / `needs_setup` | App opens Wi‑Fi wizard |
+
+The app does **not** store a separate “first connection” boolean for Wi‑Fi: it asks Dot’s `/api/wifi/status`. If Dot is `client` and reachable on the hotspot LAN → gallery. If `setup_ap` → wizard.
 
 ## Bundled vs Dot gallery
 
