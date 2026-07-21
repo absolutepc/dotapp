@@ -6,6 +6,7 @@ struct ConnectionView: View {
     let errorMessage: String?
     var onSetupWifi: () -> Void = {}
     var onShowLocation: () -> Void = {}
+    var onShowOnboarding: () -> Void = {}
 
     var body: some View {
         ScrollView {
@@ -91,6 +92,11 @@ struct ConnectionView: View {
                     onSetupWifi()
                 }
                 .buttonStyle(.borderedProminent)
+
+                Button("Показать введение") {
+                    onShowOnboarding()
+                }
+                .buttonStyle(.bordered)
             }
             .padding()
         }

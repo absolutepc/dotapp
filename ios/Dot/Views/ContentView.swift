@@ -28,6 +28,9 @@ struct ContentView: View {
                         showWifiSetup = true
                     } onShowLocation: {
                         showLastSeen = true
+                    } onShowOnboarding: {
+                        onboardingCompleted = false
+                        showOnboarding = true
                     }
                 }
             }
@@ -60,11 +63,18 @@ struct ContentView: View {
             }
             .task {
                 locationTracker.requestPermissionIfNeeded()
+                // Present intro on first launch (flag lives in UserDefaults on this iPhone).
                 if !onboardingCompleted {
                     showOnboarding = true
-                    return
+                } else {
+                    await connectAfterOnboarding()
                 }
-                await connectAfterOnboarding()
+            }
+            .onAppear {
+                // Belt-and-suspenders: some rebuilds miss the initial .task presentation.
+                if !onboardingCompleted, !showOnboarding {
+                    showOnboarding = true
+                }
             }
             .refreshable { await api.discoverAndConnect() }
             .onChange(of: api.shouldOfferWifiSetup) { needsSetup in
