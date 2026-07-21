@@ -90,9 +90,18 @@ sleep 1
 systemctl is-active hostapd dnsmasq || true
 ip -4 addr show wlan0 | sed -n '1,6p' || true
 
-cat >"${STATE_DIR}/wifi-mode.json" <<EOF
-{"mode":"setup_ap","ssid":"${SSID}","ip":"${AP_IP}","portal":"http://${AP_IP}/setup/"}
-EOF
+# Clear stale client / error status so the app sees setup_ap (not leftover "error").
+rm -f "${STATE_DIR}/wifi-client.json" "${STATE_DIR}/wifi-request.json" \
+  "${STATE_DIR}/wifi-request.failed.json" "${STATE_DIR}/.hotspot-profile-hardened"
+python3 - "${STATE_DIR}/wifi-mode.json" "${STATE_DIR}/wifi-status.json" "${SSID}" "${AP_IP}" <<'PY'
+import json, sys, datetime
+mode_path, status_path, ssid, ip = sys.argv[1:5]
+now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+mode = {"mode": "setup_ap", "ssid": ssid, "ip": ip, "portal": f"http://{ip}/setup/", "message": f"Setup AP {ssid}"}
+status = {"ok": True, "mode": "setup_ap", "message": f"Setup AP ready: {ssid}", "ip": ip, "updated_at": now}
+open(mode_path, "w").write(json.dumps(mode) + "\n")
+open(status_path, "w").write(json.dumps(status) + "\n")
+PY
 
 # Show SSID / password / QR on the round HDMI (best-effort).
 SETUP_MEDIA_ID="setup-info"

@@ -129,19 +129,31 @@ def wifi_status() -> dict:
     status = _read_json(WIFI_STATUS)
     mode = _read_json(WIFI_MODE)
     client = _read_json(WIFI_CLIENT)
-    resolved_mode = status.get("mode") or mode.get("mode") or "unknown"
+    status_mode = (status.get("mode") or "").strip()
+    file_mode = (mode.get("mode") or "").strip()
+    # Prefer live setup_ap from mode file over a stale "error" left by a failed join.
+    if file_mode == "setup_ap" and status_mode in ("", "error", "switching", "unknown"):
+        resolved_mode = "setup_ap"
+    else:
+        resolved_mode = status_mode or file_mode or "unknown"
     ip = status.get("ip") or client.get("ip") or mode.get("ip") or _primary_ipv4()
+    if resolved_mode == "setup_ap":
+        ip = mode.get("ip") or ip or "192.168.4.1"
     needs_setup = resolved_mode == "setup_ap" or not _has_client_ssid()
+    setup_ssid = mode.get("ssid") if resolved_mode == "setup_ap" else None
+    message = status.get("message") or mode.get("message")
+    if resolved_mode == "setup_ap" and setup_ssid:
+        message = mode.get("message") or f"Setup AP ready: {setup_ssid}"
     return {
         "mode": resolved_mode,
-        "ok": bool(status.get("ok")) if status else False,
-        "message": status.get("message") or mode.get("message"),
+        "ok": True if resolved_mode == "setup_ap" else (bool(status.get("ok")) if status else False),
+        "message": message,
         "ssid": client.get("ssid") or mode.get("ssid"),
         "ip": ip,
         "updated_at": status.get("updated_at"),
         "setup_portal": "http://192.168.4.1/setup/",
         "needs_setup": needs_setup,
-        "setup_ssid": mode.get("ssid") if resolved_mode == "setup_ap" else None,
+        "setup_ssid": setup_ssid,
         "mdns_hosts": _mdns_hosts(),
     }
 

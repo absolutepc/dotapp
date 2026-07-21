@@ -20,6 +20,7 @@ struct WifiSetupView: View {
     @State private var statusText: String?
     @State private var statusIsError = false
     @State private var deviceReachable = false
+    @State private var inSetupMode = false
     @State private var setupSsidShown: String?
     @State private var credentialsSaved = false
 
@@ -127,14 +128,10 @@ struct WifiSetupView: View {
         Section("Связь с Dot") {
             HStack {
                 Circle()
-                    .fill(deviceReachable ? Color.green : Color.orange)
+                    .fill(inSetupMode ? Color.green : (deviceReachable ? Color.orange : Color.red))
                     .frame(width: 8, height: 8)
-                Text(
-                    deviceReachable
-                        ? "Dot на связи (\(api.host))"
-                        : "Пока нет связи — зайдите в Dot-Setup"
-                )
-                .font(.subheadline)
+                Text(setupLinkLabel)
+                    .font(.subheadline)
                 Spacer()
                 if isBusy {
                     ProgressView()
@@ -150,6 +147,16 @@ struct WifiSetupView: View {
             }
             .disabled(isBusy)
         }
+    }
+
+    private var setupLinkLabel: String {
+        if inSetupMode {
+            return "Dot в режиме настройки (\(api.host))"
+        }
+        if deviceReachable {
+            return "Dot отвечает, но не в Dot-Setup"
+        }
+        return "Пока нет связи — зайдите в Dot-Setup"
     }
 
     // MARK: - Step 2
@@ -188,7 +195,7 @@ struct WifiSetupView: View {
                     || credentialsSaved
                     || hotspotSSID.trimmingCharacters(in: .whitespaces).isEmpty
                     || hotspotPassword.count < 8
-                    || !deviceReachable
+                    || !inSetupMode
             )
         } footer: {
             Text("Пока вы в Dot-Setup, Dot получит имя и пароль. Подключение к модему будет на следующем шаге.")
@@ -268,7 +275,7 @@ struct WifiSetupView: View {
 
     private var canPrimary: Bool {
         switch step {
-        case .joinSetup: return deviceReachable
+        case .joinSetup: return inSetupMode
         case .enterCredentials: return credentialsSaved
         case .enableHotspot: return true
         case .findDot: return true
@@ -296,7 +303,7 @@ struct WifiSetupView: View {
         switch step {
         case .joinSetup:
             await checkSetupLink()
-            guard deviceReachable else { return }
+            guard inSetupMode else { return }
             statusText = nil
             step = .enterCredentials
         case .enterCredentials:
@@ -322,6 +329,7 @@ struct WifiSetupView: View {
         defer { isBusy = false }
         statusText = "Ищу Dot в сети настройки…"
         statusIsError = false
+        inSetupMode = false
         api.host = "192.168.4.1"
 
         do {
@@ -329,15 +337,23 @@ struct WifiSetupView: View {
             let status = try await api.wifiStatus()
             deviceReachable = true
             setupSsidShown = status.setupSsid
-            if let setup = status.setupSsid, !setup.isEmpty {
-                statusText = "Сеть \(setup) — можно переходить к данным модема."
-            } else if status.isSetupAP || status.mode == "setup_ap" {
-                statusText = "Dot в режиме настройки. Можно далее."
+            let setupReady = status.mode == "setup_ap" || (status.setupSsid?.isEmpty == false)
+            inSetupMode = setupReady
+            if setupReady {
+                statusIsError = false
+                if let setup = status.setupSsid, !setup.isEmpty {
+                    statusText = "Сеть \(setup) — можно нажать «Далее»."
+                } else {
+                    statusText = "Dot в режиме настройки. Можно нажать «Далее»."
+                }
             } else {
-                statusText = "Dot отвечает (\(status.mode)). Для первой настройки нужен режим Dot-Setup."
+                statusIsError = true
+                statusText =
+                    "Dot отвечает (\(status.mode)), но не в Dot-Setup. На Pi выполните: sudo dot-enter-setup-ap — затем снова «Проверить связь»."
             }
         } catch {
             deviceReachable = false
+            inSetupMode = false
             statusIsError = true
             statusText = "Нет связи. Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль dotsetup1) и нажмите «Проверить связь»."
         }
@@ -360,6 +376,7 @@ struct WifiSetupView: View {
             let response = try await api.configureWifi(ssid: ssid, password: hotspotPassword)
             credentialsSaved = true
             deviceReachable = false
+            inSetupMode = false
             statusText = response.message
                 ?? "Данные сохранены. Дальше выйдите из Dot-Setup и включите Режим модема."
             // Brief wait: setup AP will drop — that is expected.
