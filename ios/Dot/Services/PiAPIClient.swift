@@ -238,19 +238,39 @@ final class PiAPIClient: ObservableObject {
     }
 
     func reprovisionWifi() async throws -> WifiConfigureResponse {
+        // Live check: only when Dot is on the phone hotspot (client).
+        let live = try await wifiStatus()
+        guard live.mode == "client", live.ok else {
+            throw APIError.reprovisionRequiresHotspot
+        }
+
         var request = URLRequest(url: baseURL.appending(path: "/api/wifi/reprovision"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 20
-        request.httpBody = Data("{}".utf8)
+        request.httpBody = try JSONEncoder().encode(["confirm": true])
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+        guard let http = response as? HTTPURLResponse else {
             throw APIError.requestFailed
+        }
+        if http.statusCode == 409 {
+            throw APIError.reprovisionRequiresHotspot
+        }
+        if http.statusCode == 400 {
+            throw APIError.serverMessage(Self.decodeDetail(data) ?? "Нужно подтверждение сброса.")
+        }
+        guard http.statusCode == 200 else {
+            throw APIError.serverMessage(Self.decodeDetail(data) ?? "Не удалось сбросить Wi‑Fi Dot")
         }
         shouldOfferWifiSetup = true
         isConnected = false
         gallery = []
         return try JSONDecoder().decode(WifiConfigureResponse.self, from: data)
+    }
+
+    private static func decodeDetail(_ data: Data) -> String? {
+        struct Detail: Decodable { let detail: String? }
+        return (try? JSONDecoder().decode(Detail.self, from: data))?.detail
     }
 
     func clearSavedHost() {
@@ -457,6 +477,8 @@ enum APIError: LocalizedError {
     case requestFailed
     case setupUnreachable
     case prepareFailed(String)
+    case reprovisionRequiresHotspot
+    case serverMessage(String)
 
     var errorDescription: String? {
         switch self {
@@ -465,6 +487,10 @@ enum APIError: LocalizedError {
         case .setupUnreachable:
             return "Dot недоступен на 192.168.4.1. Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль: dotsetup1) и повторите."
         case .prepareFailed(let message):
+            return message
+        case .reprovisionRequiresHotspot:
+            return "Сброс в Dot-Setup возможен только когда Dot подключён к Режиму модема. Включите модем, нажмите «Найти Dot» и повторите."
+        case .serverMessage(let message):
             return message
         }
     }

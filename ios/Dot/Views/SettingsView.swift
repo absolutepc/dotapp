@@ -14,10 +14,15 @@ struct SettingsView: View {
     @State private var statusIsError = false
     @State private var isBusy = false
     @State private var showWifiSetup = false
-    @State private var confirmReprovision = false
+    @State private var showReprovisionConfirm = false
     @State private var confirmClearHost = false
 
     var onShowOnboarding: () -> Void = {}
+
+    /// Reset only when Dot is reachable on the phone hotspot (client).
+    private var canResetToSetup: Bool {
+        api.canBrowseGallery && api.wifi?.mode == "client" && (api.wifi?.ok == true)
+    }
 
     private var brightnessMin: Double {
         Double(api.status?.brightnessMin ?? 5)
@@ -57,17 +62,15 @@ struct SettingsView: View {
                     .environmentObject(api)
                     .preferredColorScheme(preferDark ? .dark : .light)
             }
-            .confirmationDialog(
-                "Вернуть Dot в режим настройки?",
-                isPresented: $confirmReprovision,
-                titleVisibility: .visible
-            ) {
-                Button("Открыть Dot-Setup", role: .destructive) {
-                    Task { await reprovision() }
+            .sheet(isPresented: $showReprovisionConfirm) {
+                ReprovisionConfirmSheet(
+                    isBusy: $isBusy,
+                    canReset: canResetToSetup
+                ) {
+                    await reprovision()
                 }
-                Button("Отмена", role: .cancel) {}
-            } message: {
-                Text("Dot создаст сеть Dot-Setup. Подключите к ней iPhone и заново введите имя и пароль модема.")
+                .environmentObject(api)
+                .preferredColorScheme(preferDark ? .dark : .light)
             }
             .confirmationDialog(
                 "Сбросить сохранённый адрес?",
@@ -163,7 +166,7 @@ struct SettingsView: View {
     }
 
     private var wifiSection: some View {
-        Section("Wi‑Fi") {
+        Section {
             Button {
                 showWifiSetup = true
             } label: {
@@ -171,17 +174,27 @@ struct SettingsView: View {
             }
 
             Button(role: .destructive) {
-                confirmReprovision = true
+                showReprovisionConfirm = true
             } label: {
                 Label("Сбросить Wi‑Fi Dot (Dot-Setup)", systemImage: "arrow.counterclockwise")
             }
-            .disabled(isBusy)
+            .disabled(isBusy || !canResetToSetup)
+
+            if !canResetToSetup {
+                Text("Сброс доступен только когда Dot подключён к Режиму модема. Включите модем и нажмите «Найти Dot».")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
 
             Button(role: .destructive) {
                 confirmClearHost = true
             } label: {
                 Label("Сбросить сохранённый адрес", systemImage: "trash")
             }
+        } header: {
+            Text("Wi‑Fi")
+        } footer: {
+            Text("Сброс в Dot-Setup отключит Dot от модема и откроет сеть настройки. Нужно подтверждение и живое подключение к точке доступа.")
         }
     }
 
@@ -226,17 +239,154 @@ struct SettingsView: View {
         }
     }
 
-    private func reprovision() async {
+    private func reprovision() async throws {
         isBusy = true
         defer { isBusy = false }
         do {
             let result = try await api.reprovisionWifi()
             statusMessage = result.message ?? "Dot переходит в Dot-Setup."
             statusIsError = false
+            showReprovisionConfirm = false
             showWifiSetup = true
         } catch {
             statusMessage = error.localizedDescription
             statusIsError = true
+            throw error
+        }
+    }
+}
+
+/// Two-step confirm: acknowledge risk + type СБРОС. Requires hotspot link.
+private struct ReprovisionConfirmSheet: View {
+    @EnvironmentObject private var api: PiAPIClient
+    @Environment(\.dismiss) private var dismiss
+
+    @Binding var isBusy: Bool
+    let canReset: Bool
+    var onConfirm: () async throws -> Void
+
+    @State private var understood = false
+    @State private var typedConfirm = ""
+    @State private var localError: String?
+    @State private var hotspotStillOk = false
+
+    private let confirmWord = "СБРОС"
+
+    private var typedOk: Bool {
+        typedConfirm.trimmingCharacters(in: .whitespacesAndNewlines)
+            .caseInsensitiveCompare(confirmWord) == .orderedSame
+    }
+
+    private var canSubmit: Bool {
+        canReset && hotspotStillOk && understood && typedOk && !isBusy
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Label("Это отключит Dot от Режима модема", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("Dot откроет сеть Dot-Setup. Потребуется заново пройти настройку Wi‑Fi. Случайный сброс прервёт обычную работу.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Условие") {
+                    if canReset && hotspotStillOk {
+                        Label("Dot на точке доступа (client) — можно продолжить", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        if let ssid = api.wifi?.ssid, !ssid.isEmpty {
+                            Text("Сеть: \(ssid)")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Label("Нет связи с Dot на модеме", systemImage: "xmark.circle.fill")
+                            .foregroundStyle(.red)
+                        Text("Включите Режим модема, найдите Dot, затем откройте подтверждение снова.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("Проверить связь сейчас") {
+                        Task { await refreshHotspotLink() }
+                    }
+                    .disabled(isBusy)
+                }
+
+                Section("Подтверждение") {
+                    Toggle("Я понимаю последствия и хочу сбросить Wi‑Fi Dot", isOn: $understood)
+                        .disabled(!(canReset && hotspotStillOk) || isBusy)
+                    TextField("Введите \(confirmWord)", text: $typedConfirm)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .disabled(!(canReset && hotspotStillOk) || isBusy)
+                    Text("Чтобы подтвердить, введите слово \(confirmWord) заглавными буквами.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let localError {
+                    Section {
+                        Text(localError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        Task { await submit() }
+                    } label: {
+                        if isBusy {
+                            ProgressView()
+                        } else {
+                            Text("Сбросить в Dot-Setup")
+                        }
+                    }
+                    .disabled(!canSubmit)
+                }
+            }
+            .navigationTitle("Подтверждение сброса")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Отмена") { dismiss() }
+                        .disabled(isBusy)
+                }
+            }
+            .task { await refreshHotspotLink() }
+        }
+    }
+
+    private func refreshHotspotLink() async {
+        localError = nil
+        do {
+            let status = try await api.wifiStatus()
+            hotspotStillOk = status.mode == "client" && status.ok
+            if !hotspotStillOk {
+                localError = "Dot не на точке доступа. Сброс заблокирован."
+            }
+        } catch {
+            hotspotStillOk = false
+            localError = error.localizedDescription
+        }
+    }
+
+    private func submit() async {
+        localError = nil
+        guard canSubmit else { return }
+        // Re-check immediately before the destructive call.
+        await refreshHotspotLink()
+        guard canReset && hotspotStillOk, understood, typedOk else {
+            localError = "Сброс заблокирован: нет связи с модемом или подтверждение неполное."
+            return
+        }
+        do {
+            try await onConfirm()
+            dismiss()
+        } catch {
+            localError = error.localizedDescription
         }
     }
 }

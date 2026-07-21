@@ -35,6 +35,12 @@ class WifiConfigureRequest(BaseModel):
     apply_now: bool = False
 
 
+class WifiReprovisionRequest(BaseModel):
+    """Require an explicit confirm flag so accidental taps cannot reset Wi‑Fi."""
+
+    confirm: bool = False
+
+
 def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
@@ -273,8 +279,31 @@ def _queue_apply(payload: dict) -> None:
 
 
 @router.post("/reprovision")
-def wifi_reprovision() -> dict:
-    """Drop back into Dot-Setup AP so the user can re-enter hotspot credentials from the app."""
+def wifi_reprovision(req: WifiReprovisionRequest) -> dict:
+    """Drop back into Dot-Setup AP so the user can re-enter hotspot credentials from the app.
+
+    Guardrails:
+    - Body must include ``{"confirm": true}`` (blocks accidental calls).
+    - Dot must currently be in client mode on the phone hotspot — otherwise
+      there is no reliable path to talk to Dot after the reset.
+    """
+    if not req.confirm:
+        raise HTTPException(
+            status_code=400,
+            detail="Нужно явное подтверждение: отправьте {\"confirm\": true}.",
+        )
+
+    live = wifi_status()
+    mode = (live.get("mode") or "").strip()
+    if mode != "client" or not live.get("ok"):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Сброс в Dot-Setup доступен только когда Dot подключён к точке доступа "
+                "(Режим модема), mode=client. Включите модем, найдите Dot и повторите."
+            ),
+        )
+
     DATA_ROOT.mkdir(parents=True, exist_ok=True)
     WIFI_STATUS.write_text(
         json.dumps(

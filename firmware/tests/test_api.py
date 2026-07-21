@@ -222,3 +222,41 @@ def test_wifi_configure_writes_request(client, tmp_path, monkeypatch):
     status = test_client.get("/api/wifi/status")
     assert status.status_code == 200
     assert status.json()["mode"] == "switching"
+
+
+def test_wifi_reprovision_requires_confirm_and_client(client, tmp_path, monkeypatch):
+    test_client, _ = client
+    import firmware.api.wifi as wifi
+
+    monkeypatch.setattr(wifi, "DATA_ROOT", tmp_path)
+    monkeypatch.setattr(wifi, "WIFI_STATUS", tmp_path / "wifi-status.json")
+    monkeypatch.setattr(wifi, "WIFI_MODE", tmp_path / "wifi-mode.json")
+    monkeypatch.setattr(wifi, "WIFI_CLIENT", tmp_path / "wifi-client.json")
+    monkeypatch.setattr(wifi, "_trigger_setup_ap", lambda: None)
+
+    # No confirm flag
+    missing = test_client.post("/api/wifi/reprovision", json={})
+    assert missing.status_code == 400
+
+    # Not on hotspot / client
+    (tmp_path / "wifi-status.json").write_text(
+        json.dumps({"ok": False, "mode": "setup_ap", "message": "setup"}),
+        encoding="utf-8",
+    )
+    blocked = test_client.post("/api/wifi/reprovision", json={"confirm": True})
+    assert blocked.status_code == 409
+
+    # Client + confirm → ok
+    (tmp_path / "wifi-status.json").write_text(
+        json.dumps({"ok": True, "mode": "client", "message": "on hotspot", "ip": "172.20.10.2"}),
+        encoding="utf-8",
+    )
+    (tmp_path / "wifi-client.json").write_text(
+        json.dumps({"ssid": "iPhone", "ip": "172.20.10.2"}),
+        encoding="utf-8",
+    )
+    ok = test_client.post("/api/wifi/reprovision", json={"confirm": True})
+    assert ok.status_code == 200
+    assert ok.json()["ok"] is True
+    assert (tmp_path / "wifi-status.json").exists()
+    assert json.loads((tmp_path / "wifi-status.json").read_text(encoding="utf-8"))["mode"] == "setup_ap"
