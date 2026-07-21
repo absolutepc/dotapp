@@ -26,6 +26,7 @@ install -m 755 "${ROOT}/scripts/enter-setup-ap.sh" /usr/local/sbin/dot-enter-set
 install -m 755 "${ROOT}/scripts/dot-wifi-boot.sh" /usr/local/sbin/dot-wifi-boot
 install -m 755 "${ROOT}/scripts/dot-wifi-join.sh" /usr/local/sbin/dot-wifi-join
 install -m 755 "${ROOT}/scripts/dot-wifi-keepalive.sh" /usr/local/sbin/dot-wifi-keepalive
+install -m 755 "${ROOT}/scripts/dot-wifi-diagnose.sh" /usr/local/sbin/dot-wifi-diagnose
 
 # HDMI setup screen helper (enter-setup-ap looks here when installed under /usr/local/sbin)
 mkdir -p /usr/local/share/dot
@@ -51,7 +52,7 @@ if command -v nmcli >/dev/null 2>&1 && nmcli -t -f NAME connection show 2>/dev/n
     nmcli connection modify dot-phone-hotspot \
       connection.autoconnect yes \
       connection.autoconnect-priority 200 \
-      connection.autoconnect-retries -1 \
+      connection.autoconnect-retries 0 \
       connection.wait-device-timeout 15 \
       ipv4.dhcp-timeout 30 \
       ipv6.method ignore \
@@ -113,6 +114,7 @@ echo "Wi-Fi provisioning installed for user: ${PI_USER}"
 echo "  First connect:   join Dot-Setup-… on iPhone → Dot app → Настройка Wi‑Fi (по шагам)"
 echo "  Setup AP now:    sudo systemctl start dot-wifi-boot  (or sudo dot-enter-setup-ap)"
 echo "  Re-join now:     sudo dot-wifi-join"
+echo "  Diagnose:        sudo dot-wifi-diagnose"
 echo "  Keepalive:       systemctl status dot-wifi-keepalive.timer"
 echo "  Portal:          http://192.168.4.1/setup/"
 echo "  Status API:      http://127.0.0.1:8080/api/wifi/status"

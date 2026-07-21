@@ -7,7 +7,7 @@ Wants=NetworkManager.service
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/local/sbin/dot-wifi-boot
-TimeoutStartSec=180
+TimeoutStartSec=300
 
 [Install]
 WantedBy=multi-user.target

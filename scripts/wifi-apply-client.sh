@@ -98,7 +98,7 @@ nmcli connection add type wifi ifname wlan0 con-name "${CONN_NAME}" \
   wifi-sec.psk "${PASS}" \
   connection.autoconnect yes \
   connection.autoconnect-priority 200 \
-  connection.autoconnect-retries -1 \
+  connection.autoconnect-retries 0 \
   connection.wait-device-timeout 15 \
   ipv4.method auto \
   ipv4.dhcp-timeout 30 \
