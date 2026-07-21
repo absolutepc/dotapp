@@ -2,7 +2,7 @@
 Description=Watch for Dot Wi-Fi provision request
 
 [Path]
-PathExists=/var/lib/dot/wifi-request.json
+# Only on change/create of the request file (avoid double-start with PathExists+PathChanged).
 PathChanged=/var/lib/dot/wifi-request.json
 Unit=dot-wifi-apply.service
 

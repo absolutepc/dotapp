@@ -203,9 +203,9 @@ struct WifiSetupView: View {
             Label("Откройте Настройки → Wi‑Fi", systemImage: "1.circle.fill")
             Label("Отключитесь от `Dot-Setup-…` (или выберите другую сеть / выключите Wi‑Fi)", systemImage: "2.circle.fill")
             Label("Настройки → Режим модема → включите переключатель", systemImage: "3.circle.fill")
-            Label("Держите экран разблокированным 10–15 секунд", systemImage: "4.circle.fill")
+            Label("Включите «Максимальная совместимость», экран не блокируйте", systemImage: "4.circle.fill")
         } footer: {
-            Text("Сначала выйдите из Dot-Setup, потом включите модем. Иначе iPhone не даст раздавать интернет.")
+            Text("Сначала выйдите из Dot-Setup, потом включите модем. Не нажимайте «Найти Dot» много раз подряд — Dot сам подключится один раз.")
         }
     }
 

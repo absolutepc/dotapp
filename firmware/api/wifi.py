@@ -82,11 +82,15 @@ def _has_client_ssid() -> bool:
 
 
 def _trigger_apply() -> None:
-    """Ask root helpers to apply the pending wifi-request.json."""
+    """Ask root helpers to apply the pending wifi-request.json.
+
+    Prefer a single systemd start. The apply script uses flock so a second
+    trigger (path unit) cannot run two joins at once and flap the hotspot.
+    """
     for cmd in (
-        ["sudo", "-n", "/usr/local/sbin/dot-wifi-apply"],
         ["sudo", "-n", "systemctl", "start", "dot-wifi-apply.service"],
         ["systemctl", "start", "dot-wifi-apply.service"],
+        ["sudo", "-n", "/usr/local/sbin/dot-wifi-apply"],
     ):
         try:
             subprocess.Popen(  # noqa: S603
