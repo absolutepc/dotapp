@@ -106,22 +106,30 @@ if [[ -f "${ROOT}/firmware/avahi/dot.service" ]]; then
   systemctl reload avahi-daemon 2>/dev/null || true
 fi
 
-# If never configured, start setup AP now so the phone can finish first connect
-# without SSH / manual enter-setup-ap.
-if ! nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot"; then
-  echo "No phone-hotspot profile yet — starting Dot-Setup AP…"
-  systemctl start dot-wifi-boot.service || /usr/local/sbin/dot-enter-setup-ap || true
-else
-  echo "Phone-hotspot profile present — joining (use-hotspot)…"
+# Default role is setup (Dot-Setup AP). Modem client only after the app
+# finishes «Подключить Dot» / sudo dot-wifi-use-hotspot.
+if [[ ! -f "${STATE_DIR}/wifi-role" ]]; then
+  echo "setup" >"${STATE_DIR}/wifi-role"
+fi
+chown "${PI_USER}:${PI_USER}" "${STATE_DIR}/wifi-role" 2>/dev/null || true
+
+ROLE="$(tr -d '[:space:]' <"${STATE_DIR}/wifi-role" 2>/dev/null || echo setup)"
+if [[ "${ROLE}" == "client" ]] && nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot"; then
+  echo "wifi-role=client — joining phone hotspot…"
+  systemctl enable --now dot-wifi-watch.service 2>/dev/null || true
   /usr/local/sbin/dot-wifi-use-hotspot || /usr/local/sbin/dot-wifi-join || true
+else
+  echo "wifi-role=${ROLE:-setup} — starting Dot-Setup AP (no modem assumed)…"
+  systemctl stop dot-wifi-watch.service 2>/dev/null || true
+  systemctl start dot-wifi-boot.service || /usr/local/sbin/dot-enter-setup-ap || true
 fi
 
 echo "Wi-Fi provisioning installed for user: ${PI_USER}"
-echo "  First connect:   join Dot-Setup-… → app wizard → then modem"
-echo "  Use hotspot now: sudo dot-wifi-use-hotspot"
+echo "  Role file:       ${STATE_DIR}/wifi-role  (setup | client)"
+echo "  First connect:   phone → Dot-Setup-… → app wizard → then modem"
+echo "  Force Setup AP:  sudo dot-enter-setup-ap"
+echo "  Force modem:     sudo dot-wifi-use-hotspot"
 echo "  Diagnose:        sudo dot-wifi-diagnose"
-echo "  Watch:           systemctl status dot-wifi-watch"
-echo "  Keepalive:       systemctl status dot-wifi-keepalive.timer"
 echo "  Portal:          http://192.168.4.1/setup/"
 echo "  Status API:      http://127.0.0.1:8080/api/wifi/status"
 echo "  mDNS:            http://$(hostname 2>/dev/null).local:8080"

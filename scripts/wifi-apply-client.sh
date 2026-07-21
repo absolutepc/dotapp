@@ -66,6 +66,8 @@ PASS="${CREDS[1]}"
 
 write_status "switching" 0 "Stopping setup AP and joining ${SSID}…"
 
+# User finished wizard — enable client role (modem day-to-day).
+echo "client" >"${STATE_DIR}/wifi-role"
 rm -f "${STATE_DIR}/setup-ap-hold"
 
 # Tear down Setup AP once and keep it off

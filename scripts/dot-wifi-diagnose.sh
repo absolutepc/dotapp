@@ -3,7 +3,10 @@
 set -euo pipefail
 
 echo "=== Dot Wi-Fi status ==="
+echo "role:        $(tr -d '[:space:]' </var/lib/dot/wifi-role 2>/dev/null || echo setup)"
+echo "setup-hold:  $([[ -f /var/lib/dot/setup-ap-hold ]] && echo yes || echo no)"
 echo "hostapd:     $(systemctl is-active hostapd 2>/dev/null || echo missing)"
+echo "watch:       $(systemctl is-active dot-wifi-watch.service 2>/dev/null || echo missing)"
 echo "keepalive:   $(systemctl is-active dot-wifi-keepalive.timer 2>/dev/null || echo missing)"
 echo "unmanaged:   $([[ -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf ]] && echo YES || echo no)"
 echo

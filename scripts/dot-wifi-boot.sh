@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# On boot: if phone hotspot is not configured yet, start Dot-Setup AP.
-# If configured, wait for the hotspot and join (iPhone often appears late).
+# On boot:
+# - role setup (default) → Dot-Setup AP (no modem assumed)
+# - role client → join saved iPhone Personal Hotspot
 set -euo pipefail
 
 STATE_DIR="${DOT_WIFI_STATE_DIR:-/var/lib/dot}"
+ROLE_FILE="${STATE_DIR}/wifi-role"
 PROFILE_NAME="${DOT_WIFI_PROFILE_NAME:-dot-phone-hotspot}"
 ENTER_SETUP="/usr/local/sbin/dot-enter-setup-ap"
 JOIN_BIN="/usr/local/sbin/dot-wifi-join"
+USE_BIN="/usr/local/sbin/dot-wifi-use-hotspot"
 LOG="/var/log/dot-wifi-boot.log"
 
 log() {
@@ -16,6 +19,14 @@ log() {
 mkdir -p "$STATE_DIR"
 chmod 755 "$STATE_DIR" 2>/dev/null || true
 
+wifi_role() {
+  if [[ -f "${ROLE_FILE}" ]]; then
+    tr -d '[:space:]' <"${ROLE_FILE}"
+  else
+    echo "setup"
+  fi
+}
+
 # Wait for NetworkManager / wlan0
 for _ in $(seq 1 60); do
   if command -v nmcli >/dev/null 2>&1 && ip link show wlan0 >/dev/null 2>&1; then
@@ -24,13 +35,12 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 
-has_hotspot_profile() {
-  nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "$PROFILE_NAME"
-}
+role="$(wifi_role)"
+log "boot wifi-role=${role}"
 
-# First boot / never configured: open setup AP automatically (no SSH needed).
-if ! has_hotspot_profile; then
-  log "No hotspot profile — starting Dot-Setup AP"
+# Default / first-time: Setup AP only — do not assume a modem is available.
+if [[ "${role}" != "client" ]]; then
+  log "Role is setup — starting Dot-Setup AP (no modem auto-join)"
   if [[ -x "$ENTER_SETUP" ]]; then
     exec "$ENTER_SETUP"
   fi
@@ -38,43 +48,43 @@ if ! has_hotspot_profile; then
   exit 1
 fi
 
-# Already configured: ensure autoconnect forever (NM: 0 = forever), then join with retries.
-log "Hotspot profile present — waiting/joining phone hotspot"
+# Client role: join phone hotspot
+if ! nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "$PROFILE_NAME"; then
+  log "Client role but no profile — falling back to Setup AP"
+  echo "setup" >"${ROLE_FILE}"
+  if [[ -x "$ENTER_SETUP" ]]; then
+    exec "$ENTER_SETUP"
+  fi
+  exit 1
+fi
+
+log "Client role — joining phone hotspot"
+if [[ -x "${USE_BIN}" ]]; then
+  "${USE_BIN}" || true
+  exit 0
+fi
+
 nmcli radio wifi on 2>/dev/null || true
 if systemctl is-active --quiet hostapd 2>/dev/null; then
   systemctl stop hostapd dnsmasq 2>/dev/null || true
-  systemctl disable hostapd 2>/dev/null || true
   rm -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf
   systemctl reload NetworkManager 2>/dev/null || true
   nmcli device set wlan0 managed yes 2>/dev/null || true
 fi
 
-# NM: autoconnect-retries 0 means forever (do NOT use -1 — that is only ~4 tries).
 nmcli connection modify "$PROFILE_NAME" \
   connection.autoconnect yes \
-  connection.autoconnect-priority 200 \
   connection.autoconnect-retries 0 \
-  802-11-wireless.powersave 2 \
-  802-11-wireless.mac-address-randomization never \
   2>/dev/null || true
 
 for attempt in $(seq 1 12); do
-  if [[ -x "${JOIN_BIN}" ]]; then
-    if "${JOIN_BIN}" "${PROFILE_NAME}"; then
-      log "Joined hotspot via ${JOIN_BIN} (attempt ${attempt})"
-      exit 0
-    fi
-  else
-    nmcli device wifi rescan 2>/dev/null || true
-    if nmcli -w 20 connection up "$PROFILE_NAME" ifname wlan0; then
-      ip="$(nmcli -g IP4.ADDRESS device show wlan0 2>/dev/null | head -n1 | cut -d/ -f1 || true)"
-      log "Joined hotspot ip=${ip:-unknown} (attempt ${attempt})"
-      exit 0
-    fi
+  if [[ -x "${JOIN_BIN}" ]] && "${JOIN_BIN}" "${PROFILE_NAME}"; then
+    log "Joined hotspot (attempt ${attempt})"
+    exit 0
   fi
-  log "Hotspot not ready yet (attempt ${attempt}/12) — retry in 10s"
+  log "Hotspot not ready (attempt ${attempt}/12)"
   sleep 10
 done
 
-log "WARN: hotspot join not ready at boot — soft keepalive will keep trying"
+log "WARN: hotspot join not ready at boot — watch will keep trying"
 exit 0

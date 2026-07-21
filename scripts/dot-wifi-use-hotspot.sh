@@ -16,6 +16,8 @@ log() { echo "$(date -Is) $*" | tee -a "${LOG}" >&2; }
 
 log "use-hotspot: start"
 
+# Explicit switch to day-to-day modem client mode.
+echo "client" >"${STATE_DIR}/wifi-role"
 rm -f "${STATE_DIR}/setup-ap-hold"
 
 # Always leave Setup AP — auto-join cannot work while hostapd owns wlan0

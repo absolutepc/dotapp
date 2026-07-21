@@ -65,7 +65,15 @@ sudo systemctl start dot-wifi-boot
 - NM profile name: `dot-phone-hotspot`
 - Boot unit: `dot-wifi-boot.service`
 
-## Notes
+## Roles
+
+| Role (`/var/lib/dot/wifi-role`) | Behavior |
+|--------------------------------|----------|
+| `setup` (default) | Dot-Setup AP only — **no** modem auto-join |
+| `client` | Join iPhone Personal Hotspot (after app finishes setup) |
+
+`sudo dot-enter-setup-ap` sets `setup`.  
+`sudo dot-wifi-use-hotspot` / successful app «Подключить Dot» sets `client`.
 
 - Hotspot password must be at least **8 characters** (WPA).
 - If you change the iPhone hotspot password, re-enter setup AP (app reprovision or `sudo dot-enter-setup-ap`) and save again.

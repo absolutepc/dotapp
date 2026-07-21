@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Long-running watch: every 15s ensure Dot is on the phone hotspot.
-# Respects /var/lib/dot/setup-ap-hold — do not tear down intentional Setup AP.
+# Long-running watch — ONLY when wifi-role=client.
+# Initial / setup role: do nothing (Dot-Setup must stay visible).
 set -euo pipefail
 
 PROFILE_NAME="${DOT_WIFI_PROFILE_NAME:-dot-phone-hotspot}"
@@ -8,43 +8,44 @@ JOIN="/usr/local/sbin/dot-wifi-join"
 USE="/usr/local/sbin/dot-wifi-use-hotspot"
 LOG="/var/log/dot-wifi-watch.log"
 STATE_DIR="/var/lib/dot"
+ROLE_FILE="${STATE_DIR}/wifi-role"
 HOLD="${STATE_DIR}/setup-ap-hold"
 
 mkdir -p "${STATE_DIR}"
 touch "${LOG}" 2>/dev/null || true
 log() { echo "$(date -Is) $*" >>"${LOG}" 2>/dev/null || true; }
 
+wifi_role() {
+  if [[ -f "${ROLE_FILE}" ]]; then
+    tr -d '[:space:]' <"${ROLE_FILE}"
+  else
+    echo "setup"
+  fi
+}
+
 log "watch started pid=$$"
 
 while true; do
+  role="$(wifi_role)"
+  if [[ "${role}" != "client" || -f "${HOLD}" ]]; then
+    sleep 20
+    continue
+  fi
+
   if ! command -v nmcli >/dev/null 2>&1; then
     sleep 15
     continue
   fi
 
-  # User explicitly opened Setup AP — leave it alone.
-  if [[ -f "${HOLD}" ]]; then
+  if ! nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "${PROFILE_NAME}"; then
     sleep 20
     continue
   fi
 
-  has_profile=0
-  nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "${PROFILE_NAME}" && has_profile=1
-  if [[ "${has_profile}" -ne 1 && ! -f "${STATE_DIR}/wifi-pending.json" ]]; then
-    sleep 20
-    continue
-  fi
-
-  # Setup AP left running without hold (crash/old build) — reclaim for client.
+  # Accidental Setup AP while role=client — reclaim
   if systemctl is-active --quiet hostapd 2>/dev/null || [[ -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf ]]; then
-    if [[ "${has_profile}" -eq 1 || -f "${STATE_DIR}/wifi-pending.json" ]]; then
-      log "Setup AP without hold + hotspot creds — switching to client"
-      if [[ -x "${USE}" ]]; then
-        "${USE}" >>"${LOG}" 2>&1 || true
-      fi
-      sleep 15
-      continue
-    fi
+    log "Setup AP while role=client — use-hotspot"
+    [[ -x "${USE}" ]] && "${USE}" >>"${LOG}" 2>&1 || true
     sleep 15
     continue
   fi
@@ -62,16 +63,11 @@ while true; do
     continue
   fi
 
-  if [[ "${has_profile}" -ne 1 && -x "${USE}" ]]; then
-    log "no profile — use-hotspot"
-    "${USE}" >>"${LOG}" 2>&1 || true
-    sleep 10
-    continue
-  fi
+  case "${num}" in
+    40|50|60|70|80|90) sleep 5; continue ;;
+  esac
 
-  log "not connected (state=${num:-?} conn=${conn:-none} ip=${ip:-none}) — join"
-  if [[ -x "${JOIN}" ]]; then
-    "${JOIN}" "${PROFILE_NAME}" >>"${LOG}" 2>&1 || true
-  fi
+  log "not connected (state=${num:-?} conn=${conn:-none}) — join"
+  [[ -x "${JOIN}" ]] && "${JOIN}" "${PROFILE_NAME}" >>"${LOG}" 2>&1 || true
   sleep 15
 done

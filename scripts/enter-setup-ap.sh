@@ -13,13 +13,21 @@ mkdir -p "${STATE_DIR}"
 
 echo "Entering setup AP mode: ${SSID}"
 
-# Pause auto-join watchers — otherwise they tear down Setup AP within seconds
-# because hotspot credentials/profile already exist.
+# Initial / re-provision mode: Setup AP only — do not auto-join modem.
+echo "setup" >"${STATE_DIR}/wifi-role"
 touch "${STATE_DIR}/setup-ap-hold"
+
+# Pause client watchers so they cannot tear down Dot-Setup.
 systemctl stop dot-wifi-watch.service 2>/dev/null || true
 systemctl stop dot-wifi-keepalive.timer dot-wifi-keepalive.service 2>/dev/null || true
 pkill -f '/usr/local/sbin/dot-wifi-watch' 2>/dev/null || true
 pkill -f '/usr/local/sbin/dot-wifi-use-hotspot' 2>/dev/null || true
+
+# If an old hotspot profile exists, disable its autoconnect while in setup.
+if command -v nmcli >/dev/null 2>&1 && nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot"; then
+  nmcli connection modify dot-phone-hotspot connection.autoconnect no 2>/dev/null || true
+  nmcli connection down dot-phone-hotspot 2>/dev/null || true
+fi
 
 need_pkgs=()
 command -v hostapd >/dev/null || need_pkgs+=(hostapd)

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Soft keepalive oneshot (timer): ping when up; join when down.
-# Respects setup-ap-hold so intentional Dot-Setup is not torn down.
+# Soft keepalive — ONLY when wifi-role=client.
 set -euo pipefail
 
 PROFILE_NAME="${DOT_WIFI_PROFILE_NAME:-dot-phone-hotspot}"
@@ -8,11 +7,21 @@ JOIN="/usr/local/sbin/dot-wifi-join"
 USE="/usr/local/sbin/dot-wifi-use-hotspot"
 LOG="/var/log/dot-wifi-keepalive.log"
 STATE_DIR="/var/lib/dot"
+ROLE_FILE="${STATE_DIR}/wifi-role"
 HOLD="${STATE_DIR}/setup-ap-hold"
 
 log() { echo "$(date -Is) $*" >>"${LOG}" 2>/dev/null || true; }
 
-if [[ -f "${HOLD}" ]]; then
+wifi_role() {
+  if [[ -f "${ROLE_FILE}" ]]; then
+    tr -d '[:space:]' <"${ROLE_FILE}"
+  else
+    echo "setup"
+  fi
+}
+
+role="$(wifi_role)"
+if [[ "${role}" != "client" || -f "${HOLD}" ]]; then
   exit 0
 fi
 
@@ -20,22 +29,13 @@ if ! command -v nmcli >/dev/null 2>&1; then
   exit 0
 fi
 
-has_profile=0
-nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "${PROFILE_NAME}" && has_profile=1
-if [[ "${has_profile}" -ne 1 ]]; then
-  if [[ -f "${STATE_DIR}/wifi-pending.json" && -x "${USE}" ]]; then
-    log "no profile — use-hotspot from pending"
-    "${USE}" >>"${LOG}" 2>&1 || true
-  fi
+if ! nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "${PROFILE_NAME}"; then
   exit 0
 fi
 
-# Setup AP without hold + profile → reclaim for client
 if systemctl is-active --quiet hostapd 2>/dev/null || [[ -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf ]]; then
-  log "hostapd/unmanaged with profile (no hold) — use-hotspot"
-  if [[ -x "${USE}" ]]; then
-    "${USE}" >>"${LOG}" 2>&1 || true
-  fi
+  log "hostapd while role=client — use-hotspot"
+  [[ -x "${USE}" ]] && "${USE}" >>"${LOG}" 2>&1 || true
   exit 0
 fi
 
@@ -55,8 +55,6 @@ case "${num}" in
   40|50|60|70|80|90) exit 0 ;;
 esac
 
-log "down state=${num:-?} conn=${conn:-none} ip=${ip:-none} — join"
-if [[ -x "${JOIN}" ]]; then
-  "${JOIN}" "${PROFILE_NAME}" >>"${LOG}" 2>&1 || true
-fi
+log "down state=${num:-?} — join"
+[[ -x "${JOIN}" ]] && "${JOIN}" "${PROFILE_NAME}" >>"${LOG}" 2>&1 || true
 exit 0
