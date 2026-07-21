@@ -24,6 +24,8 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Приложение подключается к устройству Dot по локальной Wi‑Fi сети</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Чтобы запомнить последнее место, где iPhone был на связи с Dot (в приложении, не в Локаторе Apple)</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Для загрузки своих изображений на дисплей</string>
 	<key>UIApplicationSceneManifest</key>

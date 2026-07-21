@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var api: PiAPIClient
+    @EnvironmentObject private var locationTracker: DotLocationTracker
     @AppStorage("dot.onboarding.completed") private var onboardingCompleted = false
 
     @State private var selectedCategory: MediaCategory = .bmw
@@ -11,6 +12,7 @@ struct ContentView: View {
     @State private var showSuccess = false
     @State private var showWifiSetup = false
     @State private var showOnboarding = false
+    @State private var showLastSeen = false
 
     var filteredItems: [MediaItem] {
         api.gallery.filter { $0.category == selectedCategory || (selectedCategory == .custom && !$0.builtin) }
@@ -24,18 +26,29 @@ struct ContentView: View {
                 } else {
                     ConnectionView(errorMessage: api.errorMessage) {
                         showWifiSetup = true
+                    } onShowLocation: {
+                        showLastSeen = true
                     }
                 }
             }
             .navigationTitle("Dot")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showWifiSetup = true
-                    } label: {
-                        Image(systemName: "wifi")
+                    HStack(spacing: 12) {
+                        Button {
+                            showWifiSetup = true
+                        } label: {
+                            Image(systemName: "wifi")
+                        }
+                        .accessibilityLabel("Wi-Fi setup")
+
+                        Button {
+                            showLastSeen = true
+                        } label: {
+                            Image(systemName: "mappin.and.ellipse")
+                        }
+                        .accessibilityLabel("Last Dot location")
                     }
-                    .accessibilityLabel("Wi-Fi setup")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -46,6 +59,7 @@ struct ContentView: View {
                 }
             }
             .task {
+                locationTracker.requestPermissionIfNeeded()
                 if !onboardingCompleted {
                     showOnboarding = true
                     return
@@ -58,6 +72,11 @@ struct ContentView: View {
                     showWifiSetup = true
                 }
             }
+            .onChange(of: api.isConnected) { connected in
+                if connected {
+                    locationTracker.captureLastSeen(host: api.host)
+                }
+            }
             .sheet(item: $selectedItem) { item in
                 PreviewView(item: item, showSuccess: $showSuccess)
                     .environmentObject(api)
@@ -65,6 +84,9 @@ struct ContentView: View {
             .sheet(isPresented: $showWifiSetup) {
                 WifiSetupView()
                     .environmentObject(api)
+            }
+            .sheet(isPresented: $showLastSeen) {
+                LastSeenLocationView(tracker: locationTracker)
             }
             .fullScreenCover(isPresented: $showOnboarding) {
                 OnboardingView {
@@ -83,6 +105,9 @@ struct ContentView: View {
 
     private func connectAfterOnboarding() async {
         await api.discoverAndConnect()
+        if api.isConnected {
+            locationTracker.captureLastSeen(host: api.host)
+        }
         if api.shouldOfferWifiSetup {
             showWifiSetup = true
         }
@@ -165,5 +190,7 @@ struct MediaTile: View {
 }
 
 #Preview {
-    ContentView().environmentObject(PiAPIClient())
+    ContentView()
+        .environmentObject(PiAPIClient())
+        .environmentObject(DotLocationTracker())
 }

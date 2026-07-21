@@ -2,8 +2,10 @@ import SwiftUI
 
 struct ConnectionView: View {
     @EnvironmentObject private var api: PiAPIClient
+    @EnvironmentObject private var locationTracker: DotLocationTracker
     let errorMessage: String?
     var onSetupWifi: () -> Void = {}
+    var onShowLocation: () -> Void = {}
 
     var body: some View {
         ScrollView {
@@ -14,6 +16,25 @@ struct ConnectionView: View {
 
                 Text("Нет связи с Dot")
                     .font(.title2.bold())
+
+                if let seen = locationTracker.lastSeen {
+                    Button(action: onShowLocation) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("Последнее место Dot", systemImage: "mappin.and.ellipse")
+                                .font(.subheadline.weight(.semibold))
+                            Text(Self.format(seen.timestamp))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Открыть карту")
+                                .font(.caption.weight(.medium))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Первый раз")
@@ -75,9 +96,18 @@ struct ConnectionView: View {
             .padding()
         }
     }
+
+    private static func format(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
 }
 
 #Preview {
     ConnectionView(errorMessage: "The Internet connection appears to be offline.")
         .environmentObject(PiAPIClient())
+        .environmentObject(DotLocationTracker())
 }
