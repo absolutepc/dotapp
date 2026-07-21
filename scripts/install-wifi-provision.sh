@@ -71,8 +71,10 @@ cat >/etc/sudoers.d/dot-wifi-apply <<EOF
 ${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-wifi-apply
 ${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-enter-setup-ap
 ${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-wifi-join
+${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-wifi-use-hotspot
 ${PI_USER} ALL=(root) NOPASSWD: /bin/systemctl start dot-wifi-apply.service
 ${PI_USER} ALL=(root) NOPASSWD: /bin/systemctl start dot-wifi-boot.service
+${PI_USER} ALL=(root) NOPASSWD: /bin/systemctl start dot-wifi-watch.service
 EOF
 chmod 440 /etc/sudoers.d/dot-wifi-apply
 
@@ -86,6 +88,7 @@ systemctl daemon-reload
 systemctl enable --now dot-wifi-apply.path
 systemctl enable dot-wifi-boot.service
 systemctl enable --now dot-wifi-keepalive.timer
+systemctl enable --now dot-wifi-watch.service
 
 # mDNS for day-to-day discovery (hostname.local)
 if command -v apt-get >/dev/null; then
@@ -109,15 +112,15 @@ if ! nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot
   echo "No phone-hotspot profile yet — starting Dot-Setup AP…"
   systemctl start dot-wifi-boot.service || /usr/local/sbin/dot-enter-setup-ap || true
 else
-  echo "Phone-hotspot profile present — joining once (anti-flap)…"
-  /usr/local/sbin/dot-wifi-join || true
+  echo "Phone-hotspot profile present — joining (use-hotspot)…"
+  /usr/local/sbin/dot-wifi-use-hotspot || /usr/local/sbin/dot-wifi-join || true
 fi
 
 echo "Wi-Fi provisioning installed for user: ${PI_USER}"
-echo "  First connect:   join Dot-Setup-… on iPhone → Dot app → Настройка Wi‑Fi (по шагам)"
-echo "  Setup AP now:    sudo systemctl start dot-wifi-boot  (or sudo dot-enter-setup-ap)"
-echo "  Re-join now:     sudo dot-wifi-join"
+echo "  First connect:   join Dot-Setup-… → app wizard → then modem"
+echo "  Use hotspot now: sudo dot-wifi-use-hotspot"
 echo "  Diagnose:        sudo dot-wifi-diagnose"
+echo "  Watch:           systemctl status dot-wifi-watch"
 echo "  Keepalive:       systemctl status dot-wifi-keepalive.timer"
 echo "  Portal:          http://192.168.4.1/setup/"
 echo "  Status API:      http://127.0.0.1:8080/api/wifi/status"

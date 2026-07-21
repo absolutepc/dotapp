@@ -81,6 +81,15 @@ nmcli connection modify "${CONN_NAME}" \
   802-11-wireless.mac-address-randomization never \
   2>/dev/null || true
 
+# Stop other Wi-Fi profiles from stealing wlan0 (e.g. home router "SAMBURGER").
+nmcli -t -f NAME,TYPE connection show 2>/dev/null | while IFS=: read -r name type; do
+  [[ "${type}" == "802-11-wireless" || "${type}" == "wifi" ]] || continue
+  [[ "${name}" == "${CONN_NAME}" ]] && continue
+  log "Disable autoconnect for competing Wi-Fi «${name}»"
+  nmcli connection modify "${name}" connection.autoconnect no 2>/dev/null || true
+  nmcli connection down "${name}" 2>/dev/null || true
+done
+
 systemctl enable --now dot-wifi-keepalive.timer 2>/dev/null || true
 systemctl start dot-wifi-watch.service 2>/dev/null || true
 

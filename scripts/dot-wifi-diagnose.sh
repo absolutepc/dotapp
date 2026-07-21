@@ -32,5 +32,16 @@ import json
 from pathlib import Path
 for name in ("wifi-status.json", "wifi-mode.json", "wifi-client.json", "wifi-pending.json"):
     p = Path("/var/lib/dot") / name
-    print(f"{name}:", p.read_text().strip() if p.exists() else "(missing)")
+    if not p.exists():
+        print(f"{name}: (missing)")
+        continue
+    try:
+        data = json.loads(p.read_text())
+    except Exception as exc:
+        print(f"{name}: (unreadable: {exc})")
+        continue
+    if name == "wifi-pending.json" and isinstance(data, dict) and data.get("password"):
+        data = dict(data)
+        data["password"] = "***"
+    print(f"{name}:", json.dumps(data, ensure_ascii=False))
 PY
