@@ -6,10 +6,12 @@ struct DeviceStatus: Codable {
     let currentName: String?
     let resolution: String
     let connected: Bool
+    let mdnsHosts: [String]?
 
     enum CodingKeys: String, CodingKey {
         case device, current, resolution, connected
         case currentName = "current_name"
+        case mdnsHosts = "mdns_hosts"
     }
 }
 
@@ -22,11 +24,13 @@ struct MediaItem: Codable, Identifiable, Hashable {
     let frameCount: Int
     let fps: Double
     let previewUrl: String?
+    let framesReady: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id, name, type, builtin, filename, fps
         case frameCount = "frame_count"
         case previewUrl = "preview_url"
+        case framesReady = "frames_ready"
     }
 
     var isAnimation: Bool { type == "animation" }
@@ -59,14 +63,33 @@ struct UploadResponse: Codable {
 struct DisplayResponse: Codable {
     let ok: Bool
     let mediaId: String
+    let preparing: Bool?
+    let message: String?
+    let frameCount: Int?
+    let fps: Double?
 
     enum CodingKeys: String, CodingKey {
-        case ok
+        case ok, preparing, message, fps
+        case mediaId = "media_id"
+        case frameCount = "frame_count"
+    }
+}
+
+struct DisplayJobStatus: Codable {
+    let mediaId: String?
+    let state: String?
+    let message: String?
+    let progress: Double?
+    let current: String?
+    let ready: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case state, message, progress, current, ready
         case mediaId = "media_id"
     }
 }
 
-struct WifiStatus: Codable {
+struct WifiStatus: Codable, Sendable {
     let mode: String
     let ok: Bool
     let message: String?
@@ -76,6 +99,7 @@ struct WifiStatus: Codable {
     let setupPortal: String?
     let needsSetup: Bool?
     let setupSsid: String?
+    let mdnsHosts: [String]?
 
     enum CodingKeys: String, CodingKey {
         case mode, ok, message, ssid, ip
@@ -83,6 +107,7 @@ struct WifiStatus: Codable {
         case setupPortal = "setup_portal"
         case needsSetup = "needs_setup"
         case setupSsid = "setup_ssid"
+        case mdnsHosts = "mdns_hosts"
     }
 
     var isSetupAP: Bool {
@@ -94,4 +119,3 @@ struct WifiConfigureResponse: Codable {
     let ok: Bool
     let message: String?
 }
-

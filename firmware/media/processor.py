@@ -21,11 +21,13 @@ MAX_VIDEO_FRAMES = 360
 # 12 fps keeps motion readable and finishes faster on Pi Zero first prepare
 VIDEO_TARGET_FPS = 12.0
 # Bump when PNG/JPEG cache encoding changes so ensure_frames rebuilds on Pi.
-FRAME_CACHE_VERSION = 6
+# v7: GIF/static frames stored as JPEG (faster I/O on Pi Zero SD).
+FRAME_CACHE_VERSION = 7
+JPEG_QUALITY = 88
 
 
 def list_frame_files(frame_dir: Path) -> list[Path]:
-    """Cached display frames (GIF→PNG, video→JPEG)."""
+    """Cached display frames (all JPEG preferred; legacy PNG still accepted)."""
     if not frame_dir.is_dir():
         return []
     return sorted(
@@ -68,8 +70,12 @@ class MediaProcessor:
 
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
         thumb = frame.copy()
-        thumb.thumbnail((160, 160), Image.Resampling.LANCZOS)
-        thumb.convert("RGB").save(PREVIEW_DIR / f"{media_id}.jpg", quality=90)
+        thumb.thumbnail((140, 140), Image.Resampling.LANCZOS)
+        thumb.convert("RGB").save(
+            PREVIEW_DIR / f"{media_id}.jpg",
+            quality=82,
+            optimize=True,
+        )
 
     def _probe_duration(self, source: Path) -> float | None:
         try:
@@ -204,8 +210,10 @@ class MediaProcessor:
 
                     fitted = self._ensure_visible(self._fit_square(composed))
                     masked = apply_circle_mask(fitted, self._mask)
-                    out = frame_dir / f"{idx:04d}.png"
-                    masked.convert("RGB").save(out)
+                    out = frame_dir / f"{idx:04d}.jpg"
+                    masked.convert("RGB").save(
+                        out, quality=JPEG_QUALITY, optimize=True
+                    )
                     frame_paths.append(out)
                     duration_ms = frame.info.get("duration", int(1000 / TARGET_FPS))
                     durations.append(max(duration_ms, 1) / 1000.0)
@@ -215,8 +223,8 @@ class MediaProcessor:
             with Image.open(source) as im:
                 fitted = self._ensure_visible(self._fit_square(im))
                 masked = apply_circle_mask(fitted, self._mask)
-                out = frame_dir / "0000.png"
-                masked.convert("RGB").save(out)
+                out = frame_dir / "0000.jpg"
+                masked.convert("RGB").save(out, quality=JPEG_QUALITY, optimize=True)
                 frame_paths.append(out)
                 durations = [1.0 / TARGET_FPS]
             media_type = "image"
@@ -262,11 +270,9 @@ class MediaProcessor:
         self.storage.add(item)
         return item
 
-    def ensure_frames(self, item: MediaItem) -> None:
-        """Build frame cache for a manifest item if missing or stale."""
-        from firmware.config import FRAMES_DIR, REPO_ROOT
+    def _resolve_source(self, item: MediaItem) -> Path:
+        from firmware.config import REPO_ROOT
 
-        frame_dir = FRAMES_DIR / item.id
         source = self.storage.resolve_source_path(item)
         if not source.is_absolute():
             source = REPO_ROOT / source
@@ -274,42 +280,50 @@ class MediaProcessor:
             # Common GitHub upload rename with spaces
             alt = source.parent / source.name.replace("_", " ")
             if alt.exists():
-                source = alt
-            else:
-                raise FileNotFoundError(f"Source not found: {source}")
+                return alt
+            raise FileNotFoundError(f"Source not found: {source}")
+        return source
 
+    def frames_ready(self, item: MediaItem) -> bool:
+        """True when on-disk frame cache is usable (no rebuild needed)."""
+        from firmware.config import FRAMES_DIR
+
+        try:
+            source = self._resolve_source(item)
+        except FileNotFoundError:
+            return False
+
+        frame_dir = FRAMES_DIR / item.id
         existing = list_frame_files(frame_dir)
         meta_path = frame_dir / "meta.json"
-        needs_rebuild = False
-        meta: dict = {}
-        if meta_path.exists():
-            try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            except Exception:
-                meta = {}
-                needs_rebuild = True
-
-        if not existing:
-            needs_rebuild = True
-        elif int(meta.get("cache_version") or 0) != FRAME_CACHE_VERSION:
-            needs_rebuild = True
-        elif meta.get("source_suffix") and meta.get("source_suffix") != source.suffix.lower():
-            needs_rebuild = True
-        elif int(meta.get("frame_count") or 0) != len(existing):
-            needs_rebuild = True
-        elif source.suffix.lower() in VIDEO_SUFFIXES and len(existing) <= 1:
-            needs_rebuild = True
-        elif source.suffix.lower() == ".gif":
+        if not existing or not meta_path.exists():
+            return False
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            return False
+        if int(meta.get("cache_version") or 0) != FRAME_CACHE_VERSION:
+            return False
+        if meta.get("source_suffix") and meta.get("source_suffix") != source.suffix.lower():
+            return False
+        if int(meta.get("frame_count") or 0) != len(existing):
+            return False
+        if source.suffix.lower() in VIDEO_SUFFIXES and len(existing) <= 1:
+            return False
+        if source.suffix.lower() == ".gif":
             try:
                 with Image.open(source) as im:
                     source_frames = min(int(getattr(im, "n_frames", 1) or 1), MAX_GIF_FRAMES)
                 if len(existing) < source_frames:
-                    needs_rebuild = True
+                    return False
             except Exception:
-                needs_rebuild = True
+                return False
+        return True
 
-        if not needs_rebuild:
+    def ensure_frames(self, item: MediaItem) -> None:
+        """Build frame cache for a manifest item if missing or stale."""
+        if self.frames_ready(item):
             return
-
+        source = self._resolve_source(item)
         logger.info("Rebuilding frames for %s from %s", item.id, source.name)
         self.process_file(item.id, source, item.name, builtin=item.builtin)

@@ -45,6 +45,19 @@ systemctl daemon-reload
 systemctl enable --now dot-wifi-apply.path
 systemctl enable dot-wifi-boot.service
 
+# mDNS for day-to-day discovery (hostname.local)
+if command -v apt-get >/dev/null; then
+  if ! command -v avahi-daemon >/dev/null 2>&1; then
+    apt-get install -y -qq avahi-daemon 2>/dev/null || true
+  fi
+fi
+if [[ -f "${ROOT}/firmware/avahi/dot.service" ]]; then
+  mkdir -p /etc/avahi/services
+  install -m 644 "${ROOT}/firmware/avahi/dot.service" /etc/avahi/services/dot.service
+  systemctl enable --now avahi-daemon 2>/dev/null || true
+  systemctl reload avahi-daemon 2>/dev/null || true
+fi
+
 # If never configured, start setup AP now so the phone can finish first connect
 # without SSH / manual enter-setup-ap.
 if ! nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot"; then
@@ -59,3 +72,4 @@ echo "  First connect:   join Dot-Setup-… on iPhone → Dot app → Настр
 echo "  Setup AP now:    sudo systemctl start dot-wifi-boot  (or sudo dot-enter-setup-ap)"
 echo "  Portal:          http://192.168.4.1/setup/"
 echo "  Status API:      http://127.0.0.1:8080/api/wifi/status"
+echo "  mDNS:            http://$(hostname 2>/dev/null).local:8080"

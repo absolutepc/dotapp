@@ -25,7 +25,8 @@ echo "Install dir: ${INSTALL_DIR}"
 apt-get update
 apt-get install -y ffmpeg python3-venv python3-pip rsync git \
   libsdl2-2.0-0 libsdl2-image-2.0-0 libsdl2-mixer-2.0-0 libsdl2-ttf-2.0-0 \
-  libgbm1 libdrm2 libegl1 libxss1 libx11-6 libxext6 python3-pygame
+  libgbm1 libdrm2 libegl1 libxss1 libx11-6 libxext6 python3-pygame \
+  avahi-daemon
 
 if [[ "${INSTALL_DIR}" != "${REPO_ROOT}" ]]; then
   echo "Syncing ${REPO_ROOT} → ${INSTALL_DIR}…"
@@ -81,6 +82,13 @@ systemctl daemon-reload
 systemctl enable dot-api dot-display
 systemctl restart dot-api dot-display || true
 
+# mDNS: phone can reach http://<hostname>.local:8080 / dot.local via dnsmasq in setup AP
+if command -v avahi-daemon >/dev/null 2>&1; then
+  install -m 644 "${INSTALL_DIR}/firmware/avahi/dot.service" /etc/avahi/services/dot.service
+  systemctl enable --now avahi-daemon 2>/dev/null || true
+  systemctl reload avahi-daemon 2>/dev/null || true
+fi
+
 echo ""
 echo "Install complete."
 echo "  API:     systemctl status dot-api --no-pager"
@@ -88,6 +96,7 @@ echo "  Display: systemctl status dot-display --no-pager"
 echo "  Switch:  show anim3"
 echo "  Wi-Fi:   sudo bash ${INSTALL_DIR}/scripts/enter-setup-ap.sh"
 echo "           then open http://192.168.4.1/setup/ on iPhone"
+echo "  mDNS:    http://$(hostname).local:8080  (avahi)"
 echo ""
 if [[ "${MODE}" == "kiosk" ]]; then
   echo "Optional quiet kiosk boot:"

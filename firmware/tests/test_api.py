@@ -61,7 +61,59 @@ def test_upload_and_display_png(client):
     assert display.status_code == 200
 
     frame_dir = frames_dir / media_id
-    assert any(frame_dir.glob("*.png"))
+    assert any(frame_dir.glob("*.jpg")) or any(frame_dir.glob("*.png"))
+
+
+def test_display_returns_preparing_when_cold(client, monkeypatch):
+    test_client, _ = client
+    import firmware.api.routes as routes
+    from firmware.media.storage import MediaItem
+
+    item = MediaItem(
+        id="cold-anim",
+        name="Cold",
+        type="animation",
+        builtin=False,
+        filename="cold.gif",
+        frame_count=0,
+        fps=12.0,
+    )
+    routes.storage.add(item)
+    monkeypatch.setattr(routes.processor, "frames_ready", lambda _item: False)
+
+    ran = {"ok": False}
+
+    def fake_prepare(item_id: str) -> None:
+        ran["ok"] = True
+        routes.write_prepare_status(
+            media_id=item_id,
+            state="ready",
+            message="Готово",
+            progress=1.0,
+        )
+        routes.set_current_media(item_id, 12.0)
+
+    monkeypatch.setattr(routes, "_prepare_and_show", fake_prepare)
+
+    # Force Thread to run target inline so we don't race
+    import threading
+
+    class InlineThread(threading.Thread):
+        def start(self):  # noqa: D401
+            self.run()
+
+    monkeypatch.setattr(routes.threading, "Thread", InlineThread)
+
+    response = test_client.post("/api/display", json={"media_id": "cold-anim"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["preparing"] is True
+    assert ran["ok"] is True
+
+    status = test_client.get("/api/display/status")
+    assert status.status_code == 200
+    assert status.json()["state"] == "ready"
 
 
 def test_circle_mask_frame_size():

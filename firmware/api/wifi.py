@@ -56,6 +56,31 @@ def _primary_ipv4() -> str | None:
         return None
 
 
+def _mdns_hosts() -> list[str]:
+    hosts = ["dot.local"]
+    try:
+        import socket
+
+        name = socket.gethostname().strip().split(".")[0]
+        if name:
+            hosts.append(f"{name}.local")
+    except Exception:  # noqa: BLE001
+        pass
+    seen: set[str] = set()
+    out: list[str] = []
+    for h in hosts:
+        key = h.lower()
+        if key not in seen:
+            seen.add(key)
+            out.append(h)
+    return out
+
+
+def _has_client_ssid() -> bool:
+    client = _read_json(WIFI_CLIENT)
+    return bool((client.get("ssid") or "").strip())
+
+
 def _trigger_apply() -> None:
     """Ask root helpers to apply the pending wifi-request.json."""
     for cmd in (
@@ -95,11 +120,6 @@ def _trigger_setup_ap() -> None:
     logger.warning("Could not start setup AP helper")
 
 
-def _has_client_ssid() -> bool:
-    client = _read_json(WIFI_CLIENT)
-    return bool((client.get("ssid") or "").strip())
-
-
 @router.get("/status")
 def wifi_status() -> dict:
     status = _read_json(WIFI_STATUS)
@@ -118,6 +138,7 @@ def wifi_status() -> dict:
         "setup_portal": "http://192.168.4.1/setup/",
         "needs_setup": needs_setup,
         "setup_ssid": mode.get("ssid") if resolved_mode == "setup_ap" else None,
+        "mdns_hosts": _mdns_hosts(),
     }
 
 

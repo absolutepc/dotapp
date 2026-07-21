@@ -94,10 +94,41 @@ cat >"${STATE_DIR}/wifi-mode.json" <<EOF
 {"mode":"setup_ap","ssid":"${SSID}","ip":"${AP_IP}","portal":"http://${AP_IP}/setup/"}
 EOF
 
+# Show SSID / password / QR on the round HDMI (best-effort).
+SETUP_MEDIA_ID="setup-info"
+FRAMES_ROOT="${STATE_DIR}/frames"
+STATE_RUN="/var/run/dot"
+[[ -d "${STATE_RUN}" ]] || STATE_RUN="${STATE_DIR}/state"
+mkdir -p "${FRAMES_ROOT}" "${STATE_RUN}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PY=""
+if [[ -x "${ROOT}/venv/bin/python" ]]; then
+  PY="${ROOT}/venv/bin/python"
+elif command -v python3 >/dev/null; then
+  PY="python3"
+fi
+if [[ -n "${PY}" ]]; then
+  "${PY}" "${ROOT}/scripts/render-setup-screen.py" \
+    --ssid "${SSID}" \
+    --password "${SETUP_PASS}" \
+    --ip "${AP_IP}" \
+    --frames-dir "${FRAMES_ROOT}" \
+    --media-id "${SETUP_MEDIA_ID}" \
+    && cat >"${STATE_RUN}/current_media.json" <<EOF
+{"media_id": "${SETUP_MEDIA_ID}", "fps": 1.0}
+EOF
+  # Also write preview for API
+  mkdir -p "${STATE_DIR}/previews"
+  if [[ -f "${FRAMES_ROOT}/${SETUP_MEDIA_ID}/0000.jpg" ]]; then
+    cp -f "${FRAMES_ROOT}/${SETUP_MEDIA_ID}/0000.jpg" "${STATE_DIR}/previews/${SETUP_MEDIA_ID}.jpg" || true
+  fi
+fi
+
 echo ""
 echo "Setup AP ready."
 echo "  1. On iPhone: join Wi-Fi  ${SSID}"
 echo "  2. Password:              ${SETUP_PASS}"
 echo "  3. Open Dot app → Wi-Fi setup  (or http://${AP_IP}/setup/)"
 echo "  4. Enter your iPhone Personal Hotspot name + password"
+echo "  HDMI shows the same SSID / password / QR when display is running."
 echo ""

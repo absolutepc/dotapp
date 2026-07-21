@@ -67,4 +67,6 @@ sudo systemctl start dot-wifi-boot
 
 - Hotspot password must be at least **8 characters** (WPA).
 - If you change the iPhone hotspot password, re-enter setup AP (app reprovision or `sudo dot-enter-setup-ap`) and save again.
+- While in setup AP, the round HDMI shows SSID / password / QR (`setup-info` frame).
+- Day-to-day discovery also tries `dot.local` / `<hostname>.local` (Avahi) plus the hotspot LAN.
 - Legacy always-on AP: `scripts/setup-wifi-ap.sh` (phone loses internet while connected).

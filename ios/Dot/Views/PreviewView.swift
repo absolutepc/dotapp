@@ -14,17 +14,10 @@ struct PreviewView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                AsyncImage(url: api.previewURL(for: item)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFit()
-                    default:
-                        ProgressView()
-                    }
-                }
-                .frame(width: 280, height: 280)
-                .clipShape(Circle())
-                .shadow(radius: 8)
+                CachedAsyncImage(url: api.previewURL(for: item), contentMode: .fit)
+                    .frame(width: 280, height: 280)
+                    .clipShape(Circle())
+                    .shadow(radius: 8)
 
                 Text(item.name)
                     .font(.title2.bold())
@@ -36,6 +29,13 @@ struct PreviewView: View {
                     Text("На экране Dot")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.green)
+                }
+
+                if isApplying, let progress = api.applyProgress {
+                    Text(progress)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
 
                 if let errorText {
@@ -93,7 +93,6 @@ struct PreviewView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             applied = true
             showSuccess = true
-            // Keep preview open — do not dismiss (avoids sheet close/reopen feel)
         } catch {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             errorText = error.localizedDescription

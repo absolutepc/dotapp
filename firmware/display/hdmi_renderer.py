@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
+import time
 from collections import OrderedDict
 from pathlib import Path
 
@@ -74,8 +76,18 @@ class HDMIRenderer:
         self._accum = 0.0
         self._preload_all = True
         self._cache: OrderedDict[int, pygame.Surface] = OrderedDict()
+        self._cache_lock = threading.Lock()
         self._last_state_mtime = 0.0
         self._last_frames_mtime = 0.0
+
+        self._prefetch_index = 0
+        self._prefetch_wake = threading.Event()
+        self._prefetch_thread = threading.Thread(
+            target=self._prefetch_loop,
+            name="dot-prefetch",
+            daemon=True,
+        )
+        self._prefetch_thread.start()
 
     def _dir_mtime(self, frame_dir: Path) -> float:
         try:
@@ -105,17 +117,19 @@ class HDMIRenderer:
         return surface.convert()
 
     def _cache_put(self, index: int, surface: pygame.Surface) -> None:
-        self._cache[index] = surface
-        self._cache.move_to_end(index)
-        while len(self._cache) > SURFACE_CACHE_SIZE:
-            self._cache.popitem(last=False)
+        with self._cache_lock:
+            self._cache[index] = surface
+            self._cache.move_to_end(index)
+            while len(self._cache) > SURFACE_CACHE_SIZE:
+                self._cache.popitem(last=False)
 
     def _load_cached(self, index: int) -> pygame.Surface | None:
         if index < 0 or index >= len(self._frame_paths):
             return None
-        if index in self._cache:
-            self._cache.move_to_end(index)
-            return self._cache[index]
+        with self._cache_lock:
+            if index in self._cache:
+                self._cache.move_to_end(index)
+                return self._cache[index]
         try:
             surface = self._load_surface(self._frame_paths[index])
         except Exception as exc:  # noqa: BLE001
@@ -124,15 +138,33 @@ class HDMIRenderer:
         self._cache_put(index, surface)
         return surface
 
-    def _prefetch(self, index: int) -> None:
-        """Warm the next few frames while the current one is on screen."""
+    def _prefetch_loop(self) -> None:
+        """Warm upcoming frames off the render thread so FPS stays stable."""
+        while self._running:
+            self._prefetch_wake.wait(timeout=0.25)
+            self._prefetch_wake.clear()
+            if not self._running or self._preload_all:
+                continue
+            n = len(self._frame_paths)
+            if n == 0:
+                continue
+            start = self._prefetch_index
+            for offset in range(1, PREFETCH_AHEAD + 1):
+                if not self._running:
+                    break
+                idx = (start + offset) % n
+                with self._cache_lock:
+                    if idx in self._cache:
+                        continue
+                self._load_cached(idx)
+                # Yield so the blit thread keeps priority on a single-core Zero
+                time.sleep(0.002)
+
+    def _request_prefetch(self, index: int) -> None:
         if self._preload_all:
             return
-        n = len(self._frame_paths)
-        if n == 0:
-            return
-        for offset in range(1, PREFETCH_AHEAD + 1):
-            self._load_cached((index + offset) % n)
+        self._prefetch_index = index
+        self._prefetch_wake.set()
 
     def _get_surface(self, index: int) -> pygame.Surface | None:
         if self._preload_all:
@@ -140,7 +172,7 @@ class HDMIRenderer:
                 return self._surfaces[index]
             return None
         surface = self._load_cached(index)
-        self._prefetch(index)
+        self._request_prefetch(index)
         return surface
 
     def _load_state(self) -> None:
@@ -184,7 +216,8 @@ class HDMIRenderer:
             fps = float(data.get("fps") or TARGET_FPS)
             durations = [1.0 / max(fps, 1.0)] * len(paths)
 
-        self._cache.clear()
+        with self._cache_lock:
+            self._cache.clear()
         self._surfaces = []
         self._frame_paths = paths
         self._preload_all = False
@@ -208,6 +241,7 @@ class HDMIRenderer:
         if first is not None:
             self._screen.blit(first, (0, 0))
             pygame.display.flip()
+        self._request_prefetch(0)
         print(f"Loaded media {media_id}: {len(paths)} frames (disk+cache)")
 
     def _handle_events(self) -> None:
@@ -249,6 +283,7 @@ class HDMIRenderer:
                 self._screen.fill((18, 18, 22))
             pygame.display.flip()
 
+        self._prefetch_wake.set()
         pygame.quit()
 
 

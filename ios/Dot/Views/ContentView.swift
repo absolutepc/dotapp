@@ -153,16 +153,9 @@ struct MediaTile: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            AsyncImage(url: api.previewURL(for: item)) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    Color.gray.opacity(0.2)
-                }
-            }
-            .frame(width: 100, height: 100)
-            .clipShape(Circle())
+            CachedAsyncImage(url: api.previewURL(for: item))
+                .frame(width: 100, height: 100)
+                .clipShape(Circle())
 
             Text(item.name)
                 .font(.caption2)
