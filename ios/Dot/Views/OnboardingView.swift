@@ -143,13 +143,6 @@ struct OnboardingView: View {
             }
 
             VStack(spacing: 10) {
-                if index == 0 {
-                    Text("Dot")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .tracking(1)
-                }
-
                 Text(slide.title)
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(.white)
