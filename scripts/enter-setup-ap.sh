@@ -109,15 +109,27 @@ FRAMES_ROOT="${STATE_DIR}/frames"
 STATE_RUN="/var/run/dot"
 [[ -d "${STATE_RUN}" ]] || STATE_RUN="${STATE_DIR}/state"
 mkdir -p "${FRAMES_ROOT}" "${STATE_RUN}"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# When installed as /usr/local/sbin/dot-enter-setup-ap, dirname/.. is /usr/local — not the repo.
+# Prefer the packaged copy under /usr/local/share/dot, then a repo checkout if present.
+RENDER_SETUP=""
+for candidate in \
+  "/usr/local/share/dot/render-setup-screen.py" \
+  "/home/mercy119/dotapp/scripts/render-setup-screen.py" \
+  "$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)/scripts/render-setup-screen.py"
+do
+  if [[ -n "${candidate}" && -f "${candidate}" ]]; then
+    RENDER_SETUP="${candidate}"
+    break
+  fi
+done
+
 PY=""
-if [[ -x "${ROOT}/venv/bin/python" ]]; then
-  PY="${ROOT}/venv/bin/python"
-elif command -v python3 >/dev/null; then
+if command -v python3 >/dev/null; then
   PY="python3"
 fi
-if [[ -n "${PY}" ]]; then
-  "${PY}" "${ROOT}/scripts/render-setup-screen.py" \
+if [[ -n "${PY}" && -n "${RENDER_SETUP}" ]]; then
+  "${PY}" "${RENDER_SETUP}" \
     --ssid "${SSID}" \
     --password "${SETUP_PASS}" \
     --ip "${AP_IP}" \
@@ -126,18 +138,19 @@ if [[ -n "${PY}" ]]; then
     && cat >"${STATE_RUN}/current_media.json" <<EOF
 {"media_id": "${SETUP_MEDIA_ID}", "fps": 1.0}
 EOF
-  # Also write preview for API
   mkdir -p "${STATE_DIR}/previews"
   if [[ -f "${FRAMES_ROOT}/${SETUP_MEDIA_ID}/0000.jpg" ]]; then
     cp -f "${FRAMES_ROOT}/${SETUP_MEDIA_ID}/0000.jpg" "${STATE_DIR}/previews/${SETUP_MEDIA_ID}.jpg" || true
   fi
+elif [[ -n "${PY}" ]]; then
+  echo "WARN: render-setup-screen.py not found — HDMI QR skipped (Setup AP still works)." >&2
 fi
 
 echo ""
 echo "Setup AP ready."
 echo "  1. On iPhone: join Wi-Fi  ${SSID}"
 echo "  2. Password:              ${SETUP_PASS}"
-echo "  3. Open Dot app → Wi-Fi setup  (or http://${AP_IP}/setup/)"
+echo "  3. Open Dot app → Wi‑Fi setup  (or http://${AP_IP}/setup/)"
 echo "  4. Enter your iPhone Personal Hotspot name + password"
 echo "  HDMI shows the same SSID / password / QR when display is running."
 echo ""

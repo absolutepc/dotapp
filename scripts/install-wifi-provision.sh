@@ -27,6 +27,10 @@ install -m 755 "${ROOT}/scripts/dot-wifi-boot.sh" /usr/local/sbin/dot-wifi-boot
 install -m 755 "${ROOT}/scripts/dot-wifi-join.sh" /usr/local/sbin/dot-wifi-join
 install -m 755 "${ROOT}/scripts/dot-wifi-keepalive.sh" /usr/local/sbin/dot-wifi-keepalive
 
+# HDMI setup screen helper (enter-setup-ap looks here when installed under /usr/local/sbin)
+mkdir -p /usr/local/share/dot
+install -m 644 "${ROOT}/scripts/render-setup-screen.py" /usr/local/share/dot/render-setup-screen.py
+
 install -m 644 "${ROOT}/firmware/systemd/dot-wifi-apply.service" /etc/systemd/system/dot-wifi-apply.service
 install -m 644 "${ROOT}/firmware/systemd/dot-wifi-apply.path" /etc/systemd/system/dot-wifi-apply.path
 install -m 644 "${ROOT}/firmware/systemd/dot-wifi-boot.service" /etc/systemd/system/dot-wifi-boot.service
