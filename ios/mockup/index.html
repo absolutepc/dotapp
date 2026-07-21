@@ -429,12 +429,12 @@
     Локально: откройте через сервер из корня репо
     (<code>python3 -m http.server 5500</code> →
     <code>http://localhost:5500/ios/mockup/</code>).
-    На Pi: <code>http://192.168.4.1:8080/mockup/</code>
+    На Dot: <code>http://192.168.4.1:8080/mockup/</code>
   </p>
   <div class="toolbar-btns">
     <button type="button" id="btnLocal" class="active" onclick="useLocal()">Local assets</button>
-    <button type="button" id="btnLive" onclick="useLive()">Live Pi</button>
-    <input id="apiBase" type="text" value="http://192.168.4.1:8080" title="Pi API base" />
+    <button type="button" id="btnLive" onclick="useLive()">Live Dot</button>
+    <input id="apiBase" type="text" value="http://192.168.4.1:8080" title="Dot API base" />
     <button type="button" onclick="reloadGallery()">↻ Refresh</button>
   </div>
 
@@ -523,8 +523,8 @@
         <div class="upload-body">
           <input id="fileInput" type="file" accept="image/*,.gif,.webp,.webm,.mp4,video/*" hidden />
           <button class="btn btn-primary" type="button" onclick="document.getElementById('fileInput').click()">Choose from Photos</button>
-          <div class="hint">Images are resized on the Pi after upload. GIF and WebM both play on the round display (up to 360 frames).</div>
-          <div class="hint" id="uploadHint">Upload works in Live Pi mode.</div>
+          <div class="hint">Images are resized on Dot after upload. GIF and WebM both play on the round display (up to 360 frames).</div>
+          <div class="hint" id="uploadHint">Upload works in Live Dot mode.</div>
         </div>
       </div>
 
@@ -718,7 +718,7 @@
       const key = item.id + ":" + (item.file || item.source_url || item.preview_url || "");
       if (thumbCache.has(key)) return thumbCache.get(key);
 
-      // Live Pi: prefer API JPEG preview when it already exists
+      // Live Dot: prefer API JPEG preview when it already exists
       const apiPreview = previewUrl(item);
       if (apiPreview && mode === "live") {
         try {
@@ -912,7 +912,7 @@
         item.builtin === false || mediaCategory(item) === "custom" ? "block" : "none";
       document.getElementById("btnApply").disabled = mode !== "live";
       document.getElementById("btnApply").textContent =
-        mode === "live" ? "Apply to Display" : "Apply (Live Pi only)";
+        mode === "live" ? "Apply to Display" : "Apply (Live Dot only)";
       document.getElementById("backdrop").classList.add("show");
       document.getElementById("sheet-preview").classList.add("show");
       document.getElementById("sheet-upload").classList.remove("show");
@@ -921,8 +921,8 @@
     function openUpload() {
       document.getElementById("uploadHint").textContent =
         mode === "live"
-          ? "Choose an image/GIF to upload to the Pi."
-          : "Switch to Live Pi mode to upload.";
+          ? "Choose an image/GIF to upload to Dot."
+          : "Switch to Live Dot mode to upload.";
       document.getElementById("backdrop").classList.add("show");
       document.getElementById("sheet-upload").classList.add("show");
       document.getElementById("sheet-preview").classList.remove("show");
@@ -936,7 +936,7 @@
 
     async function applyItem() {
       if (!selected || mode !== "live") {
-        showToast("Подключите Live Pi, чтобы отправить на дисплей");
+        showToast("Подключите Live Dot, чтобы отправить на дисплей");
         return;
       }
       const btn = document.getElementById("btnApply");
@@ -1005,7 +1005,7 @@
     }
 
     async function loadLive() {
-      showLoading(true, "Connecting to Pi…");
+      showLoading(true, "Connecting to Dot…");
       try {
         const [statusRes, galleryRes] = await Promise.all([
           fetch(`${apiBase()}/api/status`, { cache: "no-store" }),
@@ -1026,7 +1026,7 @@
         document.getElementById("btnLive").classList.add("active");
       } catch (e) {
         showLoading(false);
-        setConnected(false, e.message || "Cannot reach Pi API");
+        setConnected(false, e.message || "Cannot reach Dot API");
         document.getElementById("view-gallery").classList.remove("active");
         document.getElementById("view-connection").classList.add("active");
       }
@@ -1068,7 +1068,7 @@
       ev.target.value = "";
       if (!file) return;
       if (mode !== "live") {
-        showToast("Переключитесь в Live Pi для upload");
+        showToast("Переключитесь в Live Dot для upload");
         return;
       }
       const body = new FormData();
