@@ -1,0 +1,11 @@
+[Unit]
+Description=Dot soft Wi-Fi keepalive timer
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=30s
+AccuracySec=5s
+Unit=dot-wifi-keepalive.service
+
+[Install]
+WantedBy=timers.target

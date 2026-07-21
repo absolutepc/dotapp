@@ -98,7 +98,7 @@ nmcli connection add type wifi ifname wlan0 con-name "${CONN_NAME}" \
   wifi-sec.psk "${PASS}" \
   connection.autoconnect yes \
   connection.autoconnect-priority 200 \
-  connection.autoconnect-retries 0 \
+  connection.autoconnect-retries -1 \
   connection.wait-device-timeout 15 \
   ipv4.method auto \
   ipv4.dhcp-timeout 30 \
@@ -133,15 +133,17 @@ fi
 
 if [[ -x "${JOIN_BIN}" ]]; then
   if ! "${JOIN_BIN}" "${CONN_NAME}"; then
-    write_status "error" 0 "Could not join «${SSID}». Keep modem on + Maximize Compatibility, unlock phone, then: sudo dot-wifi-join"
-    mv -f "${REQUEST}" "${STATE_DIR}/wifi-request.failed.json" 2>/dev/null || true
-    exit 1
+    # Keep the NM profile — soft keepalive / autoconnect will join when hotspot appears.
+    write_status "switching" 0 "Waiting for «${SSID}». Keep Personal Hotspot on; Dot will join automatically."
+    rm -f "${REQUEST}"
+    echo "Join not ready yet — profile saved, keepalive will retry"
+    exit 0
   fi
 else
   if ! nmcli -w 60 connection up "${CONN_NAME}" ifname wlan0; then
-    write_status "error" 0 "Could not join «${SSID}». Check hotspot name/password."
-    mv -f "${REQUEST}" "${STATE_DIR}/wifi-request.failed.json" 2>/dev/null || true
-    exit 1
+    write_status "switching" 0 "Waiting for «${SSID}». Keep Personal Hotspot on; Dot will join automatically."
+    rm -f "${REQUEST}"
+    exit 0
   fi
 fi
 
