@@ -18,7 +18,7 @@ from firmware.config import (
     MAX_UPLOAD_BYTES,
     PREVIEW_DIR,
 )
-from firmware.media.processor import MediaProcessor
+from firmware.media.processor import MediaProcessor, PREVIEW_VERSION
 from firmware.media.storage import MediaStorage
 from firmware.state import (
     get_current_media_id,
@@ -71,6 +71,10 @@ def _warmup_top_animations(skip_id: str | None) -> None:
         if item.type != "animation":
             continue
         if processor.frames_ready(item):
+            try:
+                processor.ensure_preview(item)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Preview warmup failed for %s: %s", item.id, exc)
             continue
         try:
             logger.info("Warmup prepare %s", item.id)
@@ -78,6 +82,14 @@ def _warmup_top_animations(skip_id: str | None) -> None:
             warmed += 1
         except Exception as exc:  # noqa: BLE001
             logger.warning("Warmup failed for %s: %s", item.id, exc)
+
+    # Refresh any stale previews for the rest of the catalog (frames already on disk).
+    for item in storage.list_all():
+        try:
+            if processor.frames_ready(item):
+                processor.ensure_preview(item)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Preview refresh skipped for %s: %s", item.id, exc)
 
 
 def _prepare_and_show(item_id: str) -> None:
@@ -188,7 +200,7 @@ def gallery() -> list[dict]:
         items.append(
             {
                 **item.to_dict(),
-                "preview_url": f"/api/preview/{item.id}",
+                "preview_url": f"/api/preview/{item.id}?v={PREVIEW_VERSION}",
                 "source_url": f"/api/source/{item.id}",
                 "frames_ready": processor.frames_ready(item),
             }
@@ -295,15 +307,21 @@ def delete_media(media_id: str) -> dict:
 
 @router.get("/preview/{media_id}")
 def preview(media_id: str) -> FileResponse:
+    item = storage.get(media_id)
     path = PREVIEW_DIR / f"{media_id}.jpg"
-    if not path.exists():
-        item = storage.get(media_id)
-        if not item:
-            raise HTTPException(status_code=404, detail="Not found")
-        processor.ensure_frames(item)
+    if item is not None:
+        try:
+            if not processor.ensure_preview(item):
+                # No frames yet — build full cache (also writes preview).
+                processor.ensure_frames(item)
+                processor.ensure_preview(item)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Preview prepare failed for %s: %s", media_id, exc)
         path = PREVIEW_DIR / f"{media_id}.jpg"
 
     if not path.exists():
+        if not item:
+            raise HTTPException(status_code=404, detail="Not found")
         raise HTTPException(status_code=404, detail="Preview not found")
 
     return FileResponse(

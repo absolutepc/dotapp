@@ -116,6 +116,52 @@ def test_display_returns_preparing_when_cold(client, monkeypatch):
     assert status.json()["state"] == "ready"
 
 
+def test_preview_picks_brighter_frame(client, tmp_path, monkeypatch):
+    """Preview should not stay near-black when a later frame is brighter."""
+    from PIL import Image
+
+    import firmware.api.routes as routes
+    from firmware.media.processor import PREVIEW_VERSION, MediaProcessor
+    from firmware.media.storage import MediaItem
+
+    frames = tmp_path / "frames" / "neon-demo"
+    frames.mkdir(parents=True)
+    # Frame 0 almost black, frame 5 bright logo-like
+    Image.new("RGB", (480, 480), (2, 2, 2)).save(frames / "0000.jpg", quality=90)
+    Image.new("RGB", (480, 480), (2, 2, 2)).save(frames / "0001.jpg", quality=90)
+    bright = Image.new("RGB", (480, 480), (8, 8, 8))
+    for y in range(180, 300):
+        for x in range(180, 300):
+            bright.putpixel((x, y), (220, 40, 40))
+    bright.save(frames / "0002.jpg", quality=90)
+    (frames / "meta.json").write_text(
+        '{"durations":[0.1,0.1,0.1],"frame_count":3,"fps":10,'
+        '"cache_version":7,"preview_version":0}',
+        encoding="utf-8",
+    )
+
+    item = MediaItem(
+        id="neon-demo",
+        name="Neon",
+        type="animation",
+        builtin=False,
+        filename="neon.gif",
+        frame_count=3,
+        fps=10.0,
+    )
+    routes.storage.add(item)
+    assert routes.processor.ensure_preview(item) is True
+
+    preview = tmp_path / "previews" / "neon-demo.jpg"
+    assert preview.exists()
+    meta = (frames / "meta.json").read_text(encoding="utf-8")
+    assert f'"preview_version": {PREVIEW_VERSION}' in meta or f'"preview_version":{PREVIEW_VERSION}' in meta
+    from PIL import ImageStat
+
+    lum = sum(ImageStat.Stat(Image.open(preview).convert("RGB")).mean) / 3.0
+    assert lum > 20, f"preview still too dark: {lum}"
+
+
 def test_circle_mask_frame_size():
     from firmware.display.mask import apply_circle_mask, create_circle_mask
     from PIL import Image

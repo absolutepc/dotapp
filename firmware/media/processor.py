@@ -24,6 +24,9 @@ VIDEO_TARGET_FPS = 12.0
 # v7: GIF/static frames stored as JPEG (faster I/O on Pi Zero SD).
 FRAME_CACHE_VERSION = 7
 JPEG_QUALITY = 88
+# Bump when preview picking / thumb enhancement changes (does not rebuild frames).
+PREVIEW_VERSION = 2
+PREVIEW_SIZE = 200
 
 
 def list_frame_files(frame_dir: Path) -> list[Path]:
@@ -65,17 +68,105 @@ class MediaProcessor:
             rgba = ImageEnhance.Contrast(rgba).enhance(1.2)
         return rgba
 
+    def _score_preview_frame(self, image: Image.Image) -> float:
+        """Prefer brighter + more detailed frames (neon logos often start near-black)."""
+        rgb = image.convert("RGB")
+        w, h = rgb.size
+        sample = rgb.crop((w // 5, h // 5, 4 * w // 5, 4 * h // 5))
+        stat = ImageStat.Stat(sample)
+        lum = sum(stat.mean) / 3.0
+        var = sum(stat.var) / 3.0
+        return lum + 0.025 * var
+
+    def _pick_best_preview_frame(self, frame_paths: list[Path]) -> Image.Image:
+        if not frame_paths:
+            raise RuntimeError("No frames for preview")
+        if len(frame_paths) == 1:
+            return Image.open(frame_paths[0]).convert("RGB")
+
+        # Sample evenly across the clip (cap work on Pi Zero).
+        n = len(frame_paths)
+        sample_count = min(16, n)
+        indices = sorted({int(i * (n - 1) / max(sample_count - 1, 1)) for i in range(sample_count)})
+        best_score = -1.0
+        best: Image.Image | None = None
+        for idx in indices:
+            with Image.open(frame_paths[idx]) as im:
+                score = self._score_preview_frame(im)
+                if score > best_score:
+                    best_score = score
+                    best = im.convert("RGB").copy()
+        assert best is not None
+        return best
+
+    def _enhance_preview_thumb(self, image: Image.Image) -> Image.Image:
+        """Lift dark neon art so gallery tiles are readable on the phone."""
+        rgb = image.convert("RGB")
+        for _ in range(6):
+            w, h = rgb.size
+            sample = rgb.crop((w // 4, h // 4, 3 * w // 4, 3 * h // 4))
+            lum = sum(ImageStat.Stat(sample).mean) / 3.0
+            if lum >= 55:
+                break
+            factor = min(3.2, 60.0 / max(lum, 1.0))
+            rgb = ImageEnhance.Brightness(rgb).enhance(factor)
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.28)
+        rgb = ImageEnhance.Color(rgb).enhance(1.18)
+        return rgb
+
     def _save_preview(self, media_id: str, frame: Image.Image) -> None:
         from firmware.config import PREVIEW_DIR
 
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
-        thumb = frame.copy()
-        thumb.thumbnail((140, 140), Image.Resampling.LANCZOS)
+        enhanced = self._enhance_preview_thumb(frame)
+        thumb = ImageOps.fit(
+            enhanced,
+            (PREVIEW_SIZE, PREVIEW_SIZE),
+            method=Image.Resampling.LANCZOS,
+            centering=(0.5, 0.5),
+        )
         thumb.convert("RGB").save(
             PREVIEW_DIR / f"{media_id}.jpg",
-            quality=82,
+            quality=90,
             optimize=True,
         )
+
+    def _write_preview_from_frames(self, media_id: str, frame_paths: list[Path], meta_path: Path) -> None:
+        best = self._pick_best_preview_frame(frame_paths)
+        try:
+            self._save_preview(media_id, best)
+        finally:
+            best.close()
+        meta: dict = {}
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except Exception:
+                meta = {}
+        meta["preview_version"] = PREVIEW_VERSION
+        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+    def ensure_preview(self, item: MediaItem) -> bool:
+        """Refresh gallery thumb from existing frames if missing or stale."""
+        from firmware.config import FRAMES_DIR, PREVIEW_DIR
+
+        frame_dir = FRAMES_DIR / item.id
+        paths = list_frame_files(frame_dir)
+        if not paths:
+            return False
+        meta_path = frame_dir / "meta.json"
+        preview_path = PREVIEW_DIR / f"{item.id}.jpg"
+        meta: dict = {}
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except Exception:
+                meta = {}
+        if preview_path.exists() and int(meta.get("preview_version") or 0) == PREVIEW_VERSION:
+            return True
+        logger.info("Refreshing preview for %s (v%s)", item.id, PREVIEW_VERSION)
+        self._write_preview_from_frames(item.id, paths, meta_path)
+        return True
 
     def _probe_duration(self, source: Path) -> float | None:
         try:
@@ -239,11 +330,11 @@ class MediaProcessor:
             "fps": fps,
             "source_suffix": suffix,
             "cache_version": FRAME_CACHE_VERSION,
+            "preview_version": PREVIEW_VERSION,
         }
         (frame_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
-        with Image.open(frame_paths[0]) as first:
-            self._save_preview(media_id, first)
+        self._write_preview_from_frames(media_id, frame_paths, frame_dir / "meta.json")
 
         # Keep relative path for builtins so resolve_source_path stays stable
         if builtin:
