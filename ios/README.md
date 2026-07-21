@@ -18,7 +18,7 @@ If Xcode reports `ObservableObject` / `@Published` errors, ensure `import Combin
 1. **First launch (onboarding slides):** shown once per iPhone install, flag `UserDefaults` key `dot.onboarding.completed`. To see them again: connection screen → **Показать введение** (or delete/reinstall the app).
 2. **First Wi‑Fi pairing (Dot device):** while Dot is in `wifi-role=setup`, join `Dot-Setup-…`, run the in-app Wi‑Fi wizard, then enable Personal Hotspot. Dot switches to `wifi-role=client`.
 3. **Every later day:** enable Personal Hotspot → Dot joins alone (boot + watch) → open app → **Найти автоматически** (probes saved IP, `dot.local`, `172.20.10.x`). No Setup AP needed.
-4. Browse gallery, tap an item, **Apply to Display**. Custom photos → **Custom** tab.
+4. Browse gallery: **top half** = selected animation + send-to-Dot; **bottom** = library grid. Toolbar sun/moon toggles light/dark (`dot.appearance.dark`).
 5. **Где Dot** (toolbar pin): last place the iPhone saw Dot while connected — **not** Apple Find My.
 
 ### How the app knows “first” vs “later”
