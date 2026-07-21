@@ -13,10 +13,15 @@ final class PiAPIClient: ObservableObject {
     @Published var isConnected = false
     @Published var isLoading = false
     @Published var errorMessage: String?
-    /// True when Pi is in first-time Dot-Setup AP mode (app should open Wi‑Fi setup).
+    /// True when Dot is in first-time Dot-Setup AP mode (app should open Wi‑Fi setup).
     @Published var shouldOfferWifiSetup = false
-    /// Live Apply progress text (preparing frames on Pi).
+    /// Live Apply progress text (preparing frames on Dot).
     @Published var applyProgress: String?
+
+    /// Gallery only after normal day-to-day link (client / hotspot), not during setup AP.
+    var canBrowseGallery: Bool {
+        isConnected && !shouldOfferWifiSetup && wifi?.mode == "client"
+    }
 
     /// Host only, e.g. `192.168.4.1` or `172.20.10.5` (no scheme/port).
     @Published var host: String {
@@ -81,7 +86,7 @@ final class PiAPIClient: ObservableObject {
         return list
     }
 
-    /// Probe hosts in parallel so the phone finds the Pi quickly.
+    /// Probe hosts in parallel so the phone finds Dot quickly.
     func discoverAndConnect() async {
         isLoading = true
         errorMessage = nil
@@ -98,30 +103,50 @@ final class PiAPIClient: ObservableObject {
         for hit in ranked {
             host = hit.host
             wifi = hit.status
-            shouldOfferWifiSetup = hit.status.isSetupAP
             if let mdns = hit.status.mdnsHosts, !mdns.isEmpty {
                 rememberedMDNS = mdns
             }
+
+            // Setup AP: reachable, but do NOT open the gallery yet.
+            if hit.status.mode == "setup_ap" || hit.status.isSetupAP {
+                shouldOfferWifiSetup = true
+                isConnected = false
+                gallery = []
+                status = nil
+                errorMessage = "Dot найден в режиме настройки. Завершите Wi‑Fi (Режим модема)."
+                return
+            }
+
             if let ip = hit.status.ip, !ip.isEmpty, hit.status.mode == "client" {
                 host = ip
             }
-            do {
-                status = try await get("/api/status", as: DeviceStatus.self)
-                if let hosts = status?.mdnsHosts, !hosts.isEmpty {
-                    rememberedMDNS = hosts
-                }
-                gallery = try await get("/api/gallery", as: [MediaItem].self)
-                isConnected = true
-                errorMessage = nil
-                return
-            } catch {
-                if hit.status.isSetupAP {
-                    isConnected = true
-                    shouldOfferWifiSetup = true
-                    errorMessage = nil
+
+            // Day-to-day: only treat as connected when joined to the phone hotspot.
+            if hit.status.mode == "client" {
+                do {
+                    status = try await get("/api/status", as: DeviceStatus.self)
+                    if let hosts = status?.mdnsHosts, !hosts.isEmpty {
+                        rememberedMDNS = hosts
+                    }
+                    gallery = try await get("/api/gallery", as: [MediaItem].self)
+                    shouldOfferWifiSetup = false
+                    isConnected = hit.status.ok
+                    errorMessage = isConnected ? nil : (hit.status.message ?? "Dot ещё не в сети модема")
+                    return
+                } catch {
+                    shouldOfferWifiSetup = false
+                    isConnected = false
+                    errorMessage = "Dot отвечает, но галерея недоступна. Повторите поиск."
                     return
                 }
             }
+
+            // error / switching / unknown — keep user on connection screen
+            shouldOfferWifiSetup = hit.status.needsSetup == true
+            isConnected = false
+            errorMessage = hit.status.message
+                ?? "Dot найден, но ещё не подключён к Режиму модема. Включите модем или откройте настройку Wi‑Fi."
+            return
         }
 
         isConnected = false
@@ -147,22 +172,39 @@ final class PiAPIClient: ObservableObject {
         defer { isLoading = false }
 
         do {
+            let wifiStatus = try await get("/api/wifi/status", as: WifiStatus.self)
+            wifi = wifiStatus
+            if let mdns = wifiStatus.mdnsHosts, !mdns.isEmpty {
+                rememberedMDNS = mdns
+            }
+
+            if wifiStatus.mode == "setup_ap" || wifiStatus.isSetupAP {
+                shouldOfferWifiSetup = true
+                isConnected = false
+                gallery = []
+                errorMessage = "Dot в режиме настройки. Завершите Wi‑Fi (Режим модема)."
+                return
+            }
+
+            guard wifiStatus.mode == "client" else {
+                shouldOfferWifiSetup = wifiStatus.needsSetup == true
+                isConnected = false
+                errorMessage = wifiStatus.message
+                    ?? "Включите Режим модема или откройте настройку Wi‑Fi."
+                return
+            }
+
             status = try await get("/api/status", as: DeviceStatus.self)
             if let hosts = status?.mdnsHosts, !hosts.isEmpty {
                 rememberedMDNS = hosts
             }
             gallery = try await get("/api/gallery", as: [MediaItem].self)
-            wifi = try? await get("/api/wifi/status", as: WifiStatus.self)
-            if let wifi {
-                shouldOfferWifiSetup = wifi.isSetupAP
-                if let ip = wifi.ip, !ip.isEmpty, wifi.mode == "client" {
-                    host = ip
-                }
-                if let mdns = wifi.mdnsHosts, !mdns.isEmpty {
-                    rememberedMDNS = mdns
-                }
+            if let ip = wifiStatus.ip, !ip.isEmpty {
+                host = ip
             }
-            isConnected = true
+            shouldOfferWifiSetup = false
+            isConnected = wifiStatus.ok
+            errorMessage = isConnected ? nil : wifiStatus.message
         } catch {
             await discoverAndConnect()
         }

@@ -21,7 +21,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if api.isConnected {
+                if api.canBrowseGallery {
                     galleryContent
                 } else {
                     ConnectionView(errorMessage: api.errorMessage) {
@@ -72,8 +72,8 @@ struct ContentView: View {
                     showWifiSetup = true
                 }
             }
-            .onChange(of: api.isConnected) { connected in
-                if connected {
+            .onChange(of: api.canBrowseGallery) { ready in
+                if ready {
                     locationTracker.captureLastSeen(host: api.host)
                 }
             }
@@ -105,7 +105,7 @@ struct ContentView: View {
 
     private func connectAfterOnboarding() async {
         await api.discoverAndConnect()
-        if api.isConnected {
+        if api.canBrowseGallery {
             locationTracker.captureLastSeen(host: api.host)
         }
         if api.shouldOfferWifiSetup {
