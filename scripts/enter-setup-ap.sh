@@ -67,28 +67,75 @@ else
 fi
 
 mkdir -p /etc/dnsmasq.d
+# Dedicated config; avoid clashing with systemd-resolved / NM on port 53 (lo).
 cat >/etc/dnsmasq.d/dot.conf <<EOF
 interface=wlan0
 bind-interfaces
+except-interface=lo
+no-resolv
+no-hosts
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
-domain=local
 address=/dot.local/${AP_IP}
 address=/setup.dot/${AP_IP}
 EOF
+
+# Disable stock dnsmasq defaults that bind *:53 and break on Bookworm.
+if [[ -f /etc/default/dnsmasq ]]; then
+  sed -i 's/^#\?ENABLED=.*/ENABLED=1/' /etc/default/dnsmasq 2>/dev/null || true
+  if ! grep -q 'IGNORE_RESOLVCONF' /etc/default/dnsmasq 2>/dev/null; then
+    echo 'IGNORE_RESOLVCONF=yes' >>/etc/default/dnsmasq
+  fi
+fi
+# Prefer our drop-in only: comment broad listen in main conf if present
+if [[ -f /etc/dnsmasq.conf ]]; then
+  sed -i 's/^bind-interfaces/# bind-interfaces (managed by /etc/dnsmasq.d\/dot.conf)/' /etc/dnsmasq.conf 2>/dev/null || true
+fi
 
 ip link set wlan0 up || true
 ip addr flush dev wlan0 2>/dev/null || true
 ip addr replace ${AP_IP}/24 dev wlan0 || true
 
-systemctl unmask hostapd
-systemctl enable hostapd dnsmasq >/dev/null 2>&1 || true
+systemctl unmask hostapd 2>/dev/null || true
+systemctl enable hostapd >/dev/null 2>&1 || true
+# Do not permanently enable system dnsmasq — it fights resolved when not in setup.
+systemctl disable dnsmasq >/dev/null 2>&1 || true
+
 echo "Starting hostapd + dnsmasq…"
-systemctl restart dnsmasq
+# Free port 53 on wlan0 path; resolved can keep lo.
+systemctl stop dnsmasq 2>/dev/null || true
+# Kill stray dnsmasq (NM plugin) that holds interfaces
+pkill -x dnsmasq 2>/dev/null || true
+sleep 0.5
+
+# hostapd first (AP), then dnsmasq (DHCP). Don't abort setup if DHCP helper flakes —
+# phone can still use a static/link-local path less often, but AP SSID still appears.
+set +e
 systemctl restart hostapd
+hap=$?
+systemctl restart dnsmasq
+dns=$?
+set -e
 
 sleep 1
-systemctl is-active hostapd dnsmasq || true
+systemctl is-active hostapd || true
+systemctl is-active dnsmasq || true
 ip -4 addr show wlan0 | sed -n '1,6p' || true
+
+if [[ "${hap}" -ne 0 ]]; then
+  echo "ERROR: hostapd failed to start — Setup Wi-Fi will not appear." >&2
+  journalctl -u hostapd -n 20 --no-pager >&2 || true
+  exit 1
+fi
+if [[ "${dns}" -ne 0 ]]; then
+  echo "WARN: dnsmasq failed (DHCP). Trying foreground fallback…" >&2
+  journalctl -u dnsmasq -n 15 --no-pager >&2 || true
+  # Fallback: run dnsmasq only on wlan0 without full unit
+  pkill -x dnsmasq 2>/dev/null || true
+  dnsmasq --conf-file=/dev/null --interface=wlan0 --bind-interfaces \
+    --except-interface=lo --dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h \
+    --address=/dot.local/${AP_IP} --pid-file=/run/dot-dnsmasq.pid \
+    && echo "dnsmasq fallback started." || echo "WARN: DHCP still down — join Dot-Setup may need manual IP." >&2
+fi
 
 # Clear stale client / error status so the app sees setup_ap (not leftover "error").
 rm -f "${STATE_DIR}/wifi-client.json" "${STATE_DIR}/wifi-request.json" \
