@@ -3,10 +3,9 @@
 # Usage: sudo bash scripts/dot-wifi-join.sh [con-name]
 #
 # Anti-flap rules for iPhone Personal Hotspot:
-# - If already up with IP → do nothing (no rescan / modify / connection up)
-# - If associating / getting IP → only wait for DHCP (never connection up again)
-# - At most ONE `nmcli connection up` per invoke unless fully disconnected
-# - Never wifi rescan while connected or connecting
+# - If already up with IP → do nothing
+# - If preparing/configuring/IP (40–90) → wait for DHCP only
+# - State 30 = disconnected → MUST call connection up (do not treat as in-progress!)
 set -euo pipefail
 
 PROFILE_NAME="${1:-dot-phone-hotspot}"
@@ -46,7 +45,6 @@ current_ip() {
   if [[ -z "${ip}" ]]; then
     ip="$(ip -4 -o addr show wlan0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true)"
   fi
-  # Ignore leftover setup-AP address
   if [[ "${ip}" == "192.168.4.1" ]]; then
     ip=""
   fi
@@ -57,7 +55,12 @@ active_connection() {
   nmcli -g GENERAL.CONNECTION device show wlan0 2>/dev/null || true
 }
 
-device_state() {
+# Numeric NM device state (first token), e.g. "30" from "30 (disconnected)"
+device_state_num() {
+  nmcli -g GENERAL.STATE device show wlan0 2>/dev/null | awk '{print $1; exit}' || true
+}
+
+device_state_raw() {
   nmcli -g GENERAL.STATE device show wlan0 2>/dev/null || true
 }
 
@@ -65,27 +68,34 @@ profile_ssid() {
   nmcli -g 802-11-wireless.ssid connection show "${PROFILE_NAME}" 2>/dev/null || true
 }
 
-# Fully online on the right profile.
 link_is_ok() {
-  local ip conn state
+  local ip conn num
   ip="$(current_ip)"
   conn="$(active_connection)"
-  state="$(device_state)"
-  [[ -n "${ip}" && "${conn}" == "${PROFILE_NAME}" && ( "${state}" == 100* || "${state}" == *"connected"* ) ]]
+  num="$(device_state_num)"
+  [[ -n "${ip}" && "${conn}" == "${PROFILE_NAME}" && "${num}" == "100" ]]
 }
 
-# Association in progress — wait, do not bounce.
+# Truly associating / getting IP — NOT disconnected (30).
 link_is_progress() {
-  local conn state
+  local conn num
   conn="$(active_connection)"
-  state="$(device_state)"
-  if [[ "${conn}" == "${PROFILE_NAME}" ]]; then
-    return 0
-  fi
-  # 10 = connecting, 20..99 = various connecting states on some NM versions
-  case "${state}" in
-    10*|20*|30*|40*|50*|60*|70*|80*|90*|*"connecting"*|*"configuring"*|*"ip"* ) return 0 ;;
+  num="$(device_state_num)"
+  case "${num}" in
+    40|50|60|70|80|90) return 0 ;;
   esac
+  # Activating our profile but not yet fully up
+  if [[ "${conn}" == "${PROFILE_NAME}" && "${num}" != "100" && "${num}" != "30" && "${num}" != "120" && "${num}" != "20" && "${num}" != "10" && "${num}" != "0" ]]; then
+    # e.g. 110 deactivating — not progress for join
+    if [[ "${num}" == "110" ]]; then
+      return 1
+    fi
+  fi
+  if [[ "${conn}" == "${PROFILE_NAME}" && -z "$(current_ip)" ]]; then
+    case "${num}" in
+      40|50|60|70|80|90) return 0 ;;
+    esac
+  fi
   return 1
 }
 
@@ -113,31 +123,34 @@ keepalive_traffic() {
 
 wait_for_dhcp() {
   local i
-  for i in $(seq 1 30); do
+  for i in $(seq 1 35); do
     if link_is_ok; then
       return 0
     fi
-    # Still on profile without IP — keep waiting (do not connection up).
-    if ! link_is_progress && [[ -z "$(current_ip)" ]]; then
-      # Fully dropped mid-wait
-      return 1
+    if link_is_progress; then
+      sleep 1
+      continue
     fi
-    sleep 1
+    # Disconnected / failed mid-wait
+    return 1
   done
   link_is_ok
 }
 
-ensure_radio_quiet() {
-  # Stop Setup AP if leftover — but do not reload NM if already client-managed.
-  if systemctl is-active --quiet hostapd 2>/dev/null; then
-    systemctl stop hostapd dnsmasq 2>/dev/null || true
-    systemctl disable hostapd 2>/dev/null || true
+exit_setup_ap() {
+  systemctl stop hostapd dnsmasq 2>/dev/null || true
+  systemctl disable hostapd dnsmasq 2>/dev/null || true
+  if [[ -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf ]]; then
     rm -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf
     systemctl reload NetworkManager 2>/dev/null || true
     sleep 1
   fi
   nmcli device set wlan0 managed yes 2>/dev/null || true
   nmcli radio wifi on 2>/dev/null || true
+  # Drop leftover AP address
+  if ip -4 addr show wlan0 2>/dev/null | grep -q '192.168.4.1'; then
+    ip addr flush dev wlan0 2>/dev/null || true
+  fi
   ip link set wlan0 up 2>/dev/null || true
   command -v iw >/dev/null 2>&1 && iw dev wlan0 set power_save off 2>/dev/null || true
 }
@@ -152,7 +165,6 @@ if ! nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "${PROFILE_NAME}";
   exit 2
 fi
 
-# Already good — never touch the radio.
 if link_is_ok; then
   keepalive_traffic
   mark_client_ok
@@ -160,9 +172,8 @@ if link_is_ok; then
   exit 0
 fi
 
-# Associating / DHCP in progress — only wait.
 if link_is_progress; then
-  log "Link in progress conn=$(active_connection) state=$(device_state) — waiting for DHCP"
+  log "Link in progress state=$(device_state_raw) — waiting for DHCP"
   write_status "switching" 0 "Waiting for IP on hotspot…"
   if wait_for_dhcp; then
     keepalive_traffic
@@ -170,43 +181,50 @@ if link_is_progress; then
     log "Joined after DHCP wait ip=$(current_ip)"
     exit 0
   fi
-  log "DHCP wait failed — will try one connection up"
+  log "DHCP wait ended without IP — will connection up"
 fi
 
-ensure_radio_quiet
+exit_setup_ap
 
 WANT_SSID="$(profile_ssid)"
 write_status "switching" 0 "Joining «${WANT_SSID:-hotspot}»…"
-log "One-shot join ${PROFILE_NAME} (ssid=${WANT_SSID:-?})"
+log "Join ${PROFILE_NAME} ssid=${WANT_SSID:-?} state=$(device_state_raw) conn=$(active_connection)"
 
-# One association only. No rescan loop — rescans drop iPhone hotspot links.
-if ! link_is_ok && ! link_is_progress; then
-  if ! nmcli -w 45 connection up "${PROFILE_NAME}" ifname wlan0 2>>"${LOG}"; then
-    log "connection up returned error — waiting in case NM still associates"
+# Ensure forever-autoconnect (NM: 0 = forever)
+nmcli connection modify "${PROFILE_NAME}" \
+  connection.autoconnect yes \
+  connection.autoconnect-retries 0 \
+  2>/dev/null || true
+
+# While fully down, one rescan then connection up is OK
+nmcli device wifi rescan 2>/dev/null || true
+sleep 2
+
+for attempt in 1 2 3 4 5; do
+  if link_is_ok; then
+    break
   fi
-fi
+  if link_is_progress; then
+    if wait_for_dhcp; then
+      break
+    fi
+  fi
+  log "connection up attempt ${attempt} (state=$(device_state_raw))"
+  nmcli -w 40 connection up "${PROFILE_NAME}" ifname wlan0 2>>"${LOG}" || true
+  if wait_for_dhcp; then
+    break
+  fi
+  sleep 3
+done
 
-if wait_for_dhcp; then
+if link_is_ok; then
   keepalive_traffic
   mark_client_ok
   log "Joined ${WANT_SSID} ip=$(current_ip)"
   exit 0
 fi
 
-# Second chance only if completely disconnected (not if flapping mid-associate).
-if ! link_is_progress && ! link_is_ok; then
-  log "Retry one more connection up after full disconnect"
-  sleep 3
-  nmcli -w 45 connection up "${PROFILE_NAME}" ifname wlan0 2>>"${LOG}" || true
-  if wait_for_dhcp; then
-    keepalive_traffic
-    mark_client_ok
-    log "Joined on retry ${WANT_SSID} ip=$(current_ip)"
-    exit 0
-  fi
-fi
-
 IP="$(current_ip)"
-log "WARN: join incomplete conn=$(active_connection) state=$(device_state) ip=${IP:-none}"
-write_status "error" 0 "Could not join «${WANT_SSID:-hotspot}». Keep Personal Hotspot on, Maximize Compatibility, unlocked screen."
+log "WARN: join incomplete state=$(device_state_raw) conn=$(active_connection) ip=${IP:-none}"
+write_status "error" 0 "Could not join «${WANT_SSID:-hotspot}». Keep Personal Hotspot on + Maximize Compatibility."
 exit 1

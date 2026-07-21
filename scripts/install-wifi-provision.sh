@@ -27,6 +27,8 @@ install -m 755 "${ROOT}/scripts/dot-wifi-boot.sh" /usr/local/sbin/dot-wifi-boot
 install -m 755 "${ROOT}/scripts/dot-wifi-join.sh" /usr/local/sbin/dot-wifi-join
 install -m 755 "${ROOT}/scripts/dot-wifi-keepalive.sh" /usr/local/sbin/dot-wifi-keepalive
 install -m 755 "${ROOT}/scripts/dot-wifi-diagnose.sh" /usr/local/sbin/dot-wifi-diagnose
+install -m 755 "${ROOT}/scripts/dot-wifi-use-hotspot.sh" /usr/local/sbin/dot-wifi-use-hotspot
+install -m 755 "${ROOT}/scripts/dot-wifi-watch.sh" /usr/local/sbin/dot-wifi-watch
 
 # HDMI setup screen helper (enter-setup-ap looks here when installed under /usr/local/sbin)
 mkdir -p /usr/local/share/dot
@@ -37,6 +39,7 @@ install -m 644 "${ROOT}/firmware/systemd/dot-wifi-apply.path" /etc/systemd/syste
 install -m 644 "${ROOT}/firmware/systemd/dot-wifi-boot.service" /etc/systemd/system/dot-wifi-boot.service
 install -m 644 "${ROOT}/firmware/systemd/dot-wifi-keepalive.service" /etc/systemd/system/dot-wifi-keepalive.service
 install -m 644 "${ROOT}/firmware/systemd/dot-wifi-keepalive.timer" /etc/systemd/system/dot-wifi-keepalive.timer
+install -m 644 "${ROOT}/firmware/systemd/dot-wifi-watch.service" /etc/systemd/system/dot-wifi-watch.service
 
 # Stable client Wi-Fi (no scan MAC randomization / powersave)
 if [[ -f "${ROOT}/firmware/NetworkManager/99-dot-wifi.conf" ]]; then

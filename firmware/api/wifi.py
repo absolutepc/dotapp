@@ -213,7 +213,7 @@ def wifi_configure(body: WifiConfigureRequest) -> dict:
 
 @router.post("/connect-hotspot")
 def wifi_connect_hotspot() -> dict:
-    """Apply previously saved credentials (after user enabled Personal Hotspot)."""
+    """Apply previously saved credentials (after user is ready to leave Setup AP)."""
     pending = _read_json(WIFI_PENDING)
     ssid = (pending.get("ssid") or "").strip()
     password = pending.get("password") or ""
@@ -228,10 +228,24 @@ def wifi_connect_hotspot() -> dict:
         "requested_at": datetime.now(timezone.utc).isoformat(),
     }
     _queue_apply(payload)
+    # Prefer the dedicated use-hotspot helper (exits Setup AP + retries join).
+    for cmd in (
+        ["sudo", "-n", "/usr/local/sbin/dot-wifi-use-hotspot"],
+        ["sudo", "-n", "systemctl", "start", "dot-wifi-watch.service"],
+    ):
+        try:
+            subprocess.Popen(  # noqa: S603
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except Exception:  # noqa: BLE001
+            continue
     logger.info("Wi-Fi connect-hotspot for ssid=%s", ssid)
     return {
         "ok": True,
-        "message": "Dot выходит из Dot-Setup и один раз подключается к модему…",
+        "message": "Dot выходит из Dot-Setup и подключается к модему. Включите Режим модема на iPhone.",
     }
 
 
