@@ -44,6 +44,25 @@ def test_status(client):
     data = response.json()
     assert data["device"] == "dot"
     assert data["resolution"] == "480x480"
+    assert data["brightness"] == 100
+
+
+def test_brightness_get_set(client):
+    test_client, _ = client
+    got = test_client.get("/api/brightness")
+    assert got.status_code == 200
+    assert got.json()["brightness"] == 100
+
+    set_resp = test_client.post("/api/brightness", json={"brightness": 42})
+    assert set_resp.status_code == 200
+    assert set_resp.json()["brightness"] == 42
+
+    status = test_client.get("/api/status")
+    assert status.json()["brightness"] == 42
+
+    clamped = test_client.post("/api/brightness", json={"brightness": 1})
+    assert clamped.status_code == 200
+    assert clamped.json()["brightness"] == 5
 
 
 def test_upload_and_display_png(client):

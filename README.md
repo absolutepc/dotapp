@@ -41,10 +41,11 @@ See [ios/README.md](ios/README.md). Enable Personal Hotspot, wait for the Pi to 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/status` | Device status |
+| GET | `/api/status` | Device status (includes brightness) |
 | GET | `/api/gallery` | Media list |
 | POST | `/api/upload` | Upload PNG/GIF/JPG |
 | POST | `/api/display` | `{"media_id":"..."}` |
+| GET / POST | `/api/brightness` | Display brightness 5–100 (software dim on HDMI) |
 | DELETE | `/api/media/{id}` | Delete user media |
 | GET | `/api/preview/{id}` | Thumbnail |
 | GET | `/api/wifi/status` | Wi-Fi mode / Pi IP |

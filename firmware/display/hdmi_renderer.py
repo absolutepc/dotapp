@@ -20,6 +20,7 @@ from firmware.config import (
     FRAMES_DIR,
     TARGET_FPS,
 )
+from firmware.state import get_brightness
 
 # Never RAM-preload full clips on Pi Zero: blocking the loop makes the X11/SDL
 # window look like it closed, and long stalls can trip the window manager.
@@ -79,6 +80,11 @@ class HDMIRenderer:
         self._cache_lock = threading.Lock()
         self._last_state_mtime = 0.0
         self._last_frames_mtime = 0.0
+        self._brightness = get_brightness()
+        self._brightness_check_at = 0.0
+        self._dim_overlay = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
+        self._dim_overlay.fill((0, 0, 0))
+        self._apply_brightness_overlay_alpha()
 
         self._prefetch_index = 0
         self._prefetch_wake = threading.Event()
@@ -88,6 +94,30 @@ class HDMIRenderer:
             daemon=True,
         )
         self._prefetch_thread.start()
+
+    def _apply_brightness_overlay_alpha(self) -> None:
+        # 100 = full brightness (no dim). 5 ≈ almost dark.
+        level = max(0, min(100, int(self._brightness)))
+        alpha = int(round((100 - level) / 100 * 255))
+        self._dim_overlay.set_alpha(alpha)
+
+    def _refresh_brightness(self, now: float) -> None:
+        if now - self._brightness_check_at < 0.25:
+            return
+        self._brightness_check_at = now
+        level = get_brightness()
+        if level != self._brightness:
+            self._brightness = level
+            self._apply_brightness_overlay_alpha()
+
+    def _blit_with_brightness(self, surface: pygame.Surface | None) -> None:
+        if surface is not None:
+            self._screen.blit(surface, (0, 0))
+        else:
+            self._screen.fill((18, 18, 22))
+        if self._brightness < 100:
+            self._screen.blit(self._dim_overlay, (0, 0))
+        pygame.display.flip()
 
     def _dir_mtime(self, frame_dir: Path) -> float:
         try:
@@ -238,9 +268,7 @@ class HDMIRenderer:
         self._last_frames_mtime = frames_mtime
         # Show first frame immediately so the window never goes blank/closed-looking
         first = self._load_cached(0)
-        if first is not None:
-            self._screen.blit(first, (0, 0))
-            pygame.display.flip()
+        self._blit_with_brightness(first)
         self._request_prefetch(0)
         print(f"Loaded media {media_id}: {len(paths)} frames (disk+cache)")
 
@@ -260,12 +288,12 @@ class HDMIRenderer:
         while self._running:
             dt = self._clock.tick(TARGET_FPS) / 1000.0
             self._handle_events()
+            self._refresh_brightness(time.monotonic())
             self._load_state()
 
             if not self._frame_paths:
                 # Dim gray (not pure black) so "no cache yet" is distinguishable
-                self._screen.fill((18, 18, 22))
-                pygame.display.flip()
+                self._blit_with_brightness(None)
                 continue
 
             self._accum += dt
@@ -277,11 +305,7 @@ class HDMIRenderer:
                 guard += 1
 
             surface = self._get_surface(self._frame_index)
-            if surface is not None:
-                self._screen.blit(surface, (0, 0))
-            else:
-                self._screen.fill((18, 18, 22))
-            pygame.display.flip()
+            self._blit_with_brightness(surface)
 
         self._prefetch_wake.set()
         pygame.quit()

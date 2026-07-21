@@ -7,12 +7,25 @@ struct DeviceStatus: Codable {
     let resolution: String
     let connected: Bool
     let mdnsHosts: [String]?
+    let brightness: Int?
+    let brightnessMin: Int?
+    let brightnessMax: Int?
 
     enum CodingKeys: String, CodingKey {
-        case device, current, resolution, connected
+        case device, current, resolution, connected, brightness
         case currentName = "current_name"
         case mdnsHosts = "mdns_hosts"
+        case brightnessMin = "brightness_min"
+        case brightnessMax = "brightness_max"
     }
+}
+
+struct BrightnessStatus: Codable {
+    let ok: Bool?
+    let brightness: Int
+    let min: Int?
+    let max: Int?
+    let `default`: Int?
 }
 
 struct MediaItem: Codable, Identifiable, Hashable {

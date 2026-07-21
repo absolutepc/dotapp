@@ -10,6 +10,7 @@ final class PiAPIClient: ObservableObject {
     @Published var status: DeviceStatus?
     @Published var gallery: [MediaItem] = []
     @Published var wifi: WifiStatus?
+    @Published var brightness: Int = 100
     @Published var isConnected = false
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -128,6 +129,9 @@ final class PiAPIClient: ObservableObject {
                     if let hosts = status?.mdnsHosts, !hosts.isEmpty {
                         rememberedMDNS = hosts
                     }
+                    if let level = status?.brightness {
+                        brightness = level
+                    }
                     gallery = try await get("/api/gallery", as: [MediaItem].self)
                     shouldOfferWifiSetup = false
                     isConnected = hit.status.ok
@@ -198,6 +202,9 @@ final class PiAPIClient: ObservableObject {
             if let hosts = status?.mdnsHosts, !hosts.isEmpty {
                 rememberedMDNS = hosts
             }
+            if let level = status?.brightness {
+                brightness = level
+            }
             gallery = try await get("/api/gallery", as: [MediaItem].self)
             if let ip = wifiStatus.ip, !ip.isEmpty {
                 host = ip
@@ -208,6 +215,54 @@ final class PiAPIClient: ObservableObject {
         } catch {
             await discoverAndConnect()
         }
+    }
+
+    func fetchBrightness() async throws -> Int {
+        let status = try await get("/api/brightness", as: BrightnessStatus.self)
+        brightness = status.brightness
+        return status.brightness
+    }
+
+    func setBrightness(_ level: Int) async throws {
+        var request = URLRequest(url: baseURL.appending(path: "/api/brightness"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 8
+        request.httpBody = try JSONEncoder().encode(["brightness": level])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw APIError.requestFailed
+        }
+        let decoded = try JSONDecoder().decode(BrightnessStatus.self, from: data)
+        brightness = decoded.brightness
+    }
+
+    func reprovisionWifi() async throws -> WifiConfigureResponse {
+        var request = URLRequest(url: baseURL.appending(path: "/api/wifi/reprovision"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 20
+        request.httpBody = Data("{}".utf8)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw APIError.requestFailed
+        }
+        shouldOfferWifiSetup = true
+        isConnected = false
+        gallery = []
+        return try JSONDecoder().decode(WifiConfigureResponse.self, from: data)
+    }
+
+    func clearSavedHost() {
+        host = "192.168.4.1"
+        UserDefaults.standard.removeObject(forKey: Self.mdnsKey)
+        rememberedMDNS = []
+        isConnected = false
+        shouldOfferWifiSetup = false
+        gallery = []
+        status = nil
+        wifi = nil
+        errorMessage = nil
     }
 
     func wifiStatus() async throws -> WifiStatus {

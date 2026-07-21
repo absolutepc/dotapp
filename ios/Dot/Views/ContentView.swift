@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var showWifiSetup = false
     @State private var showOnboarding = false
     @State private var showLastSeen = false
+    @State private var showSettings = false
     @State private var isApplying = false
     @State private var applyError: String?
 
@@ -90,6 +91,14 @@ struct ContentView: View {
                     .environmentObject(api)
                     .preferredColorScheme(preferDark ? .dark : .light)
             }
+            .sheet(isPresented: $showSettings) {
+                SettingsView {
+                    onboardingCompleted = false
+                    showOnboarding = true
+                }
+                .environmentObject(api)
+                .preferredColorScheme(preferDark ? .dark : .light)
+            }
             .fullScreenCover(isPresented: $showOnboarding) {
                 OnboardingView {
                     onboardingCompleted = true
@@ -126,6 +135,13 @@ struct ContentView: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 14) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("Настройки")
+
                 Button {
                     preferDark.toggle()
                 } label: {

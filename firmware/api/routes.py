@@ -21,8 +21,13 @@ from firmware.config import (
 from firmware.media.processor import MediaProcessor, PREVIEW_VERSION
 from firmware.media.storage import MediaStorage
 from firmware.state import (
+    DEFAULT_BRIGHTNESS,
+    MAX_BRIGHTNESS,
+    MIN_BRIGHTNESS,
+    get_brightness,
     get_current_media_id,
     read_prepare_status,
+    set_brightness,
     set_current_media,
     write_prepare_status,
 )
@@ -39,6 +44,10 @@ _warmup_started = False
 
 class DisplayRequest(BaseModel):
     media_id: str
+
+
+class BrightnessRequest(BaseModel):
+    brightness: int
 
 
 def _mdns_hosts() -> list[str]:
@@ -190,6 +199,32 @@ def status() -> dict:
         "connected": True,
         "mdns_hosts": _mdns_hosts(),
         "prepare": prepare,
+        "brightness": get_brightness(),
+        "brightness_min": MIN_BRIGHTNESS,
+        "brightness_max": MAX_BRIGHTNESS,
+    }
+
+
+@router.get("/brightness")
+def brightness_get() -> dict:
+    level = get_brightness()
+    return {
+        "ok": True,
+        "brightness": level,
+        "min": MIN_BRIGHTNESS,
+        "max": MAX_BRIGHTNESS,
+        "default": DEFAULT_BRIGHTNESS,
+    }
+
+
+@router.post("/brightness")
+def brightness_set(req: BrightnessRequest) -> dict:
+    level = set_brightness(req.brightness)
+    return {
+        "ok": True,
+        "brightness": level,
+        "min": MIN_BRIGHTNESS,
+        "max": MAX_BRIGHTNESS,
     }
 
 
