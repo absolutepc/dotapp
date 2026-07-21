@@ -5,7 +5,7 @@ Native **SwiftUI** app for iPhone (iOS 16+).
 ## Open in Xcode
 
 1. Create a new iOS App project named `Dot` (or any name) with SwiftUI lifecycle.
-2. Replace generated sources with files from `ios/Dot/`.
+2. Replace generated sources with files from `ios/Dot/` (including `Views/OnboardingView.swift` and `Views/CachedAsyncImage.swift`).
    - Keep only **one** `@main` app entry (use `DotApp.swift`; delete Xcode’s generated `*App.swift`).
 3. Set **Info.plist** keys from `ios/Dot/Info.plist` (local network + photo library + Allow Local Networking).
 4. Set deployment target **iOS 16.0**.
@@ -17,10 +17,10 @@ If Xcode reports `ObservableObject` / `@Published` errors, ensure `import Combin
 
 1. **First launch:** the app shows 3 short onboarding slides (once; stored as `dot.onboarding.completed`).
 2. **First Wi‑Fi:** join `Dot-Setup-…` on iPhone (Pi opens it after install), open **Настройка Wi‑Fi** → enter Personal Hotspot name/password.
-3. **Every day:** enable Personal Hotspot → Pi joins → **Найти автоматически** if needed.
-4. Browse gallery, tap an item, **Apply to Display**. Custom photos → **Custom** tab.
+3. **Every day:** enable Personal Hotspot → Pi joins → app auto-discovers via parallel probe / `*.local` / hotspot LAN.
+4. Browse gallery, tap an item, **Apply to Display** (shows prepare progress if Pi is building frames). Custom photos → **Custom** tab.
 
-The API host is saved in UserDefaults (`dot.api.host`).
+The API host is saved in UserDefaults (`dot.api.host`). Preview images are cached under Caches/DotPreviews.
 
 ## Bundled vs Pi gallery
 
