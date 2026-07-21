@@ -3,11 +3,14 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var api: PiAPIClient
+    @AppStorage("dot.onboarding.completed") private var onboardingCompleted = false
+
     @State private var selectedCategory: MediaCategory = .bmw
     @State private var selectedItem: MediaItem?
     @State private var showPhotoPicker = false
     @State private var showSuccess = false
     @State private var showWifiSetup = false
+    @State private var showOnboarding = false
 
     var filteredItems: [MediaItem] {
         api.gallery.filter { $0.category == selectedCategory || (selectedCategory == .custom && !$0.builtin) }
@@ -36,21 +39,22 @@ struct ContentView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await api.refresh() }
+                        Task { await api.discoverAndConnect() }
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
             }
             .task {
-                await api.discoverAndConnect()
-                if api.shouldOfferWifiSetup {
-                    showWifiSetup = true
+                if !onboardingCompleted {
+                    showOnboarding = true
+                    return
                 }
+                await connectAfterOnboarding()
             }
             .refreshable { await api.discoverAndConnect() }
             .onChange(of: api.shouldOfferWifiSetup) { needsSetup in
-                if needsSetup {
+                if needsSetup, onboardingCompleted, !showOnboarding {
                     showWifiSetup = true
                 }
             }
@@ -62,11 +66,25 @@ struct ContentView: View {
                 WifiSetupView()
                     .environmentObject(api)
             }
+            .fullScreenCover(isPresented: $showOnboarding) {
+                OnboardingView {
+                    onboardingCompleted = true
+                    showOnboarding = false
+                    Task { await connectAfterOnboarding() }
+                }
+            }
             .alert("Applied", isPresented: $showSuccess) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("Image sent to the round display.")
             }
+        }
+    }
+
+    private func connectAfterOnboarding() async {
+        await api.discoverAndConnect()
+        if api.shouldOfferWifiSetup {
+            showWifiSetup = true
         }
     }
 
