@@ -2,6 +2,8 @@
 # Apply pending Wi-Fi client config (iPhone Personal Hotspot).
 # Invoked by systemd when /var/lib/dot/wifi-request.json appears.
 # Or manually: sudo bash scripts/wifi-apply-client.sh
+#
+# Uses flock so API + path unit cannot run two applies at once (that flaps the link).
 set -euo pipefail
 
 STATE_DIR="/var/lib/dot"
@@ -9,8 +11,16 @@ REQUEST="${STATE_DIR}/wifi-request.json"
 STATUS="${STATE_DIR}/wifi-status.json"
 MODE="${STATE_DIR}/wifi-mode.json"
 CONN_NAME="dot-phone-hotspot"
+JOIN_BIN="/usr/local/sbin/dot-wifi-join"
+LOCK="/run/dot-wifi-apply.lock"
 
 mkdir -p "${STATE_DIR}"
+
+exec 9>"${LOCK}"
+if ! flock -n 9; then
+  echo "Another wifi-apply is already running — skip" >&2
+  exit 0
+fi
 
 if [[ ! -f "${REQUEST}" ]]; then
   echo "No ${REQUEST}" >&2
@@ -50,42 +60,26 @@ print(password)
 PY
 }
 
-current_ip() {
-  local ip=""
-  ip="$(nmcli -g IP4.ADDRESS device show wlan0 2>/dev/null | head -n1 | cut -d/ -f1 || true)"
-  if [[ -z "${ip}" ]]; then
-    ip="$(ip -4 -o addr show wlan0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true)"
-  fi
-  printf '%s' "${ip}"
-}
-
-already_on_ssid() {
-  local want="$1"
-  local active
-  active="$(nmcli -t -f ACTIVE,SSID device wifi 2>/dev/null | awk -F: '$1=="yes"{print $2; exit}')"
-  [[ -n "${active}" && "${active}" == "${want}" ]]
-}
-
 mapfile -t CREDS < <(read_request)
 SSID="${CREDS[0]}"
 PASS="${CREDS[1]}"
 
 write_status "switching" 0 "Stopping setup AP and joining ${SSID}…"
 
-# Tear down AP
+# Tear down Setup AP once
 systemctl stop hostapd dnsmasq 2>/dev/null || true
 systemctl disable hostapd 2>/dev/null || true
-
-# Return wlan0 to NetworkManager
 rm -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf
 systemctl reload NetworkManager 2>/dev/null || true
 nmcli device set wlan0 managed yes 2>/dev/null || true
 nmcli radio wifi on 2>/dev/null || true
+command -v iw >/dev/null 2>&1 && iw dev wlan0 set power_save off 2>/dev/null || true
+# Clear leftover AP address without bouncing the radio repeatedly
 ip addr flush dev wlan0 2>/dev/null || true
 ip link set wlan0 up || true
-sleep 2
+sleep 1
 
-# Drop old profiles that collide (by our name or by SSID)
+# Drop colliding profiles (by our name or by SSID)
 nmcli -t -f NAME,UUID,TYPE connection show 2>/dev/null | while IFS=: read -r name uuid type; do
   [[ "${type}" == "802-11-wireless" || "${type}" == "wifi" ]] || continue
   if [[ "${name}" == "${CONN_NAME}" || "${name}" == "${SSID}" ]]; then
@@ -93,9 +87,29 @@ nmcli -t -f NAME,UUID,TYPE connection show 2>/dev/null | while IFS=: read -r nam
   fi
 done
 
-# Wait until the hotspot is visible (iPhone hotspot can appear late)
+# Create one hardened profile (do not nmcli modify later while connected)
+nmcli connection add type wifi ifname wlan0 con-name "${CONN_NAME}" \
+  ssid "${SSID}" \
+  wifi-sec.key-mgmt wpa-psk \
+  wifi-sec.psk "${PASS}" \
+  connection.autoconnect yes \
+  connection.autoconnect-priority 200 \
+  connection.autoconnect-retries 0 \
+  connection.wait-device-timeout 8 \
+  ipv4.method auto \
+  ipv4.dhcp-timeout 25 \
+  ipv6.method ignore \
+  802-11-wireless.mac-address-randomization never \
+  802-11-wireless.powersave 2 \
+  || {
+    write_status "error" 0 "Failed to create Wi-Fi connection profile"
+    exit 1
+  }
+touch "${STATE_DIR}/.hotspot-profile-hardened" 2>/dev/null || true
+
+# Wait for iPhone hotspot to appear — rescans only while still down
 visible=0
-for _ in 1 2 3 4 5 6 7 8 9 10; do
+for _ in $(seq 1 12); do
   nmcli device wifi rescan 2>/dev/null || true
   sleep 2
   if nmcli -t -f SSID device wifi list 2>/dev/null | grep -Fxq "${SSID}"; then
@@ -104,57 +118,28 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   fi
   echo "Waiting for SSID «${SSID}»…"
 done
+if [[ "${visible}" -ne 1 ]]; then
+  echo "SSID not listed yet — will still try join (iPhone hotspot can be hidden)."
+fi
 
-nmcli connection add type wifi ifname wlan0 con-name "${CONN_NAME}" \
-  ssid "${SSID}" \
-  wifi-sec.key-mgmt wpa-psk \
-  wifi-sec.psk "${PASS}" \
-  connection.autoconnect yes \
-  ipv4.method auto ipv6.method ignore \
-  || {
-    write_status "error" 0 "Failed to create Wi-Fi connection profile"
+# Single join path (anti-flap: no extra connection up loops here)
+if [[ -x "${JOIN_BIN}" ]]; then
+  if ! "${JOIN_BIN}" "${CONN_NAME}"; then
+    write_status "error" 0 "Could not join «${SSID}». Check hotspot name/password, keep modem on, unlock phone."
+    mv -f "${REQUEST}" "${STATE_DIR}/wifi-request.failed.json" 2>/dev/null || true
     exit 1
-  }
-
-connected=0
-for attempt in 1 2 3 4 5; do
-  echo "Connect attempt ${attempt}…"
-  if nmcli -w 30 connection up "${CONN_NAME}" ifname wlan0; then
-    connected=1
-    break
   fi
-  # Hotspot may have been off briefly
-  nmcli device wifi rescan 2>/dev/null || true
-  sleep 3
-done
-
-IP="$(current_ip)"
-if [[ "${connected}" -ne 1 ]]; then
-  # Sometimes NM associates under another profile / delayed DHCP
-  if already_on_ssid "${SSID}" && [[ -n "${IP}" ]]; then
-    connected=1
+else
+  # Fallback if join helper not installed yet
+  if ! nmcli -w 45 connection up "${CONN_NAME}" ifname wlan0; then
+    write_status "error" 0 "Could not join «${SSID}». Check hotspot name/password."
+    mv -f "${REQUEST}" "${STATE_DIR}/wifi-request.failed.json" 2>/dev/null || true
+    exit 1
   fi
-fi
-
-if [[ "${connected}" -ne 1 || -z "${IP}" ]]; then
-  # Last chance: wait for DHCP if associated
-  for _ in 1 2 3 4 5 6; do
-    IP="$(current_ip)"
-    if already_on_ssid "${SSID}" && [[ -n "${IP}" ]]; then
-      connected=1
-      break
-    fi
-    sleep 2
-  done
-fi
-
-if [[ "${connected}" -ne 1 || -z "${IP}" ]]; then
-  write_status "error" 0 "Could not join «${SSID}». Check hotspot name/password, then reopen setup AP."
-  mv -f "${REQUEST}" "${STATE_DIR}/wifi-request.failed.json" 2>/dev/null || true
-  exit 1
 fi
 
 rm -f "${REQUEST}" "${STATE_DIR}/wifi-request.failed.json"
+IP="$(nmcli -g IP4.ADDRESS device show wlan0 2>/dev/null | head -n1 | cut -d/ -f1 || true)"
 write_status "client" 1 "Connected to «${SSID}»" "${IP}"
 
 python3 - "${STATE_DIR}/wifi-client.json" "${SSID}" "${IP}" <<'PY'

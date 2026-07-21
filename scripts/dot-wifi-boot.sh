@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # On boot: if phone hotspot is not configured yet, start Dot-Setup AP.
-# If configured, try joining the phone hotspot (NM autoconnect / connection up).
+# If configured, join via anti-flap helper (never flap an already-good link).
 set -euo pipefail
 
 STATE_DIR="${DOT_WIFI_STATE_DIR:-/var/lib/dot}"
 PROFILE_NAME="${DOT_WIFI_PROFILE_NAME:-dot-phone-hotspot}"
 ENTER_SETUP="/usr/local/sbin/dot-enter-setup-ap"
+JOIN_BIN="/usr/local/sbin/dot-wifi-join"
 LOG="/var/log/dot-wifi-boot.log"
 
 log() {
@@ -39,17 +40,23 @@ fi
 
 # Already configured: bring up saved phone-hotspot profile.
 log "Hotspot profile present — attempting client join"
+if [[ -x "${JOIN_BIN}" ]]; then
+  if "${JOIN_BIN}" "${PROFILE_NAME}"; then
+    log "Joined hotspot via ${JOIN_BIN}"
+    exit 0
+  fi
+  log "WARN: join helper failed (Personal Hotspot may be off)"
+  exit 0
+fi
+
+# Fallback without join helper
 nmcli radio wifi on 2>/dev/null || true
-# Tear down leftover setup AP if any
 if systemctl is-active --quiet hostapd 2>/dev/null; then
   systemctl stop hostapd dnsmasq 2>/dev/null || true
   rm -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf
   systemctl reload NetworkManager 2>/dev/null || true
   nmcli device set wlan0 managed yes 2>/dev/null || true
 fi
-
-nmcli device wifi rescan 2>/dev/null || true
-sleep 2
 if nmcli -w 45 connection up "$PROFILE_NAME" ifname wlan0; then
   ip="$(nmcli -g IP4.ADDRESS device show wlan0 2>/dev/null | head -n1 | cut -d/ -f1 || true)"
   log "Joined hotspot ip=${ip:-unknown}"
