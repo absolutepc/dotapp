@@ -91,6 +91,7 @@ nmcli -t -f NAME,TYPE connection show 2>/dev/null | while IFS=: read -r name typ
 done
 
 systemctl enable --now dot-wifi-keepalive.timer 2>/dev/null || true
+systemctl enable --now dot-wifi-watch.service 2>/dev/null || true
 systemctl start dot-wifi-watch.service 2>/dev/null || true
 
 SSID="$(nmcli -g 802-11-wireless.ssid connection show "${CONN_NAME}" 2>/dev/null || true)"

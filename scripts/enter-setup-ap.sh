@@ -13,6 +13,14 @@ mkdir -p "${STATE_DIR}"
 
 echo "Entering setup AP mode: ${SSID}"
 
+# Pause auto-join watchers — otherwise they tear down Setup AP within seconds
+# because hotspot credentials/profile already exist.
+touch "${STATE_DIR}/setup-ap-hold"
+systemctl stop dot-wifi-watch.service 2>/dev/null || true
+systemctl stop dot-wifi-keepalive.timer dot-wifi-keepalive.service 2>/dev/null || true
+pkill -f '/usr/local/sbin/dot-wifi-watch' 2>/dev/null || true
+pkill -f '/usr/local/sbin/dot-wifi-use-hotspot' 2>/dev/null || true
+
 need_pkgs=()
 command -v hostapd >/dev/null || need_pkgs+=(hostapd)
 command -v dnsmasq >/dev/null || need_pkgs+=(dnsmasq)
@@ -199,5 +207,6 @@ echo "  1. On iPhone: join Wi-Fi  ${SSID}"
 echo "  2. Password:              ${SETUP_PASS}"
 echo "  3. Open Dot app → Wi‑Fi setup  (or http://${AP_IP}/setup/)"
 echo "  4. Enter your iPhone Personal Hotspot name + password"
+echo "  Auto-join is paused until you finish setup (or run: sudo dot-wifi-use-hotspot)."
 echo "  HDMI shows the same SSID / password / QR when display is running."
 echo ""

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Soft keepalive oneshot (timer): ping when up; join when down.
-# NetworkManager states: 30=disconnected (must join!), 40–90=progress, 100=up.
+# Respects setup-ap-hold so intentional Dot-Setup is not torn down.
 set -euo pipefail
 
 PROFILE_NAME="${DOT_WIFI_PROFILE_NAME:-dot-phone-hotspot}"
@@ -8,8 +8,13 @@ JOIN="/usr/local/sbin/dot-wifi-join"
 USE="/usr/local/sbin/dot-wifi-use-hotspot"
 LOG="/var/log/dot-wifi-keepalive.log"
 STATE_DIR="/var/lib/dot"
+HOLD="${STATE_DIR}/setup-ap-hold"
 
 log() { echo "$(date -Is) $*" >>"${LOG}" 2>/dev/null || true; }
+
+if [[ -f "${HOLD}" ]]; then
+  exit 0
+fi
 
 if ! command -v nmcli >/dev/null 2>&1; then
   exit 0
@@ -25,9 +30,9 @@ if [[ "${has_profile}" -ne 1 ]]; then
   exit 0
 fi
 
-# Credentials exist: do not stay stuck in Setup AP
+# Setup AP without hold + profile → reclaim for client
 if systemctl is-active --quiet hostapd 2>/dev/null || [[ -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf ]]; then
-  log "hostapd/unmanaged with profile — use-hotspot"
+  log "hostapd/unmanaged with profile (no hold) — use-hotspot"
   if [[ -x "${USE}" ]]; then
     "${USE}" >>"${LOG}" 2>&1 || true
   fi
@@ -46,7 +51,6 @@ if [[ -n "${ip}" && "${conn}" == "${PROFILE_NAME}" && "${num}" == "100" ]]; then
   exit 0
 fi
 
-# 40–90 = in progress — do not bounce
 case "${num}" in
   40|50|60|70|80|90) exit 0 ;;
 esac

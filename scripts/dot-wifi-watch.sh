@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Long-running watch: every 15s ensure Dot is on the phone hotspot.
-# Safer than a timer stacking oneshots. Skips while Setup AP is intentional.
+# Respects /var/lib/dot/setup-ap-hold — do not tear down intentional Setup AP.
 set -euo pipefail
 
 PROFILE_NAME="${DOT_WIFI_PROFILE_NAME:-dot-phone-hotspot}"
@@ -8,6 +8,7 @@ JOIN="/usr/local/sbin/dot-wifi-join"
 USE="/usr/local/sbin/dot-wifi-use-hotspot"
 LOG="/var/log/dot-wifi-watch.log"
 STATE_DIR="/var/lib/dot"
+HOLD="${STATE_DIR}/setup-ap-hold"
 
 mkdir -p "${STATE_DIR}"
 touch "${LOG}" 2>/dev/null || true
@@ -21,7 +22,12 @@ while true; do
     continue
   fi
 
-  # If no profile and no pending creds — nothing to do
+  # User explicitly opened Setup AP — leave it alone.
+  if [[ -f "${HOLD}" ]]; then
+    sleep 20
+    continue
+  fi
+
   has_profile=0
   nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "${PROFILE_NAME}" && has_profile=1
   if [[ "${has_profile}" -ne 1 && ! -f "${STATE_DIR}/wifi-pending.json" ]]; then
@@ -29,12 +35,10 @@ while true; do
     continue
   fi
 
-  # Prefer client mode whenever a hotspot profile/pending exists:
-  # lingering Setup AP blocks auto-join.
+  # Setup AP left running without hold (crash/old build) — reclaim for client.
   if systemctl is-active --quiet hostapd 2>/dev/null || [[ -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf ]]; then
-    # Only auto-exit Setup AP if user already saved hotspot credentials
     if [[ "${has_profile}" -eq 1 || -f "${STATE_DIR}/wifi-pending.json" ]]; then
-      log "Setup AP active but hotspot creds exist — switching to client"
+      log "Setup AP without hold + hotspot creds — switching to client"
       if [[ -x "${USE}" ]]; then
         "${USE}" >>"${LOG}" 2>&1 || true
       fi
@@ -58,7 +62,6 @@ while true; do
     continue
   fi
 
-  # Creating profile from pending if needed
   if [[ "${has_profile}" -ne 1 && -x "${USE}" ]]; then
     log "no profile — use-hotspot"
     "${USE}" >>"${LOG}" 2>&1 || true
