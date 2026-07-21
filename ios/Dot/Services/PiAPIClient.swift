@@ -113,7 +113,7 @@ final class PiAPIClient: ObservableObject {
                 isConnected = false
                 gallery = []
                 status = nil
-                errorMessage = "Dot найден в режиме настройки. Завершите Wi‑Fi (Режим модема)."
+                errorMessage = "Dot найден в режиме настройки. Откройте «Настройка Wi‑Fi» и пройдите шаги."
                 return
             }
 
@@ -152,7 +152,7 @@ final class PiAPIClient: ObservableObject {
         isConnected = false
         shouldOfferWifiSetup = false
         errorMessage =
-            "Не найден Dot. Для первого раза: Wi‑Fi → Dot-Setup-… (пароль dotsetup1), затем «Настройка Wi‑Fi». "
+            "Не найден Dot. Первый раз: «Настройка Wi‑Fi (по шагам)» — сначала Dot-Setup, потом модем. "
             + "Обычная работа: включите Режим модема и подождите несколько секунд."
     }
 
@@ -182,7 +182,7 @@ final class PiAPIClient: ObservableObject {
                 shouldOfferWifiSetup = true
                 isConnected = false
                 gallery = []
-                errorMessage = "Dot в режиме настройки. Завершите Wi‑Fi (Режим модема)."
+                errorMessage = "Dot в режиме настройки. Откройте «Настройка Wi‑Fi» и пройдите шаги."
                 return
             }
 

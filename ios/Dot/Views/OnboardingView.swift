@@ -16,7 +16,7 @@ struct OnboardingView: View {
         OnboardingSlide(
             symbol: "wifi",
             title: "Первое подключение",
-            body: "Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль dotsetup1), откройте настройку Wi‑Fi в приложении и введите имя и пароль Режима модема. Терминал на Dot не нужен."
+            body: "По шагам: зайдите в Dot-Setup-… → введите имя и пароль модема (модем ещё выключен) → выйдите из Dot-Setup → включите Режим модема → найдите Dot. Одновременно Wi‑Fi Dot и модем не работают."
         ),
         OnboardingSlide(
             symbol: "iphone.and.arrow.forward",

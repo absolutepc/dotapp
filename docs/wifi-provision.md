@@ -7,18 +7,20 @@ In the car you also do not carry a home router.
 
 **Recommended:** Pi joins the **iPhone Personal Hotspot**. The phone keeps cellular data; the app talks to the Pi on the hotspot LAN.
 
-## First connect (no Pi terminal)
+## First connect (no Pi terminal) — step by step
+
+iPhone **cannot** stay on Dot-Setup Wi‑Fi and run Personal Hotspot at the same time.  
+Do one step at a time (the app wizard enforces this):
 
 After Wi-Fi helpers are installed once (`install-wifi-provision.sh` / `install-pi.sh`):
 
 1. Pi **automatically** opens Wi-Fi `Dot-Setup-XXXX` on boot until a phone hotspot is saved  
    (password default: `dotsetup1`)
-2. On the iPhone: join `Dot-Setup-…`
-3. Open the **Dot** app — it should find `192.168.4.1` and open **Настройка Wi‑Fi**
-4. Enter **Personal Hotspot** name + password (Settings → Personal Hotspot / Режим модема)
-5. Tap **Сохранить и подключить**
-6. Leave Dot-Setup, **enable Personal Hotspot**, wait a few seconds
-7. In the app tap **Найти Pi в сети модема** / **Найти автоматически**
+2. **Step 1:** On the iPhone join `Dot-Setup-…` — do **not** enable Personal Hotspot yet
+3. Open the **Dot** app → **Настройка Wi‑Fi (по шагам)**
+4. **Step 2:** Look up hotspot **name + password** in Settings → Personal Hotspot (leave the toggle **off**), enter them in the app, tap **Отправить на Dot**
+5. **Step 3:** Leave Dot-Setup Wi‑Fi, **then** enable Personal Hotspot; keep the phone unlocked ~10–15s
+6. **Step 4:** Tap **Найти Dot** — gallery opens when Dot is on the hotspot LAN
 
 You should **not** need SSH or `curl` on the Pi for a normal first connect.
 

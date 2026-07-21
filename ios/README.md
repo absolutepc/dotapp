@@ -16,7 +16,7 @@ If Xcode reports `ObservableObject` / `@Published` errors, ensure `import Combin
 ## Usage
 
 1. **First launch:** the app shows 3 short onboarding slides (once; stored as `dot.onboarding.completed`).
-2. **First Wi‑Fi:** join `Dot-Setup-…` on iPhone (Dot opens it after install), open **Настройка Wi‑Fi** → enter Personal Hotspot name/password.
+2. **First Wi‑Fi (step by step):** join `Dot-Setup-…` → enter hotspot name/password with modem **off** → leave Dot-Setup → enable Personal Hotspot → **Найти Dot**. Do not run Dot-Setup Wi‑Fi and Personal Hotspot at the same time.
 3. **Every day:** enable Personal Hotspot → Dot joins → app auto-discovers via parallel probe / `*.local` / hotspot LAN.
 4. Browse gallery, tap an item, **Apply to Display** (shows prepare progress if Dot is building frames). Custom photos → **Custom** tab.
 5. **Где Dot** (toolbar pin): last place the iPhone saw Dot (phone GPS while connected). Shown in the Dot app and Apple Maps — **not** Apple Find My / Локатор (that requires Apple accessory certification).

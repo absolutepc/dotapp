@@ -37,11 +37,11 @@ struct ConnectionView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Первый раз")
+                    Text("Первый раз — по шагам")
                         .font(.subheadline.weight(.semibold))
-                    Label("На Dot должна появиться сеть `Dot-Setup-…` (сама после установки)", systemImage: "1.circle.fill")
-                    Label("Подключите iPhone к ней (пароль: `dotsetup1`)", systemImage: "2.circle.fill")
-                    Label("Нажмите «Настройка Wi‑Fi» и введите Режим модема", systemImage: "3.circle.fill")
+                    Label("Зайдите в Wi‑Fi `Dot-Setup-…` (пароль `dotsetup1`)", systemImage: "1.circle.fill")
+                    Label("В приложении введите имя и пароль модема — модем ещё не включайте", systemImage: "2.circle.fill")
+                    Label("Выйдите из Dot-Setup, включите Режим модема, найдите Dot", systemImage: "3.circle.fill")
                 }
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -87,8 +87,7 @@ struct ConnectionView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button("Настройка Wi‑Fi (первый раз)") {
-                    api.host = "192.168.4.1"
+                Button("Настройка Wi‑Fi (по шагам)") {
                     onSetupWifi()
                 }
                 .buttonStyle(.borderedProminent)
