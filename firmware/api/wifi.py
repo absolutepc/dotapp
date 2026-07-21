@@ -119,6 +119,7 @@ def _trigger_setup_ap() -> None:
     """Re-enter Dot-Setup AP without SSH (for app /reprovision)."""
     for cmd in (
         ["sudo", "-n", "/usr/local/sbin/dot-enter-setup-ap"],
+        # Boot unit also respects wifi-role=setup and starts Dot-Setup (safe fallback).
         ["sudo", "-n", "systemctl", "start", "dot-wifi-boot.service"],
     ):
         try:
@@ -132,6 +133,54 @@ def _trigger_setup_ap() -> None:
         except Exception:  # noqa: BLE001
             continue
     logger.warning("Could not start setup AP helper")
+
+
+def _begin_setup_role() -> None:
+    """Flip to setup role immediately so watch/keepalive stop joining the hotspot."""
+    DATA_ROOT.mkdir(parents=True, exist_ok=True)
+    role = DATA_ROOT / "wifi-role"
+    role.write_text("setup\n", encoding="utf-8")
+    try:
+        os.chmod(role, 0o644)
+    except OSError:
+        pass
+    hold = DATA_ROOT / "setup-ap-hold"
+    hold.touch()
+    # Drop live client markers so status cannot look like «still on hotspot».
+    for name in ("wifi-client.json", "wifi-request.json", "wifi-request.failed.json"):
+        path = DATA_ROOT / name
+        if path.exists():
+            try:
+                path.unlink()
+            except OSError:
+                pass
+    now = datetime.now(timezone.utc).isoformat()
+    WIFI_MODE.write_text(
+        json.dumps(
+            {
+                "mode": "setup_ap",
+                "ssid": None,
+                "ip": "192.168.4.1",
+                "portal": "http://192.168.4.1/setup/",
+                "message": "Leaving hotspot — starting Dot-Setup…",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    WIFI_STATUS.write_text(
+        json.dumps(
+            {
+                "ok": False,
+                "mode": "setup_ap",
+                "message": "Leaving hotspot — starting Dot-Setup…",
+                "ip": "192.168.4.1",
+                "updated_at": now,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 @router.get("/status")
@@ -305,22 +354,16 @@ def wifi_reprovision(req: WifiReprovisionRequest) -> dict:
         )
 
     DATA_ROOT.mkdir(parents=True, exist_ok=True)
-    WIFI_STATUS.write_text(
-        json.dumps(
-            {
-                "ok": False,
-                "mode": "setup_ap",
-                "message": "Re-entering setup AP…",
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    # Stop modem auto-join immediately (role + hold), then bring up Dot-Setup AP.
+    _begin_setup_role()
     _trigger_setup_ap()
     return {
         "ok": True,
-        "message": "Dot открывает сеть Dot-Setup. Подключите iPhone к ней и снова введите Режим модема.",
+        "message": (
+            "Dot выходит из модема и открывает сеть Dot-Setup. "
+            "Автоподключение к точке доступа отключено. "
+            "Подключите iPhone к Dot-Setup и снова пройдите настройку Wi‑Fi."
+        ),
         "setup_portal": "http://192.168.4.1/setup/",
     }
 

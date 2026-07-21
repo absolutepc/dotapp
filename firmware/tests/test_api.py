@@ -246,7 +246,7 @@ def test_wifi_reprovision_requires_confirm_and_client(client, tmp_path, monkeypa
     blocked = test_client.post("/api/wifi/reprovision", json={"confirm": True})
     assert blocked.status_code == 409
 
-    # Client + confirm → ok
+    # Client + confirm → ok, flips role to setup and stops client markers
     (tmp_path / "wifi-status.json").write_text(
         json.dumps({"ok": True, "mode": "client", "message": "on hotspot", "ip": "172.20.10.2"}),
         encoding="utf-8",
@@ -258,5 +258,10 @@ def test_wifi_reprovision_requires_confirm_and_client(client, tmp_path, monkeypa
     ok = test_client.post("/api/wifi/reprovision", json={"confirm": True})
     assert ok.status_code == 200
     assert ok.json()["ok"] is True
-    assert (tmp_path / "wifi-status.json").exists()
-    assert json.loads((tmp_path / "wifi-status.json").read_text(encoding="utf-8"))["mode"] == "setup_ap"
+    assert (tmp_path / "wifi-role").read_text(encoding="utf-8").strip() == "setup"
+    assert (tmp_path / "setup-ap-hold").exists()
+    assert not (tmp_path / "wifi-client.json").exists()
+    status = json.loads((tmp_path / "wifi-status.json").read_text(encoding="utf-8"))
+    assert status["mode"] == "setup_ap"
+    mode = json.loads((tmp_path / "wifi-mode.json").read_text(encoding="utf-8"))
+    assert mode["mode"] == "setup_ap"

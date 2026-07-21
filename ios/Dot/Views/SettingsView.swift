@@ -287,7 +287,7 @@ private struct ReprovisionConfirmSheet: View {
                 Section {
                     Label("Это отключит Dot от Режима модема", systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
-                    Text("Dot откроет сеть Dot-Setup. Потребуется заново пройти настройку Wi‑Fi. Случайный сброс прервёт обычную работу.")
+                    Text("Dot перестанет сам подключаться к точке доступа, откроет сеть Dot-Setup и потребует заново пройти настройку Wi‑Fi. Случайный сброс прервёт обычную работу.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

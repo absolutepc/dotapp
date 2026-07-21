@@ -17,17 +17,34 @@ echo "Entering setup AP mode: ${SSID}"
 echo "setup" >"${STATE_DIR}/wifi-role"
 touch "${STATE_DIR}/setup-ap-hold"
 
-# Pause client watchers so they cannot tear down Dot-Setup.
-systemctl stop dot-wifi-watch.service 2>/dev/null || true
-systemctl stop dot-wifi-keepalive.timer dot-wifi-keepalive.service 2>/dev/null || true
+# Pause AND disable client watchers so they cannot tear down Dot-Setup or rejoin hotspot.
+systemctl disable --now dot-wifi-watch.service 2>/dev/null || true
+systemctl disable --now dot-wifi-keepalive.timer 2>/dev/null || true
+systemctl stop dot-wifi-keepalive.service 2>/dev/null || true
 pkill -f '/usr/local/sbin/dot-wifi-watch' 2>/dev/null || true
 pkill -f '/usr/local/sbin/dot-wifi-use-hotspot' 2>/dev/null || true
+pkill -f '/usr/local/sbin/dot-wifi-join' 2>/dev/null || true
+pkill -f '/usr/local/sbin/dot-wifi-keepalive' 2>/dev/null || true
 
-# If an old hotspot profile exists, disable its autoconnect while in setup.
-if command -v nmcli >/dev/null 2>&1 && nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot"; then
-  nmcli connection modify dot-phone-hotspot connection.autoconnect no 2>/dev/null || true
-  nmcli connection down dot-phone-hotspot 2>/dev/null || true
+# Drop the hotspot NM profile so it cannot autoconnect while we are in Dot-Setup.
+# Credentials stay in wifi-pending.json for the next wizard run (use-hotspot recreates the profile).
+if command -v nmcli >/dev/null 2>&1; then
+  if nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot"; then
+    nmcli connection modify dot-phone-hotspot connection.autoconnect no 2>/dev/null || true
+    nmcli connection down dot-phone-hotspot 2>/dev/null || true
+    nmcli connection delete dot-phone-hotspot 2>/dev/null || true
+  fi
+  # Also disable autoconnect on any other Wi-Fi profiles that might steal wlan0.
+  nmcli -t -f NAME,TYPE connection show 2>/dev/null | while IFS=: read -r name type; do
+    [[ "${type}" == "802-11-wireless" || "${type}" == "wifi" ]] || continue
+    nmcli connection modify "${name}" connection.autoconnect no 2>/dev/null || true
+    nmcli connection down "${name}" 2>/dev/null || true
+  done
 fi
+
+# Cancel any queued join request.
+rm -f "${STATE_DIR}/wifi-request.json" "${STATE_DIR}/wifi-request.failed.json" \
+  "${STATE_DIR}/wifi-client.json" "${STATE_DIR}/.hotspot-profile-hardened"
 
 need_pkgs=()
 command -v hostapd >/dev/null || need_pkgs+=(hostapd)

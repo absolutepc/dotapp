@@ -75,6 +75,8 @@ sudo systemctl start dot-wifi-boot
 `sudo dot-enter-setup-ap` sets `setup`.  
 `sudo dot-wifi-use-hotspot` / successful app «Подключить Dot» sets `client`.
 
+App **Сбросить Wi‑Fi Dot** (`POST /api/wifi/reprovision` with `confirm: true`) immediately writes `wifi-role=setup` + `setup-ap-hold`, disables watch/keepalive auto-join, deletes the `dot-phone-hotspot` NM profile, and starts Dot-Setup AP. Saved modem name/password in `wifi-pending.json` are kept for the next wizard run.
+
 - Hotspot password must be at least **8 characters** (WPA).
 - If you change the iPhone hotspot password, re-enter setup AP (app reprovision or `sudo dot-enter-setup-ap`) and save again.
 - While in setup AP, the round HDMI shows SSID / password / QR (`setup-info` frame).
