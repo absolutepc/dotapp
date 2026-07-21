@@ -201,7 +201,7 @@
         const res = await fetch("/api/wifi/configure", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ssid, password }),
+          body: JSON.stringify({ ssid, password, apply_now: true }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {

@@ -106,9 +106,9 @@ struct WifiSetupView: View {
         case .enterCredentials:
             return "Посмотрите имя и пароль в Настройки → Режим модема — но переключатель модема оставьте выключенным. Вы всё ещё в Dot-Setup."
         case .enableHotspot:
-            return "Данные уже на Dot. Теперь выйдите из Dot-Setup и только после этого включите Режим модема."
+            return "Пока оставайтесь в Wi‑Fi Dot-Setup. Нажмите кнопку — Dot запомнит команду на выход. Сразу после этого выйдите из Dot-Setup и включите модем."
         case .findDot:
-            return "Модем должен быть включён. Dot подключится к нему сам — найдём его в сети."
+            return "Модем включён, экран разблокирован. Подождите 10–20 секунд — Dot подключается один раз, без повторных обрывов."
         }
     }
 
@@ -186,7 +186,7 @@ struct WifiSetupView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                 } else {
-                    Text(credentialsSaved ? "Сохранено на Dot" : "Отправить на Dot")
+                    Text(credentialsSaved ? "Сохранено на Dot" : "Сохранить на Dot")
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -198,7 +198,7 @@ struct WifiSetupView: View {
                     || !inSetupMode
             )
         } footer: {
-            Text("Пока вы в Dot-Setup, Dot получит имя и пароль. Подключение к модему будет на следующем шаге.")
+            Text("Пока вы в Dot-Setup, Dot только запомнит имя и пароль. К модему он подключится на следующем шаге — после включения модема.")
         }
     }
 
@@ -207,12 +207,12 @@ struct WifiSetupView: View {
     @ViewBuilder
     private var enableHotspotSections: some View {
         Section {
-            Label("Откройте Настройки → Wi‑Fi", systemImage: "1.circle.fill")
-            Label("Отключитесь от `Dot-Setup-…` (или выберите другую сеть / выключите Wi‑Fi)", systemImage: "2.circle.fill")
-            Label("Настройки → Режим модема → включите переключатель", systemImage: "3.circle.fill")
-            Label("Включите «Максимальная совместимость», экран не блокируйте", systemImage: "4.circle.fill")
+            Label("Останьтесь в Wi‑Fi `Dot-Setup-…`", systemImage: "1.circle.fill")
+            Label("Нажмите «Подключить Dot» ниже", systemImage: "2.circle.fill")
+            Label("Сразу после этого выйдите из Dot-Setup", systemImage: "3.circle.fill")
+            Label("Включите Режим модема + «Максимальная совместимость»", systemImage: "4.circle.fill")
         } footer: {
-            Text("Сначала выйдите из Dot-Setup, потом включите модем. Не нажимайте «Найти Dot» много раз подряд — Dot сам подключится один раз.")
+            Text("Важно: команду «подключить» нужно отправить ещё из Dot-Setup. Иначе Dot не узнает, что пора выходить. Подключение к модему будет одно — без цикла обрывов.")
         }
     }
 
@@ -267,8 +267,8 @@ struct WifiSetupView: View {
     private var primaryButtonTitle: String {
         switch step {
         case .joinSetup: return "Далее"
-        case .enterCredentials: return credentialsSaved ? "Далее" : "Сначала отправьте на Dot"
-        case .enableHotspot: return "Модем включён — далее"
+        case .enterCredentials: return credentialsSaved ? "Далее" : "Сначала сохраните на Dot"
+        case .enableHotspot: return "Модем включён — подключить Dot"
         case .findDot: return api.canBrowseGallery ? "Готово" : "Найти Dot"
         }
     }
@@ -311,14 +311,34 @@ struct WifiSetupView: View {
             statusText = nil
             step = .enableHotspot
         case .enableHotspot:
-            statusText = nil
-            step = .findDot
+            await startHotspotJoin()
         case .findDot:
             if api.canBrowseGallery {
                 dismiss()
             } else {
                 await findOnHotspot()
             }
+        }
+    }
+
+    private func startHotspotJoin() async {
+        isBusy = true
+        defer { isBusy = false }
+        statusIsError = false
+        statusText = "Отправляю команду подключения (ещё из Dot-Setup)…"
+
+        do {
+            api.host = "192.168.4.1"
+            let response = try await api.connectHotspot()
+            statusText = (response.message ?? "Команда принята.")
+                + " Теперь выйдите из Dot-Setup и включите Режим модема."
+            inSetupMode = false
+            deviceReachable = false
+            step = .findDot
+        } catch {
+            statusIsError = true
+            statusText =
+                "Нет связи с Dot-Setup. Вернитесь в Wi‑Fi Dot-Setup-… (пароль dotsetup1), затем снова нажмите кнопку."
         }
     }
 
@@ -370,17 +390,14 @@ struct WifiSetupView: View {
         isBusy = true
         defer { isBusy = false }
         statusIsError = false
-        statusText = "Отправляю имя и пароль на Dot…"
+        statusText = "Сохраняю имя и пароль на Dot (без подключения)…"
 
         do {
-            let response = try await api.configureWifi(ssid: ssid, password: hotspotPassword)
+            // applyNow: false — stay on Setup AP; join happens after modem is on.
+            let response = try await api.configureWifi(ssid: ssid, password: hotspotPassword, applyNow: false)
             credentialsSaved = true
-            deviceReachable = false
-            inSetupMode = false
             statusText = response.message
-                ?? "Данные сохранены. Дальше выйдите из Dot-Setup и включите Режим модема."
-            // Brief wait: setup AP will drop — that is expected.
-            try? await Task.sleep(nanoseconds: 1_200_000_000)
+                ?? "Сохранено. Дальше выйдите из Dot-Setup и включите Режим модема."
         } catch {
             credentialsSaved = false
             statusIsError = true

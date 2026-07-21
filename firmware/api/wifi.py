@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/wifi", tags=["wifi"])
 
 WIFI_REQUEST = DATA_ROOT / "wifi-request.json"
+WIFI_PENDING = DATA_ROOT / "wifi-pending.json"
 WIFI_STATUS = DATA_ROOT / "wifi-status.json"
 WIFI_MODE = DATA_ROOT / "wifi-mode.json"
 WIFI_CLIENT = DATA_ROOT / "wifi-client.json"
@@ -29,6 +30,9 @@ SETUP_DIR = REPO_ROOT / "firmware" / "static" / "setup"
 class WifiConfigureRequest(BaseModel):
     ssid: str = Field(min_length=1, max_length=32)
     password: str = Field(min_length=8, max_length=63)
+    # False (default): only store credentials while still on Dot-Setup.
+    # True: also tear down Setup AP and join immediately (legacy one-shot portal).
+    apply_now: bool = False
 
 
 def _read_json(path: Path) -> dict:
@@ -172,6 +176,66 @@ def wifi_configure(body: WifiConfigureRequest) -> dict:
         "password": body.password,
         "requested_at": datetime.now(timezone.utc).isoformat(),
     }
+    # Always keep a pending copy (step wizard: save while still on Setup AP).
+    pending_tmp = DATA_ROOT / "wifi-pending.json.tmp"
+    pending_tmp.write_text(json.dumps(payload), encoding="utf-8")
+    os.chmod(pending_tmp, 0o600)
+    pending_tmp.replace(WIFI_PENDING)
+
+    if not body.apply_now:
+        WIFI_STATUS.write_text(
+            json.dumps(
+                {
+                    "ok": True,
+                    "mode": "setup_ap",
+                    "message": f"Credentials saved for «{ssid}». Enable Personal Hotspot, then connect.",
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        logger.info("Wi-Fi credentials pending for ssid=%s (apply deferred)", ssid)
+        return {
+            "ok": True,
+            "deferred": True,
+            "message": "Данные сохранены. Dot остаётся в Dot-Setup. Дальше выйдите из Dot-Setup, включите Режим модема и нажмите «Подключить».",
+        }
+
+    _queue_apply(payload)
+    logger.info("Wi-Fi configure+apply requested for ssid=%s", ssid)
+    return {
+        "ok": True,
+        "deferred": False,
+        "message": "Сохранено. Dot выходит из сети настройки и подключается к точке iPhone…",
+    }
+
+
+@router.post("/connect-hotspot")
+def wifi_connect_hotspot() -> dict:
+    """Apply previously saved credentials (after user enabled Personal Hotspot)."""
+    pending = _read_json(WIFI_PENDING)
+    ssid = (pending.get("ssid") or "").strip()
+    password = pending.get("password") or ""
+    if not ssid or len(password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="No saved hotspot credentials. Complete step «имя и пароль модема» first.",
+        )
+    payload = {
+        "ssid": ssid,
+        "password": password,
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _queue_apply(payload)
+    logger.info("Wi-Fi connect-hotspot for ssid=%s", ssid)
+    return {
+        "ok": True,
+        "message": "Dot выходит из Dot-Setup и один раз подключается к модему…",
+    }
+
+
+def _queue_apply(payload: dict) -> None:
     tmp = DATA_ROOT / "wifi-request.json.tmp"
     tmp.write_text(json.dumps(payload), encoding="utf-8")
     os.chmod(tmp, 0o600)
@@ -184,20 +248,14 @@ def wifi_configure(body: WifiConfigureRequest) -> dict:
             {
                 "ok": False,
                 "mode": "switching",
-                "message": f"Joining «{ssid}»…",
+                "message": f"Joining «{payload.get('ssid')}»…",
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
         )
         + "\n",
         encoding="utf-8",
     )
-
     _trigger_apply()
-    logger.info("Wi-Fi configure requested for ssid=%s", ssid)
-    return {
-        "ok": True,
-        "message": "Сохранено. Dot выходит из сети настройки и подключается к точке iPhone…",
-    }
 
 
 @router.post("/reprovision")

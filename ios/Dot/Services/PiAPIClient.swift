@@ -231,17 +231,34 @@ final class PiAPIClient: ObservableObject {
         throw APIError.setupUnreachable
     }
 
-    func configureWifi(ssid: String, password: String) async throws -> WifiConfigureResponse {
+    func configureWifi(ssid: String, password: String, applyNow: Bool = false) async throws -> WifiConfigureResponse {
         try await ensureReachableForSetup()
+
+        struct Body: Encodable {
+            let ssid: String
+            let password: String
+            let apply_now: Bool
+        }
 
         var request = URLRequest(url: baseURL.appending(path: "/api/wifi/configure"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 45
-        request.httpBody = try JSONEncoder().encode([
-            "ssid": ssid,
-            "password": password,
-        ])
+        request.httpBody = try JSONEncoder().encode(Body(ssid: ssid, password: password, apply_now: applyNow))
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw APIError.requestFailed
+        }
+        return try JSONDecoder().decode(WifiConfigureResponse.self, from: data)
+    }
+
+    /// After Personal Hotspot is on: tear down Setup AP and join once.
+    func connectHotspot() async throws -> WifiConfigureResponse {
+        var request = URLRequest(url: baseURL.appending(path: "/api/wifi/connect-hotspot"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 20
+        request.httpBody = Data("{}".utf8)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw APIError.requestFailed

@@ -74,4 +74,5 @@ sudo systemctl start dot-wifi-boot
 - Join helper (`dot-wifi-join`) is **anti-flap**: if already connected with IP, it does not rescan / modify / reconnect.
 - Apply uses a lock so API + systemd cannot start two joins at once.
 - Tip: leave the iPhone unlocked; enable **Maximize Compatibility** on Personal Hotspot if Dot keeps dropping.
+- App wizard saves credentials first (`apply_now: false`), then `POST /api/wifi/connect-hotspot` starts a **single** join after the user is ready.
 - Legacy always-on AP: `scripts/setup-wifi-ap.sh` (phone loses internet while connected).
