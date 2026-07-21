@@ -16,8 +16,12 @@ log() { echo "$(date -Is) $*" | tee -a "${LOG}" >&2; }
 
 log "use-hotspot: start"
 
+rm -f "${STATE_DIR}/setup-ap-hold"
+
 # Always leave Setup AP — auto-join cannot work while hostapd owns wlan0
 systemctl stop hostapd dnsmasq 2>/dev/null || true
+pkill -x dnsmasq 2>/dev/null || true
+[[ -f /run/dot-dnsmasq.pid ]] && kill "$(cat /run/dot-dnsmasq.pid)" 2>/dev/null || true
 systemctl disable hostapd dnsmasq 2>/dev/null || true
 rm -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf
 systemctl reload NetworkManager 2>/dev/null || true

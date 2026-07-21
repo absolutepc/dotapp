@@ -66,8 +66,11 @@ PASS="${CREDS[1]}"
 
 write_status "switching" 0 "Stopping setup AP and joining ${SSID}…"
 
+rm -f "${STATE_DIR}/setup-ap-hold"
+
 # Tear down Setup AP once and keep it off
 systemctl stop hostapd dnsmasq 2>/dev/null || true
+pkill -x dnsmasq 2>/dev/null || true
 systemctl disable hostapd dnsmasq 2>/dev/null || true
 rm -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf
 systemctl reload NetworkManager 2>/dev/null || true
