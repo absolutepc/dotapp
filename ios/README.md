@@ -8,6 +8,8 @@ Native **SwiftUI** app for iPhone (iOS 16+).
 2. Replace generated sources with files from `ios/Dot/` (including `Theme/DotTheme.swift`, `Views/OnboardingView.swift`, `Views/SettingsView.swift`, `Views/CachedAsyncImage.swift`, `Views/LastSeenLocationView.swift`, `Services/DotLocationTracker.swift`).
    - Keep only **one** `@main` app entry (use `DotApp.swift`; delete Xcode’s generated `*App.swift`).
 3. Set **Info.plist** keys from `ios/Dot/Info.plist` (local network + location when in use + photo library + Allow Local Networking).
+   - Prefer editing the target’s **Info** tab (or custom keys) — do **not** also add `ios/Dot/Info.plist` to **Copy Bundle Resources**.
+   - If build fails with `Multiple commands produce …/Info.plist`: Target → **Build Phases** → **Copy Bundle Resources** → remove `Info.plist`. Then **Product → Clean Build Folder** and rebuild.
 4. Set deployment target **iOS 16.0**.
 5. Build and run on your iPhone (Developer Mode required on iOS 16+).
 
