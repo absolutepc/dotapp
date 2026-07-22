@@ -6,6 +6,7 @@ import UIKit
 final class PiAPIClient: ObservableObject {
     private static let hostKey = "dot.api.host"
     private static let mdnsKey = "dot.api.mdns"
+    private static let pairedKey = "dot.wifi.paired"
 
     @Published var status: DeviceStatus?
     @Published var gallery: [MediaItem] = []
@@ -108,8 +109,8 @@ final class PiAPIClient: ObservableObject {
                 rememberedMDNS = mdns
             }
 
-            // Setup AP: reachable, but do NOT open the gallery yet.
-            if hit.status.mode == "setup_ap" || hit.status.isSetupAP {
+            // Setup AP only when Dot is actually broadcasting Dot-Setup.
+            if hit.status.mode == "setup_ap" {
                 shouldOfferWifiSetup = true
                 isConnected = false
                 gallery = []
@@ -135,6 +136,9 @@ final class PiAPIClient: ObservableObject {
                     gallery = try await get("/api/gallery", as: [MediaItem].self)
                     shouldOfferWifiSetup = false
                     isConnected = hit.status.ok
+                    if isConnected {
+                        UserDefaults.standard.set(true, forKey: Self.pairedKey)
+                    }
                     errorMessage = isConnected ? nil : (hit.status.message ?? "Dot ещё не в сети модема")
                     return
                 } catch {
@@ -146,26 +150,30 @@ final class PiAPIClient: ObservableObject {
             }
 
             // error / switching / unknown — keep user on connection screen
-            shouldOfferWifiSetup = hit.status.needsSetup == true
+            shouldOfferWifiSetup = false
             isConnected = false
             errorMessage = hit.status.message
-                ?? "Dot найден, но ещё не подключён к Режиму модема. Включите модем или откройте настройку Wi‑Fi."
+                ?? "Dot найден, но ещё не подключён к Режиму модема. Включите модем и нажмите «Найти автоматически»."
             return
         }
 
         isConnected = false
         shouldOfferWifiSetup = false
-        errorMessage =
-            "Не найден Dot. Первый раз: «Настройка Wi‑Fi (по шагам)» — сначала Dot-Setup, потом модем. "
-            + "Обычная работа: включите Режим модема и подождите несколько секунд."
+        let paired = UserDefaults.standard.bool(forKey: Self.pairedKey)
+        errorMessage = paired
+            ? "Не найден Dot. Включите Режим модема, подождите несколько секунд и нажмите «Найти автоматически»."
+            : "Не найден Dot. Первый раз: «Настройка Wi‑Fi (по шагам)» — сначала Dot-Setup, потом модем."
     }
 
     private func score(_ status: WifiStatus, host: String) -> Int {
         var value = 0
-        if status.mode == "setup_ap" { value += 100 }
-        if status.mode == "client", status.ok { value += 80 }
+        // Prefer live hotspot client over Setup AP for normal reconnects.
+        if status.mode == "client", status.ok { value += 100 }
+        if status.mode == "client" { value += 40 }
+        if status.mode == "setup_ap" { value += 50 }
         if host == self.host { value += 20 }
         if host.hasSuffix(".local") { value += 10 }
+        if host.hasPrefix("172.20.10.") { value += 15 }
         if host == "192.168.4.1" { value += 5 }
         return value
     }
@@ -182,7 +190,7 @@ final class PiAPIClient: ObservableObject {
                 rememberedMDNS = mdns
             }
 
-            if wifiStatus.mode == "setup_ap" || wifiStatus.isSetupAP {
+            if wifiStatus.mode == "setup_ap" {
                 shouldOfferWifiSetup = true
                 isConnected = false
                 gallery = []
@@ -191,10 +199,10 @@ final class PiAPIClient: ObservableObject {
             }
 
             guard wifiStatus.mode == "client" else {
-                shouldOfferWifiSetup = wifiStatus.needsSetup == true
+                shouldOfferWifiSetup = false
                 isConnected = false
                 errorMessage = wifiStatus.message
-                    ?? "Включите Режим модема или откройте настройку Wi‑Fi."
+                    ?? "Включите Режим модема и нажмите «Найти автоматически»."
                 return
             }
 
@@ -211,6 +219,9 @@ final class PiAPIClient: ObservableObject {
             }
             shouldOfferWifiSetup = false
             isConnected = wifiStatus.ok
+            if isConnected {
+                UserDefaults.standard.set(true, forKey: Self.pairedKey)
+            }
             errorMessage = isConnected ? nil : wifiStatus.message
         } catch {
             await discoverAndConnect()
@@ -276,6 +287,7 @@ final class PiAPIClient: ObservableObject {
     func clearSavedHost() {
         host = "192.168.4.1"
         UserDefaults.standard.removeObject(forKey: Self.mdnsKey)
+        UserDefaults.standard.set(false, forKey: Self.pairedKey)
         rememberedMDNS = []
         isConnected = false
         shouldOfferWifiSetup = false

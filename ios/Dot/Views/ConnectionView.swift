@@ -4,6 +4,7 @@ struct ConnectionView: View {
     @EnvironmentObject private var api: PiAPIClient
     @EnvironmentObject private var locationTracker: DotLocationTracker
     @AppStorage("dot.appearance.dark") private var preferDark = true
+    @AppStorage("dot.wifi.paired") private var hasPairedBefore = false
 
     let errorMessage: String?
     var onSetupWifi: () -> Void = {}
@@ -22,7 +23,7 @@ struct ConnectionView: View {
                         .blur(radius: 18)
                         .scaleEffect(iconPulse ? 1.08 : 0.95)
 
-                    Image(systemName: "wifi.exclamationmark")
+                    Image(systemName: hasPairedBefore ? "wifi" : "wifi.exclamationmark")
                         .font(.system(size: 52, weight: .light))
                         .foregroundStyle(
                             LinearGradient(
@@ -38,7 +39,7 @@ struct ConnectionView: View {
                     .font(.largeTitle.weight(.bold))
                     .foregroundStyle(DotTheme.primaryText(dark: preferDark))
 
-                Text("Нет связи с устройством")
+                Text(hasPairedBefore ? "Нет связи с устройством" : "Подключение")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
 
@@ -60,29 +61,15 @@ struct ConnectionView: View {
                     .buttonStyle(.plain)
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Первый раз — по шагам")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(DotTheme.primaryText(dark: preferDark))
-                    stepRow(1, "Зайдите в Wi‑Fi `Dot-Setup-…` (пароль `dotsetup1`)")
-                    stepRow(2, "В приложении введите имя и пароль модема — модем ещё не включайте")
-                    stepRow(3, "Выйдите из Dot-Setup, включите Режим модема, найдите Dot")
+                // After first successful pair, lead with day-to-day steps — not the setup wizard.
+                if hasPairedBefore {
+                    dailySteps
+                    firstTimeSteps
+                        .opacity(0.85)
+                } else {
+                    firstTimeSteps
+                    dailySteps
                 }
-                .font(.subheadline)
-                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
-                .dotPanel(dark: preferDark)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Обычная работа")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(DotTheme.primaryText(dark: preferDark))
-                    stepRow(1, "Включите Режим модема на iPhone")
-                    stepRow(2, "Подождите несколько секунд — Dot подключится сам")
-                    stepRow(3, "Нажмите «Найти автоматически»")
-                }
-                .font(.subheadline)
-                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
-                .dotPanel(dark: preferDark)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Адрес Dot (если нужно вручную)")
@@ -113,10 +100,17 @@ struct ConnectionView: View {
                 }
                 .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: true))
 
-                Button("Настройка Wi‑Fi (по шагам)") {
-                    onSetupWifi()
+                if !hasPairedBefore || api.shouldOfferWifiSetup {
+                    Button("Настройка Wi‑Fi (по шагам)") {
+                        onSetupWifi()
+                    }
+                    .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: false))
+                } else {
+                    Button("Настройка Wi‑Fi (если сменили пароль модема)") {
+                        onSetupWifi()
+                    }
+                    .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: false))
                 }
-                .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: false))
 
                 Button("Показать введение") {
                     onShowOnboarding()
@@ -130,6 +124,34 @@ struct ConnectionView: View {
                 iconPulse = true
             }
         }
+    }
+
+    private var dailySteps: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(hasPairedBefore ? "Обычное подключение" : "Обычная работа")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(DotTheme.primaryText(dark: preferDark))
+            stepRow(1, "Включите Режим модема на iPhone")
+            stepRow(2, "Подождите несколько секунд — Dot подключится сам")
+            stepRow(3, "Нажмите «Найти автоматически»")
+        }
+        .font(.subheadline)
+        .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+        .dotPanel(dark: preferDark)
+    }
+
+    private var firstTimeSteps: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(hasPairedBefore ? "Первая настройка (если нужно заново)" : "Первый раз — по шагам")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(DotTheme.primaryText(dark: preferDark))
+            stepRow(1, "Зайдите в Wi‑Fi `Dot-Setup-…` (пароль `dotsetup1`)")
+            stepRow(2, "В приложении введите имя и пароль модема — модем ещё не включайте")
+            stepRow(3, "Выйдите из Dot-Setup, включите Режим модема, найдите Dot")
+        }
+        .font(.subheadline)
+        .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+        .dotPanel(dark: preferDark)
     }
 
     private func stepRow(_ n: Int, _ text: String) -> some View {

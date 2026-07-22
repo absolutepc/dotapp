@@ -198,7 +198,7 @@ def wifi_status() -> dict:
     ip = status.get("ip") or client.get("ip") or mode.get("ip") or _primary_ipv4()
     if resolved_mode == "setup_ap":
         ip = mode.get("ip") or ip or "192.168.4.1"
-    needs_setup = resolved_mode == "setup_ap" or not _has_client_ssid()
+    needs_setup = resolved_mode == "setup_ap"
     setup_ssid = mode.get("ssid") if resolved_mode == "setup_ap" else None
     message = status.get("message") or mode.get("message")
     if resolved_mode == "setup_ap" and setup_ssid:

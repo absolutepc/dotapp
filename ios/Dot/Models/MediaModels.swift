@@ -124,7 +124,9 @@ struct WifiStatus: Codable, Sendable {
     }
 
     var isSetupAP: Bool {
-        mode == "setup_ap" || needsSetup == true
+        // Only true Setup AP — do NOT treat needs_setup alone as setup
+        // (needs_setup can be true while mode=client if wifi-client.json is missing).
+        mode == "setup_ap"
     }
 }
 
