@@ -1,37 +1,44 @@
 import SwiftUI
 
-/// Space-blue visual identity for Dot (deep navy gradients + ice accent).
+/// Dot visual identity: deep space-blue dark theme + plain white light theme.
 enum DotTheme {
-    // Core palette
-    static let void = Color(red: 0.03, green: 0.05, blue: 0.12) // #080D1F
-    static let deep = Color(red: 0.05, green: 0.10, blue: 0.22) // #0D1A38
-    static let navy = Color(red: 0.08, green: 0.16, blue: 0.34) // #142956
-    static let cobalt = Color(red: 0.12, green: 0.28, blue: 0.55) // #1F478C
-    static let horizon = Color(red: 0.22, green: 0.42, blue: 0.72) // #386BB8
-    static let ice = Color(red: 0.55, green: 0.78, blue: 1.0) // #8CC7FF
-    static let mist = Color(red: 0.78, green: 0.88, blue: 1.0) // #C7E0FF
-    static let ink = Color(red: 0.06, green: 0.10, blue: 0.20)
+    // Dark space-blue (deeper / darker navy)
+    static let void = Color(red: 0.015, green: 0.02, blue: 0.06) // ~#04060F
+    static let deep = Color(red: 0.03, green: 0.05, blue: 0.12) // ~#080D1F
+    static let navy = Color(red: 0.045, green: 0.08, blue: 0.18) // ~#0B142E
+    static let cobalt = Color(red: 0.07, green: 0.14, blue: 0.32) // ~#122452
+    static let horizon = Color(red: 0.14, green: 0.28, blue: 0.52) // ~#244785
+    static let ice = Color(red: 0.48, green: 0.70, blue: 0.95) // slightly muted ice
+    static let mist = Color(red: 0.72, green: 0.82, blue: 0.94)
+
+    // Light theme neutrals
+    static let paper = Color.white
+    static let paperSoft = Color(red: 0.96, green: 0.96, blue: 0.97) // #F5F5F7
+    static let ink = Color(red: 0.08, green: 0.08, blue: 0.10)
+    static let inkSecondary = Color(red: 0.35, green: 0.36, blue: 0.40)
+    static let hairline = Color.black.opacity(0.08)
 
     static var accent: Color { ice }
 
     static func backgroundColors(dark: Bool) -> [Color] {
         if dark {
-            return [void, deep, navy, Color(red: 0.06, green: 0.12, blue: 0.28)]
+            return [
+                void,
+                deep,
+                navy,
+                Color(red: 0.035, green: 0.06, blue: 0.14),
+            ]
         }
-        return [
-            Color(red: 0.82, green: 0.90, blue: 0.98),
-            Color(red: 0.70, green: 0.82, blue: 0.95),
-            Color(red: 0.55, green: 0.70, blue: 0.90),
-            Color(red: 0.42, green: 0.58, blue: 0.82),
-        ]
+        // Plain white light theme — no blue wash.
+        return [paper, paper, paperSoft]
     }
 
     static func panel(dark: Bool) -> Color {
-        dark ? Color.white.opacity(0.08) : Color.white.opacity(0.45)
+        dark ? Color.white.opacity(0.06) : Color(red: 0.94, green: 0.94, blue: 0.96)
     }
 
     static func panelStroke(dark: Bool) -> Color {
-        dark ? ice.opacity(0.22) : cobalt.opacity(0.25)
+        dark ? ice.opacity(0.16) : hairline
     }
 
     static func primaryText(dark: Bool) -> Color {
@@ -39,15 +46,15 @@ enum DotTheme {
     }
 
     static func secondaryText(dark: Bool) -> Color {
-        dark ? mist.opacity(0.72) : navy.opacity(0.72)
+        dark ? mist.opacity(0.65) : inkSecondary
     }
 
     static func toolbarTint(dark: Bool) -> Color {
-        dark ? ice : cobalt
+        dark ? ice : Color(red: 0.12, green: 0.28, blue: 0.55)
     }
 }
 
-/// Full-bleed space-blue gradient with soft nebula highlights.
+/// Dark: deep space-blue gradient. Light: plain white (no blue tint).
 struct SpaceBlueBackground: View {
     var dark: Bool = true
     @State private var glowPulse = false
@@ -60,30 +67,33 @@ struct SpaceBlueBackground: View {
                 endPoint: .bottomTrailing
             )
 
-            // Soft nebula orbs — intentional motion for presence.
-            Circle()
-                .fill(DotTheme.cobalt.opacity(dark ? 0.35 : 0.28))
-                .frame(width: 280, height: 280)
-                .blur(radius: 50)
-                .offset(x: glowPulse ? 90 : 70, y: glowPulse ? -210 : -190)
-                .allowsHitTesting(false)
+            if dark {
+                // Soft nebula only in dark theme.
+                Circle()
+                    .fill(DotTheme.cobalt.opacity(0.28))
+                    .frame(width: 280, height: 280)
+                    .blur(radius: 55)
+                    .offset(x: glowPulse ? 90 : 70, y: glowPulse ? -210 : -190)
+                    .allowsHitTesting(false)
 
-            Circle()
-                .fill(DotTheme.ice.opacity(dark ? 0.12 : 0.22))
-                .frame(width: 220, height: 220)
-                .blur(radius: 45)
-                .offset(x: glowPulse ? -100 : -80, y: glowPulse ? 260 : 240)
-                .allowsHitTesting(false)
+                Circle()
+                    .fill(DotTheme.ice.opacity(0.07))
+                    .frame(width: 220, height: 220)
+                    .blur(radius: 50)
+                    .offset(x: glowPulse ? -100 : -80, y: glowPulse ? 260 : 240)
+                    .allowsHitTesting(false)
 
-            Circle()
-                .fill(DotTheme.horizon.opacity(dark ? 0.18 : 0.2))
-                .frame(width: 160, height: 160)
-                .blur(radius: 36)
-                .offset(x: 40, y: glowPulse ? 40 : 20)
-                .allowsHitTesting(false)
+                Circle()
+                    .fill(DotTheme.horizon.opacity(0.12))
+                    .frame(width: 160, height: 160)
+                    .blur(radius: 40)
+                    .offset(x: 40, y: glowPulse ? 40 : 20)
+                    .allowsHitTesting(false)
+            }
         }
         .ignoresSafeArea()
         .onAppear {
+            guard dark else { return }
             withAnimation(.easeInOut(duration: 4.2).repeatForever(autoreverses: true)) {
                 glowPulse = true
             }
@@ -102,16 +112,20 @@ struct DotPrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: expand ? .infinity : nil)
             .padding(.horizontal, expand ? 0 : 16)
             .padding(.vertical, 14)
-            .foregroundStyle(prominent ? DotTheme.void : DotTheme.primaryText(dark: dark))
+            .foregroundStyle(prominent ? (dark ? DotTheme.void : .white) : DotTheme.primaryText(dark: dark))
             .background {
                 if prominent {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(
-                            LinearGradient(
-                                colors: [DotTheme.ice, DotTheme.horizon],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+                            dark
+                                ? AnyShapeStyle(
+                                    LinearGradient(
+                                        colors: [DotTheme.ice, DotTheme.horizon],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                : AnyShapeStyle(Color(red: 0.12, green: 0.28, blue: 0.55))
                         )
                 } else {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -150,7 +164,10 @@ extension View {
 
     func dotNavigationChrome(dark: Bool) -> some View {
         self
-            .toolbarBackground(dark ? DotTheme.deep.opacity(0.92) : DotTheme.mist.opacity(0.88), for: .navigationBar)
+            .toolbarBackground(
+                dark ? DotTheme.deep.opacity(0.96) : Color.white.opacity(0.96),
+                for: .navigationBar
+            )
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(dark ? .dark : .light, for: .navigationBar)
             .tint(DotTheme.toolbarTint(dark: dark))
