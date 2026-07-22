@@ -177,8 +177,13 @@ def test_preview_picks_brighter_frame(client, tmp_path, monkeypatch):
     assert f'"preview_version": {PREVIEW_VERSION}' in meta or f'"preview_version":{PREVIEW_VERSION}' in meta
     from PIL import ImageStat
 
-    lum = sum(ImageStat.Stat(Image.open(preview).convert("RGB")).mean) / 3.0
-    assert lum > 20, f"preview still too dark: {lum}"
+    with Image.open(preview) as preview_im:
+        rgb = preview_im.convert("RGB")
+        w, h = rgb.size
+        # Outside the circle is black by design — score the center logo area.
+        center = rgb.crop((w // 4, h // 4, 3 * w // 4, 3 * h // 4))
+        lum = sum(ImageStat.Stat(center).mean) / 3.0
+    assert lum > 40, f"preview center still too dark: {lum}"
 
 
 def test_circle_mask_frame_size():

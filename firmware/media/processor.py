@@ -25,8 +25,8 @@ VIDEO_TARGET_FPS = 12.0
 FRAME_CACHE_VERSION = 7
 JPEG_QUALITY = 88
 # Bump when preview picking / thumb enhancement changes (does not rebuild frames).
-PREVIEW_VERSION = 2
-PREVIEW_SIZE = 200
+PREVIEW_VERSION = 3
+PREVIEW_SIZE = 280
 
 
 def list_frame_files(frame_dir: Path) -> list[Path]:
@@ -68,15 +68,33 @@ class MediaProcessor:
             rgba = ImageEnhance.Contrast(rgba).enhance(1.2)
         return rgba
 
-    def _score_preview_frame(self, image: Image.Image) -> float:
-        """Prefer brighter + more detailed frames (neon logos often start near-black)."""
+    def _score_preview_frame(self, image: Image.Image, *, index: int, total: int) -> float:
+        """Prefer mid-clip frames that are bright enough, colorful, and detailed."""
         rgb = image.convert("RGB")
         w, h = rgb.size
+        # Center crop — ignore outer black from circle / letterbox.
         sample = rgb.crop((w // 5, h // 5, 4 * w // 5, 4 * h // 5))
         stat = ImageStat.Stat(sample)
-        lum = sum(stat.mean) / 3.0
+        r, g, b = stat.mean
+        lum = (r + g + b) / 3.0
         var = sum(stat.var) / 3.0
-        return lum + 0.025 * var
+        # Colorfulness: how far from gray.
+        chroma = (abs(r - g) + abs(g - b) + abs(b - r)) / 3.0
+
+        # Near-black / near-white thumbs look bad in the gallery.
+        if lum < 18:
+            return lum * 0.2
+        if lum > 230:
+            return 40.0
+
+        # Prefer the middle of the clip (logo usually fully formed).
+        t = index / max(total - 1, 1)
+        mid_bonus = 1.0 - abs(t - 0.45) * 1.4  # peak near 45%
+        mid_bonus = max(0.35, mid_bonus)
+
+        # Target a readable mid-tone, not the absolute brightest flash frame.
+        lum_score = 100.0 - abs(lum - 95.0) * 0.55
+        return (lum_score + 0.04 * var + 1.8 * chroma) * mid_bonus
 
     def _pick_best_preview_frame(self, frame_paths: list[Path]) -> Image.Image:
         if not frame_paths:
@@ -84,15 +102,20 @@ class MediaProcessor:
         if len(frame_paths) == 1:
             return Image.open(frame_paths[0]).convert("RGB")
 
-        # Sample evenly across the clip (cap work on Pi Zero).
         n = len(frame_paths)
-        sample_count = min(16, n)
+        # Sample more of the clip; still capped for Pi Zero.
+        sample_count = min(28, n)
         indices = sorted({int(i * (n - 1) / max(sample_count - 1, 1)) for i in range(sample_count)})
+        # Bias sampling toward the middle third.
+        lo, hi = int(n * 0.2), max(int(n * 0.8), int(n * 0.2) + 1)
+        mid_extra = list(range(lo, hi, max(1, (hi - lo) // 8)))
+        indices = sorted(set(indices) | set(mid_extra))
+
         best_score = -1.0
         best: Image.Image | None = None
         for idx in indices:
             with Image.open(frame_paths[idx]) as im:
-                score = self._score_preview_frame(im)
+                score = self._score_preview_frame(im, index=idx, total=n)
                 if score > best_score:
                     best_score = score
                     best = im.convert("RGB").copy()
@@ -100,18 +123,25 @@ class MediaProcessor:
         return best
 
     def _enhance_preview_thumb(self, image: Image.Image) -> Image.Image:
-        """Lift dark neon art so gallery tiles are readable on the phone."""
+        """Make gallery thumbs readable without blowing out neon colors."""
         rgb = image.convert("RGB")
-        for _ in range(6):
-            w, h = rgb.size
-            sample = rgb.crop((w // 4, h // 4, 3 * w // 4, 3 * h // 4))
-            lum = sum(ImageStat.Stat(sample).mean) / 3.0
-            if lum >= 55:
-                break
-            factor = min(3.2, 60.0 / max(lum, 1.0))
-            rgb = ImageEnhance.Brightness(rgb).enhance(factor)
-            rgb = ImageEnhance.Contrast(rgb).enhance(1.28)
-        rgb = ImageEnhance.Color(rgb).enhance(1.18)
+        # Gentle auto-contrast keeps structure without washing colors.
+        rgb = ImageOps.autocontrast(rgb, cutoff=1)
+        w, h = rgb.size
+        sample = rgb.crop((w // 4, h // 4, 3 * w // 4, 3 * h // 4))
+        lum = sum(ImageStat.Stat(sample).mean) / 3.0
+        target = 92.0
+        if lum < 40:
+            rgb = ImageEnhance.Brightness(rgb).enhance(min(2.6, target / max(lum, 1.0)))
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.22)
+        elif lum < 70:
+            rgb = ImageEnhance.Brightness(rgb).enhance(min(1.55, target / max(lum, 1.0)))
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.12)
+        elif lum > 160:
+            rgb = ImageEnhance.Brightness(rgb).enhance(0.88)
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.08)
+        rgb = ImageEnhance.Color(rgb).enhance(1.22)
+        rgb = ImageEnhance.Sharpness(rgb).enhance(1.15)
         return rgb
 
     def _save_preview(self, media_id: str, frame: Image.Image) -> None:
@@ -125,9 +155,12 @@ class MediaProcessor:
             method=Image.Resampling.LANCZOS,
             centering=(0.5, 0.5),
         )
-        thumb.convert("RGB").save(
+        # Round mask so tiles match the Dot circle (black outside).
+        mask = create_circle_mask((PREVIEW_SIZE, PREVIEW_SIZE))
+        rounded = apply_circle_mask(thumb.convert("RGBA"), mask)
+        rounded.convert("RGB").save(
             PREVIEW_DIR / f"{media_id}.jpg",
-            quality=90,
+            quality=92,
             optimize=True,
         )
 

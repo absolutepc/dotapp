@@ -1,31 +1,31 @@
 #!/usr/bin/env bash
-# Regenerate gallery JPEG previews from existing frame caches (no full re-encode).
-# On Pi: cd ~/dotapp && bash scripts/refresh-previews.sh
+# Regenerate gallery preview JPEGs (after preview algorithm updates).
+# Usage: sudo bash scripts/refresh-previews.sh
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "${ROOT}"
-export PYTHONPATH="${ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
-PY="${ROOT}/venv/bin/python"
-[[ -x "${PY}" ]] || PY=python3
-"${PY}" - <<'PY'
-from firmware.media.processor import MediaProcessor
-from firmware.media.storage import MediaStorage
 
-storage = MediaStorage()
-storage.register_builtin_assets()
-processor = MediaProcessor(storage)
-ok = 0
-for item in storage.list_all():
-    try:
-        if not processor.frames_ready(item):
-            print("build-frames", item.id)
-            processor.ensure_frames(item)
-        if processor.ensure_preview(item):
-            print("ok", item.id)
-            ok += 1
-        else:
-            print("skip", item.id)
-    except Exception as exc:
-        print("fail", item.id, exc)
-print(f"done {ok} previews")
+PREVIEW_DIR="${DOT_PREVIEW_DIR:-/var/lib/dot/previews}"
+FRAMES_DIR="${DOT_FRAMES_DIR:-/var/lib/dot/frames}"
+
+echo "Clearing preview thumbs in ${PREVIEW_DIR}…"
+mkdir -p "${PREVIEW_DIR}"
+rm -f "${PREVIEW_DIR}"/*.jpg "${PREVIEW_DIR}"/*.jpeg 2>/dev/null || true
+
+# Force ensure_preview to rebuild (preview_version mismatch).
+if [[ -d "${FRAMES_DIR}" ]]; then
+  find "${FRAMES_DIR}" -name meta.json -print0 2>/dev/null | while IFS= read -r -d '' meta; do
+    python3 - "${meta}" <<'PY' || true
+import json, sys
+path = sys.argv[1]
+try:
+    data = json.load(open(path))
+except Exception:
+    raise SystemExit(0)
+data["preview_version"] = 0
+open(path, "w").write(json.dumps(data, indent=2) + "\n")
 PY
+  done
+fi
+
+echo "Restarting API so new PREVIEW_VERSION is served…"
+systemctl restart dot-api 2>/dev/null || systemctl restart bmw-api 2>/dev/null || true
+echo "Done. Open the iOS gallery — thumbs rebuild on first request."
