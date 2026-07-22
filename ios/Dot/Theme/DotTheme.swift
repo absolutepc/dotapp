@@ -34,11 +34,15 @@ enum DotTheme {
     }
 
     static func panel(dark: Bool) -> Color {
-        dark ? Color.white.opacity(0.06) : Color(red: 0.94, green: 0.94, blue: 0.96)
+        // Soft navy fill — no system gray “card chrome”.
+        dark
+            ? Color(red: 0.055, green: 0.085, blue: 0.155)
+            : Color(red: 0.94, green: 0.94, blue: 0.96)
     }
 
     static func panelStroke(dark: Bool) -> Color {
-        dark ? ice.opacity(0.16) : hairline
+        // No harsh frames; sections are defined by fill only.
+        .clear
     }
 
     static func primaryText(dark: Bool) -> Color {
@@ -51,6 +55,11 @@ enum DotTheme {
 
     static func toolbarTint(dark: Bool) -> Color {
         dark ? ice : Color(red: 0.12, green: 0.28, blue: 0.55)
+    }
+
+    static func listRow(dark: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(panel(dark: dark))
     }
 }
 
@@ -150,16 +159,20 @@ struct DotPanelModifier: ViewModifier {
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(DotTheme.panel(dark: dark), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(DotTheme.panelStroke(dark: dark), lineWidth: 1)
-            }
     }
 }
 
 extension View {
     func dotPanel(dark: Bool) -> some View {
         modifier(DotPanelModifier(dark: dark))
+    }
+
+    /// Soft Form/List rows like the connection screen (fill only, no gray frames).
+    func dotListChrome(dark: Bool) -> some View {
+        self
+            .scrollContentBackground(.hidden)
+            .listRowBackground(DotTheme.panel(dark: dark))
+            .listRowSeparatorTint(DotTheme.ice.opacity(dark ? 0.12 : 0.08))
     }
 
     func dotNavigationChrome(dark: Bool) -> some View {

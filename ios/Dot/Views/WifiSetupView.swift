@@ -54,9 +54,11 @@ struct WifiSetupView: View {
                                     .font(.footnote)
                                     .foregroundStyle(statusIsError ? Color(red: 1, green: 0.55, blue: 0.55) : DotTheme.secondaryText(dark: preferDark))
                             }
+                            .listRowBackground(DotTheme.panel(dark: preferDark))
                         }
                     }
                     .scrollContentBackground(.hidden)
+                    .tint(DotTheme.toolbarTint(dark: preferDark))
 
                     bottomBar
                         .padding(.horizontal, 20)
@@ -133,7 +135,10 @@ struct WifiSetupView: View {
             Label("Вернитесь в приложение Dot", systemImage: "4.circle.fill")
         } footer: {
             Text("Режим модема на этом шаге не нужен и мешает — iPhone не может одновременно быть в чужом Wi‑Fi и раздавать модем.")
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
 
         Section("Связь с Dot") {
             HStack {
@@ -142,6 +147,7 @@ struct WifiSetupView: View {
                     .frame(width: 8, height: 8)
                 Text(setupLinkLabel)
                     .font(.subheadline)
+                    .foregroundStyle(DotTheme.primaryText(dark: preferDark))
                 Spacer()
                 if isBusy {
                     ProgressView()
@@ -150,13 +156,15 @@ struct WifiSetupView: View {
             if let setupSsidShown, !setupSsidShown.isEmpty {
                 Text("Сеть настройки: \(setupSsidShown)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
             }
             Button("Проверить связь") {
                 Task { await checkSetupLink() }
             }
             .disabled(isBusy)
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
     }
 
     private var setupLinkLabel: String {
@@ -176,8 +184,9 @@ struct WifiSetupView: View {
         Section {
             Text("Откройте Настройки → Режим модема. Запомните имя точки и пароль. Переключатель «Режим модема» пока не включайте.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
 
         Section("Данные точки") {
             TextField("Имя точки (SSID)", text: $hotspotSSID)
@@ -187,6 +196,8 @@ struct WifiSetupView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
 
         Section {
             Button {
@@ -209,10 +220,10 @@ struct WifiSetupView: View {
             )
         } footer: {
             Text("Пока вы в Dot-Setup, Dot только запомнит имя и пароль. К модему он подключится на следующем шаге — после включения модема.")
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
     }
-
-    // MARK: - Step 3
 
     @ViewBuilder
     private var enableHotspotSections: some View {
@@ -223,10 +234,11 @@ struct WifiSetupView: View {
             Label("Включите Режим модема + «Максимальная совместимость»", systemImage: "4.circle.fill")
         } footer: {
             Text("Важно: команду «подключить» нужно отправить ещё из Dot-Setup. Иначе Dot не узнает, что пора выходить. Подключение к модему будет одно — без цикла обрывов.")
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
     }
-
-    // MARK: - Step 4
 
     @ViewBuilder
     private var findDotSections: some View {
@@ -235,6 +247,8 @@ struct WifiSetupView: View {
             Label("Подождите несколько секунд — Dot сам заходит в модем", systemImage: "antenna.radiowaves.left.and.right")
             Label("Нажмите «Найти Dot» ниже", systemImage: "magnifyingglass")
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
 
         Section {
             Button {
@@ -250,6 +264,7 @@ struct WifiSetupView: View {
             }
             .disabled(isBusy)
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
     }
 
     // MARK: - Bottom bar

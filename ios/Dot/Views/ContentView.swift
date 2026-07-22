@@ -372,10 +372,6 @@ struct ContentView: View {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                                     .fill(DotTheme.panel(dark: preferDark))
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .strokeBorder(DotTheme.panelStroke(dark: preferDark), lineWidth: 1)
-                                    }
                                 VStack(spacing: 6) {
                                     Image(systemName: "plus")
                                         .font(.title2.weight(.semibold))
@@ -473,13 +469,17 @@ private struct LibraryTile: View {
         }
         .aspectRatio(1, contentMode: .fit)
         .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(
-                    isSelected
-                        ? LinearGradient(colors: [DotTheme.ice, DotTheme.horizon], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        : LinearGradient(colors: [DotTheme.panelStroke(dark: dark), DotTheme.panelStroke(dark: dark)], startPoint: .top, endPoint: .bottom),
-                    lineWidth: isSelected ? 3 : 1
-                )
+            if isSelected {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [DotTheme.ice, DotTheme.horizon],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 3
+                    )
+            }
         }
         .accessibilityLabel(item.name)
     }

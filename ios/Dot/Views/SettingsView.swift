@@ -44,12 +44,14 @@ struct SettingsView: View {
                     Section {
                         Text(statusMessage)
                             .font(.footnote)
-                            .foregroundStyle(statusIsError ? .red : .secondary)
+                            .foregroundStyle(statusIsError ? Color(red: 1, green: 0.45, blue: 0.5) : DotTheme.secondaryText(dark: preferDark))
                     }
+                    .listRowBackground(DotTheme.panel(dark: preferDark))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(SpaceBlueBackground(dark: preferDark))
+            .tint(DotTheme.toolbarTint(dark: preferDark))
             .navigationTitle("Настройки")
             .navigationBarTitleDisplayMode(.inline)
             .dotNavigationChrome(dark: preferDark)
@@ -100,7 +102,10 @@ struct SettingsView: View {
             Toggle(isOn: $preferDark) {
                 Label(preferDark ? "Тёмная тема" : "Светлая тема", systemImage: preferDark ? "moon.fill" : "sun.max.fill")
             }
+            .foregroundStyle(DotTheme.primaryText(dark: preferDark))
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
     }
 
     private var brightnessSection: some View {
@@ -109,10 +114,11 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Label("Яркость экрана Dot", systemImage: "sun.max")
+                            .foregroundStyle(DotTheme.primaryText(dark: preferDark))
                         Spacer()
                         Text("\(Int(draftBrightness.rounded()))%")
                             .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
                     }
                     Slider(
                         value: $draftBrightness,
@@ -123,23 +129,28 @@ struct SettingsView: View {
                             Task { await saveBrightness() }
                         }
                     }
+                    .tint(DotTheme.ice)
                     .disabled(isSavingBrightness || isBusy)
                     if let brightnessError {
                         Text(brightnessError)
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color(red: 1, green: 0.45, blue: 0.5))
                     }
                 }
             } else {
                 Text("Подключитесь к Dot, чтобы регулировать яркость.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
             }
         } header: {
             Text("Дисплей")
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
         } footer: {
             Text("Программная яркость на круге. Значение сохраняется на Dot.")
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
     }
 
     private var deviceSection: some View {
@@ -169,6 +180,9 @@ struct SettingsView: View {
             }
             .disabled(isBusy)
         }
+        .foregroundStyle(DotTheme.primaryText(dark: preferDark))
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
     }
 
     private var wifiSection: some View {
@@ -189,7 +203,7 @@ struct SettingsView: View {
             if !canResetToSetup {
                 Text("Сброс доступен только когда Dot подключён к Режиму модема. Включите модем и нажмите «Найти Dot».")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
             }
 
             Button(role: .destructive) {
@@ -199,9 +213,13 @@ struct SettingsView: View {
             }
         } header: {
             Text("Wi‑Fi")
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
         } footer: {
             Text("Сброс в Dot-Setup отключит Dot от модема и откроет сеть настройки. Нужно подтверждение и живое подключение к точке доступа.")
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
     }
 
     private var helpSection: some View {
@@ -214,6 +232,8 @@ struct SettingsView: View {
                 Label("Показать введение", systemImage: "sparkles")
             }
         }
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
     }
 
     private func loadBrightness() async {

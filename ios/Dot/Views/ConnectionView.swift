@@ -82,10 +82,6 @@ struct ConnectionView: View {
                         .padding(14)
                         .foregroundStyle(DotTheme.primaryText(dark: preferDark))
                         .background(DotTheme.panel(dark: preferDark), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(DotTheme.panelStroke(dark: preferDark), lineWidth: 1)
-                        }
                 }
 
                 if let errorMessage {
