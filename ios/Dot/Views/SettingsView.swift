@@ -4,7 +4,7 @@ struct SettingsView: View {
     @EnvironmentObject private var api: PiAPIClient
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("dot.appearance.dark") private var preferDark = false
+    @AppStorage("dot.appearance.dark") private var preferDark = true
     @AppStorage("dot.onboarding.completed") private var onboardingCompleted = true
 
     @State private var draftBrightness: Double = 100
@@ -48,19 +48,24 @@ struct SettingsView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(SpaceBlueBackground(dark: preferDark))
             .navigationTitle("Настройки")
             .navigationBarTitleDisplayMode(.inline)
+            .dotNavigationChrome(dark: preferDark)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Закрыть") { dismiss() }
                 }
             }
             .preferredColorScheme(preferDark ? .dark : .light)
+            .tint(DotTheme.toolbarTint(dark: preferDark))
             .task { await loadBrightness() }
             .sheet(isPresented: $showWifiSetup) {
                 WifiSetupView()
                     .environmentObject(api)
                     .preferredColorScheme(preferDark ? .dark : .light)
+                    .tint(DotTheme.toolbarTint(dark: preferDark))
             }
             .sheet(isPresented: $showReprovisionConfirm) {
                 ReprovisionConfirmSheet(
@@ -71,6 +76,7 @@ struct SettingsView: View {
                 }
                 .environmentObject(api)
                 .preferredColorScheme(preferDark ? .dark : .light)
+                .tint(DotTheme.toolbarTint(dark: preferDark))
             }
             .confirmationDialog(
                 "Сбросить сохранённый адрес?",
@@ -347,8 +353,12 @@ private struct ReprovisionConfirmSheet: View {
                     .disabled(!canSubmit)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(SpaceBlueBackground(dark: true))
             .navigationTitle("Подтверждение сброса")
             .navigationBarTitleDisplayMode(.inline)
+            .dotNavigationChrome(dark: true)
+            .tint(DotTheme.ice)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Отмена") { dismiss() }

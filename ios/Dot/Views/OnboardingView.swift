@@ -27,23 +27,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.07, green: 0.09, blue: 0.12),
-                    Color(red: 0.12, green: 0.16, blue: 0.22),
-                    Color(red: 0.08, green: 0.11, blue: 0.14),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-
-            Circle()
-                .fill(Color(red: 0.35, green: 0.55, blue: 0.75).opacity(0.18))
-                .frame(width: 320, height: 320)
-                .blur(radius: 40)
-                .offset(x: 110, y: -220)
-                .allowsHitTesting(false)
+            SpaceBlueBackground(dark: true)
 
             VStack(spacing: 0) {
                 HStack {
@@ -53,7 +37,7 @@ struct OnboardingView: View {
                             finish()
                         }
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(DotTheme.mist.opacity(0.75))
                         .padding(.trailing, 20)
                         .padding(.top, 12)
                     }
@@ -90,8 +74,15 @@ struct OnboardingView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .foregroundStyle(Color(red: 0.07, green: 0.09, blue: 0.12))
-                        .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .foregroundStyle(DotTheme.void)
+                        .background(
+                            LinearGradient(
+                                colors: [DotTheme.ice, DotTheme.horizon],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        )
                         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -118,11 +109,24 @@ struct OnboardingView: View {
 
             ZStack {
                 Circle()
-                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [DotTheme.ice.opacity(0.55), DotTheme.horizon.opacity(0.2)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
                     .frame(width: 132, height: 132)
                 Image(systemName: slide.symbol)
                     .font(.system(size: 56, weight: .light))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [DotTheme.mist, DotTheme.ice],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                     .opacity(page == index && iconPulse ? 1 : 0.72)
                     .scaleEffect(page == index && iconPulse ? 1.04 : 1)
             }
@@ -165,7 +169,7 @@ struct OnboardingView: View {
         HStack(spacing: 8) {
             ForEach(0..<slides.count, id: \.self) { index in
                 Capsule()
-                    .fill(index == page ? Color.white : Color.white.opacity(0.28))
+                    .fill(index == page ? DotTheme.ice : DotTheme.ice.opacity(0.28))
                     .frame(width: index == page ? 22 : 8, height: 8)
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: page)
             }

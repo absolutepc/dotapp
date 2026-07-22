@@ -5,7 +5,7 @@ struct ContentView: View {
     @EnvironmentObject private var api: PiAPIClient
     @EnvironmentObject private var locationTracker: DotLocationTracker
     @AppStorage("dot.onboarding.completed") private var onboardingCompleted = false
-    @AppStorage("dot.appearance.dark") private var preferDark = false
+    @AppStorage("dot.appearance.dark") private var preferDark = true
 
     @State private var selectedCategory: MediaCategory = .bmw
     @State private var selectedItem: MediaItem?
@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var isApplying = false
     @State private var applyError: String?
+    @State private var previewGlow = false
 
     var filteredItems: [MediaItem] {
         api.gallery.filter { $0.category == selectedCategory || (selectedCategory == .custom && !$0.builtin) }
@@ -24,23 +25,28 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if api.canBrowseGallery {
-                    galleryContent
-                } else {
-                    ConnectionView(errorMessage: api.errorMessage) {
-                        showWifiSetup = true
-                    } onShowLocation: {
-                        showLastSeen = true
-                    } onShowOnboarding: {
-                        onboardingCompleted = false
-                        showOnboarding = true
+            ZStack {
+                SpaceBlueBackground(dark: preferDark)
+
+                Group {
+                    if api.canBrowseGallery {
+                        galleryContent
+                    } else {
+                        ConnectionView(errorMessage: api.errorMessage) {
+                            showWifiSetup = true
+                        } onShowLocation: {
+                            showLastSeen = true
+                        } onShowOnboarding: {
+                            onboardingCompleted = false
+                            showOnboarding = true
+                        }
                     }
                 }
             }
             .navigationTitle("Dot")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
+            .dotNavigationChrome(dark: preferDark)
             .preferredColorScheme(preferDark ? .dark : .light)
             .task {
                 locationTracker.requestPermissionIfNeeded()
@@ -55,6 +61,9 @@ struct ContentView: View {
                     showOnboarding = true
                 }
                 syncSelectionFromGallery()
+                withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
+                    previewGlow = true
+                }
             }
             .onChange(of: api.gallery) { _ in
                 syncSelectionFromGallery()
@@ -81,15 +90,18 @@ struct ContentView: View {
                 WifiSetupView()
                     .environmentObject(api)
                     .preferredColorScheme(preferDark ? .dark : .light)
+                    .tint(DotTheme.toolbarTint(dark: preferDark))
             }
             .sheet(isPresented: $showLastSeen) {
                 LastSeenLocationView(tracker: locationTracker)
                     .preferredColorScheme(preferDark ? .dark : .light)
+                    .tint(DotTheme.toolbarTint(dark: preferDark))
             }
             .sheet(isPresented: $showPhotoPicker) {
                 PhotoUploadView(showSuccess: $showSuccess)
                     .environmentObject(api)
                     .preferredColorScheme(preferDark ? .dark : .light)
+                    .tint(DotTheme.toolbarTint(dark: preferDark))
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView {
@@ -98,6 +110,7 @@ struct ContentView: View {
                 }
                 .environmentObject(api)
                 .preferredColorScheme(preferDark ? .dark : .light)
+                .tint(DotTheme.toolbarTint(dark: preferDark))
             }
             .fullScreenCover(isPresented: $showOnboarding) {
                 OnboardingView {
@@ -195,20 +208,49 @@ struct ContentView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 12)
 
-            Divider()
+            Rectangle()
+                .fill(DotTheme.ice.opacity(preferDark ? 0.18 : 0.28))
+                .frame(height: 1)
+                .padding(.horizontal, 24)
 
             libraryPane
                 .frame(maxWidth: .infinity)
                 .frame(maxHeight: .infinity)
         }
-        .background(Color(.systemBackground))
     }
 
     private var selectedPreviewPane: some View {
         VStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                DotTheme.ice.opacity(preferDark ? 0.28 : 0.35),
+                                DotTheme.cobalt.opacity(0.15),
+                                .clear,
+                            ],
+                            center: .center,
+                            startRadius: 40,
+                            endRadius: previewGlow ? 150 : 130
+                        )
+                    )
+                    .frame(width: 280, height: 280)
+                    .allowsHitTesting(false)
+
+                Circle()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [DotTheme.ice.opacity(0.55), DotTheme.horizon.opacity(0.2)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 2
+                    )
+                    .frame(width: 228, height: 228)
+
+                Circle()
+                    .fill(DotTheme.panel(dark: preferDark))
                     .frame(width: 220, height: 220)
 
                 if let selectedItem {
@@ -218,28 +260,29 @@ struct ContentView: View {
                 } else {
                     Image(systemName: "circle.dashed")
                         .font(.system(size: 48))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
                 }
             }
-            .shadow(color: .black.opacity(preferDark ? 0.45 : 0.12), radius: 18, y: 8)
+            .shadow(color: DotTheme.cobalt.opacity(preferDark ? 0.55 : 0.3), radius: 22, y: 10)
 
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(selectedItem?.name ?? "Выберите анимацию")
                         .font(.title3.bold())
+                        .foregroundStyle(DotTheme.primaryText(dark: preferDark))
                         .lineLimit(1)
                     Text(subtitle(for: selectedItem))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
                     if isApplying, let progress = api.applyProgress {
                         Text(progress)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DotTheme.ice.opacity(0.85))
                     }
                     if let applyError {
                         Text(applyError)
                             .font(.caption2)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.5))
                     }
                 }
                 Spacer(minLength: 8)
@@ -249,9 +292,17 @@ struct ContentView: View {
                     Group {
                         if isApplying {
                             ProgressView()
+                                .tint(DotTheme.ice)
                         } else {
                             Image(systemName: "arrow.down.to.line.circle.fill")
                                 .font(.system(size: 36))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [DotTheme.ice, DotTheme.horizon],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
                         }
                     }
                 }
@@ -287,14 +338,18 @@ struct ContentView: View {
                         } label: {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(Color(.secondarySystemBackground))
+                                    .fill(DotTheme.panel(dark: preferDark))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .strokeBorder(DotTheme.panelStroke(dark: preferDark), lineWidth: 1)
+                                    }
                                 VStack(spacing: 6) {
                                     Image(systemName: "plus")
                                         .font(.title2.weight(.semibold))
                                     Text("Добавить")
                                         .font(.caption2)
                                 }
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
                             }
                             .aspectRatio(1, contentMode: .fit)
                         }
@@ -305,7 +360,8 @@ struct ContentView: View {
                         LibraryTile(
                             item: item,
                             isSelected: selectedItem?.id == item.id,
-                            url: api.previewURL(for: item)
+                            url: api.previewURL(for: item),
+                            dark: preferDark
                         )
                         .onTapGesture {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -330,7 +386,7 @@ struct ContentView: View {
                 .padding(.bottom, 24)
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(DotTheme.void.opacity(preferDark ? 0.28 : 0.08))
     }
 
     private func subtitle(for item: MediaItem?) -> String {
@@ -361,18 +417,24 @@ private struct LibraryTile: View {
     let item: MediaItem
     let isSelected: Bool
     let url: URL?
+    var dark: Bool = true
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
+                .fill(DotTheme.panel(dark: dark))
             CachedAsyncImage(url: url, contentMode: .fill)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .aspectRatio(1, contentMode: .fit)
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
+                .strokeBorder(
+                    isSelected
+                        ? LinearGradient(colors: [DotTheme.ice, DotTheme.horizon], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        : LinearGradient(colors: [DotTheme.panelStroke(dark: dark), DotTheme.panelStroke(dark: dark)], startPoint: .top, endPoint: .bottom),
+                    lineWidth: isSelected ? 3 : 1
+                )
         }
         .accessibilityLabel(item.name)
     }

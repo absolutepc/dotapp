@@ -5,6 +5,7 @@ import SwiftUI
 struct WifiSetupView: View {
     @EnvironmentObject private var api: PiAPIClient
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("dot.appearance.dark") private var preferDark = true
 
     private enum Step: Int, CaseIterable {
         case joinSetup = 1
@@ -26,40 +27,47 @@ struct WifiSetupView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                stepHeader
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
+            ZStack {
+                SpaceBlueBackground(dark: preferDark)
 
-                Form {
-                    switch step {
-                    case .joinSetup:
-                        joinSetupSections
-                    case .enterCredentials:
-                        credentialsSections
-                    case .enableHotspot:
-                        enableHotspotSections
-                    case .findDot:
-                        findDotSections
-                    }
+                VStack(spacing: 0) {
+                    stepHeader
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                        .padding(.bottom, 8)
 
-                    if let statusText {
-                        Section {
-                            Text(statusText)
-                                .font(.footnote)
-                                .foregroundStyle(statusIsError ? .red : .secondary)
+                    Form {
+                        switch step {
+                        case .joinSetup:
+                            joinSetupSections
+                        case .enterCredentials:
+                            credentialsSections
+                        case .enableHotspot:
+                            enableHotspotSections
+                        case .findDot:
+                            findDotSections
+                        }
+
+                        if let statusText {
+                            Section {
+                                Text(statusText)
+                                    .font(.footnote)
+                                    .foregroundStyle(statusIsError ? Color(red: 1, green: 0.55, blue: 0.55) : DotTheme.secondaryText(dark: preferDark))
+                            }
                         }
                     }
-                }
+                    .scrollContentBackground(.hidden)
 
-                bottomBar
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
-                    .background(.bar)
+                    bottomBar
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(DotTheme.deep.opacity(preferDark ? 0.92 : 0.55))
+                }
             }
             .navigationTitle("Настройка Wi‑Fi")
             .navigationBarTitleDisplayMode(.inline)
+            .dotNavigationChrome(dark: preferDark)
+            .tint(DotTheme.toolbarTint(dark: preferDark))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Закрыть") { dismiss() }
@@ -77,14 +85,15 @@ struct WifiSetupView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Шаг \(step.rawValue) из \(Step.allCases.count)")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
             ProgressView(value: Double(step.rawValue), total: Double(Step.allCases.count))
-                .tint(.accentColor)
+                .tint(DotTheme.ice)
             Text(stepTitle)
                 .font(.title3.bold())
+                .foregroundStyle(DotTheme.primaryText(dark: preferDark))
             Text(stepSubtitle)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -250,7 +259,7 @@ struct WifiSetupView: View {
                 Button("Назад") {
                     goBack()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: false))
                 .disabled(isBusy)
             }
 
@@ -259,7 +268,7 @@ struct WifiSetupView: View {
             Button(primaryButtonTitle) {
                 Task { await primaryAction() }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: true))
             .disabled(!canPrimary || isBusy)
         }
     }

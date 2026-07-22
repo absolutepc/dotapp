@@ -12,33 +12,39 @@ struct PhotoUploadView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                PhotosPicker(selection: $pickerItem, matching: .any(of: [.images, .livePhotos])) {
-                    Label("Choose from Photos", systemImage: "photo.on.rectangle")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                }
-                .buttonStyle(.borderedProminent)
+            ZStack {
+                SpaceBlueBackground(dark: true)
+                VStack(spacing: 20) {
+                    PhotosPicker(selection: $pickerItem, matching: .any(of: [.images, .livePhotos])) {
+                        Label("Choose from Photos", systemImage: "photo.on.rectangle")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
+                    .buttonStyle(DotPrimaryButtonStyle(dark: true, prominent: true))
 
-                Text("Images are resized to 480×480 before upload.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if isUploading {
-                    ProgressView("Uploading…")
-                }
-
-                if let errorText {
-                    Text(errorText)
+                    Text("Images are resized to 480×480 before upload.")
                         .font(.caption)
-                        .foregroundStyle(.red)
-                }
+                        .foregroundStyle(DotTheme.secondaryText(dark: true))
 
-                Spacer()
+                    if isUploading {
+                        ProgressView("Uploading…")
+                            .tint(DotTheme.ice)
+                    }
+
+                    if let errorText {
+                        Text(errorText)
+                            .font(.caption)
+                            .foregroundStyle(Color(red: 1.0, green: 0.55, blue: 0.55))
+                    }
+
+                    Spacer()
+                }
+                .padding()
             }
-            .padding()
             .navigationTitle("Upload")
             .navigationBarTitleDisplayMode(.inline)
+            .dotNavigationChrome(dark: true)
+            .tint(DotTheme.ice)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }

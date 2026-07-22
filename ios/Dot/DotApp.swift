@@ -5,7 +5,7 @@ import SwiftUI
 struct DotApp: App {
     @StateObject private var api = PiAPIClient()
     @StateObject private var locationTracker = DotLocationTracker()
-    @AppStorage("dot.appearance.dark") private var preferDark = false
+    @AppStorage("dot.appearance.dark") private var preferDark = true
 
     var body: some Scene {
         WindowGroup {
@@ -13,6 +13,7 @@ struct DotApp: App {
                 .environmentObject(api)
                 .environmentObject(locationTracker)
                 .preferredColorScheme(preferDark ? .dark : .light)
+                .tint(DotTheme.toolbarTint(dark: preferDark))
         }
     }
 }
