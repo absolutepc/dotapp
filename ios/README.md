@@ -28,8 +28,8 @@ If Xcode reports `ObservableObject` / `@Published` errors, ensure `import Combin
 |------|----------------|---------|
 | Onboarding slides done | iPhone `dot.onboarding.completed` | User saw intro slides |
 | Saved Dot address | iPhone `dot.api.host` + mDNS cache | Faster rediscovery |
-| Modem paired | Dot `/var/lib/dot/wifi-role` = `client` + NM profile `dot-phone-hotspot` | Auto-join hotspot |
-| Needs pairing UI | Dot API `mode=setup_ap` / `needs_setup` | App opens Wi‑Fi wizard |
+| Modem paired | Dot `/var/lib/dot/wifi-role` = `client` + NM profile `dot-phone-hotspot`; iPhone `dot.wifi.paired` | Auto-join hotspot; connection screen shows day-to-day steps first |
+| Needs pairing UI | Dot API `mode=setup_ap` only | App opens Wi‑Fi wizard (not merely `needs_setup`) |
 
 The app does **not** store a separate “first connection” boolean for Wi‑Fi: it asks Dot’s `/api/wifi/status`. If Dot is `client` and reachable on the hotspot LAN → gallery. If `setup_ap` → wizard.
 
