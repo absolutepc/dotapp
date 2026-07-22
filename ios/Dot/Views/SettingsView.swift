@@ -315,8 +315,9 @@ private struct ReprovisionConfirmSheet: View {
                         .foregroundStyle(.orange)
                     Text("Dot перестанет сам подключаться к точке доступа, откроет сеть Dot-Setup и потребует заново пройти настройку Wi‑Fi. Случайный сброс прервёт обычную работу.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DotTheme.secondaryText(dark: true))
                 }
+                .listRowBackground(DotTheme.panel(dark: true))
 
                 Section("Условие") {
                     if canReset && hotspotStillOk {
@@ -325,20 +326,22 @@ private struct ReprovisionConfirmSheet: View {
                         if let ssid = api.wifi?.ssid, !ssid.isEmpty {
                             Text("Сеть: \(ssid)")
                                 .font(.footnote)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(DotTheme.secondaryText(dark: true))
                         }
                     } else {
                         Label("Нет связи с Dot на модеме", systemImage: "xmark.circle.fill")
                             .foregroundStyle(.red)
                         Text("Включите Режим модема, найдите Dot, затем откройте подтверждение снова.")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DotTheme.secondaryText(dark: true))
                     }
                     Button("Проверить связь сейчас") {
                         Task { await refreshHotspotLink() }
                     }
                     .disabled(isBusy)
                 }
+                .listRowBackground(DotTheme.panel(dark: true))
+                .listRowSeparatorTint(DotTheme.ice.opacity(0.1))
 
                 Section("Подтверждение") {
                     Toggle("Я понимаю последствия и хочу сбросить Wi‑Fi Dot", isOn: $understood)
@@ -349,8 +352,10 @@ private struct ReprovisionConfirmSheet: View {
                         .disabled(!(canReset && hotspotStillOk) || isBusy)
                     Text("Чтобы подтвердить, введите слово \(confirmWord) заглавными буквами.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DotTheme.secondaryText(dark: true))
                 }
+                .listRowBackground(DotTheme.panel(dark: true))
+                .listRowSeparatorTint(DotTheme.ice.opacity(0.1))
 
                 if let localError {
                     Section {
@@ -358,6 +363,7 @@ private struct ReprovisionConfirmSheet: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
+                    .listRowBackground(DotTheme.panel(dark: true))
                 }
 
                 Section {
@@ -372,6 +378,7 @@ private struct ReprovisionConfirmSheet: View {
                     }
                     .disabled(!canSubmit)
                 }
+                .listRowBackground(DotTheme.panel(dark: true))
             }
             .scrollContentBackground(.hidden)
             .background(SpaceBlueBackground(dark: true))

@@ -139,10 +139,6 @@ struct DotPrimaryButtonStyle: ButtonStyle {
                 } else {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(DotTheme.panel(dark: dark))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(DotTheme.panelStroke(dark: dark), lineWidth: 1)
-                        }
                 }
             }
             .opacity(configuration.isPressed ? 0.85 : 1)
