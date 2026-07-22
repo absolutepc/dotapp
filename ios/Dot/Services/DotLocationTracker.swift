@@ -4,7 +4,7 @@ import Foundation
 import MapKit
 
 struct DotLastSeen: Codable, Equatable, Identifiable {
-    var id: String { "\(latitude),\(longitude),\(timestamp)" }
+    var id: String { "\(latitude),\(longitude),\(timestamp.timeIntervalSince1970)" }
     let latitude: Double
     let longitude: Double
     let accuracy: Double
@@ -36,12 +36,20 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
     private let manager = CLLocationManager()
     private var pendingHost: String?
     private var waitingForFix = false
+    private var updatesStarted = false
 
     override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.distanceFilter = kCLDistanceFilterNone
         lastSeen = Self.load()
+    }
+
+    func reloadFromDisk() {
+        if let loaded = Self.load() {
+            lastSeen = loaded
+        }
     }
 
     func requestPermissionIfNeeded() {
@@ -58,17 +66,25 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
     /// Call after a successful connection to the Pi.
     func captureLastSeen(host: String?) {
         pendingHost = host
-        requestPermissionIfNeeded()
-        let status = manager.authorizationStatus
-        guard status == .authorizedWhenInUse || status == .authorizedAlways else {
-            if status == .denied || status == .restricted {
-                authorizationDenied = true
-                statusMessage = "Разрешите геолокацию, чтобы запоминать место Dot"
-            }
-            return
-        }
+        statusMessage = nil
         waitingForFix = true
-        manager.requestLocation()
+        requestPermissionIfNeeded()
+
+        let status = manager.authorizationStatus
+        switch status {
+        case .authorizedWhenInUse, .authorizedAlways:
+            authorizationDenied = false
+            requestFix()
+        case .denied, .restricted:
+            authorizationDenied = true
+            waitingForFix = false
+            statusMessage = "Разрешите геолокацию, чтобы запоминать место Dot"
+        case .notDetermined:
+            // waitingForFix stays true — resume in locationManagerDidChangeAuthorization
+            break
+        @unknown default:
+            break
+        }
     }
 
     func openInMaps() {
@@ -78,12 +94,49 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
         ])
     }
 
+    private func requestFix() {
+        // Prefer a one-shot fix; also briefly start updates as a fallback for
+        // Personal Hotspot / car scenarios where requestLocation alone can stall.
+        manager.requestLocation()
+        if !updatesStarted {
+            updatesStarted = true
+            manager.startUpdatingLocation()
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 8_000_000_000)
+                self.stopUpdatesIfNeeded()
+            }
+        }
+    }
+
+    private func stopUpdatesIfNeeded() {
+        guard updatesStarted else { return }
+        updatesStarted = false
+        manager.stopUpdatingLocation()
+    }
+
+    private func store(location: CLLocation) {
+        // Ignore clearly invalid / stale cache-only readings when possible.
+        guard location.horizontalAccuracy >= 0 else { return }
+        waitingForFix = false
+        stopUpdatesIfNeeded()
+        let seen = DotLastSeen(
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude,
+            accuracy: location.horizontalAccuracy,
+            timestamp: Date(),
+            host: pendingHost
+        )
+        lastSeen = seen
+        Self.save(seen)
+        statusMessage = nil
+    }
+
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor in
             let status = manager.authorizationStatus
             authorizationDenied = (status == .denied || status == .restricted)
             if waitingForFix, status == .authorizedWhenInUse || status == .authorizedAlways {
-                manager.requestLocation()
+                requestFix()
             }
         }
     }
@@ -91,24 +144,19 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         Task { @MainActor in
-            waitingForFix = false
-            let seen = DotLastSeen(
-                latitude: location.coordinate.latitude,
-                longitude: location.coordinate.longitude,
-                accuracy: location.horizontalAccuracy,
-                timestamp: location.timestamp,
-                host: pendingHost
-            )
-            lastSeen = seen
-            Self.save(seen)
-            statusMessage = nil
+            store(location: location)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            waitingForFix = false
-            statusMessage = "Не удалось получить координаты"
+            // Keep waitingForFix if we're still streaming updates.
+            if !updatesStarted {
+                waitingForFix = false
+            }
+            if lastSeen == nil {
+                statusMessage = "Не удалось получить координаты"
+            }
             print("Dot location error: \(error.localizedDescription)")
         }
     }
@@ -119,8 +167,8 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
     }
 
     private static func save(_ value: DotLastSeen) {
-        if let data = try? JSONEncoder().encode(value) {
-            UserDefaults.standard.set(data, forKey: storageKey)
-        }
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey)
+        UserDefaults.standard.synchronize()
     }
 }

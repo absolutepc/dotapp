@@ -10,7 +10,6 @@ struct ContentView: View {
     @State private var selectedCategory: MediaCategory = .bmw
     @State private var selectedItem: MediaItem?
     @State private var showPhotoPicker = false
-    @State private var showSuccess = false
     @State private var showWifiSetup = false
     @State private var showOnboarding = false
     @State private var showLastSeen = false
@@ -18,6 +17,8 @@ struct ContentView: View {
     @State private var isApplying = false
     @State private var applyError: String?
     @State private var previewGlow = false
+    @State private var toastMessage: String?
+    @State private var toastVisible = false
 
     var filteredItems: [MediaItem] {
         api.gallery.filter { $0.category == selectedCategory || (selectedCategory == .custom && !$0.builtin) }
@@ -98,7 +99,9 @@ struct ContentView: View {
                     .tint(DotTheme.toolbarTint(dark: preferDark))
             }
             .sheet(isPresented: $showPhotoPicker) {
-                PhotoUploadView(showSuccess: $showSuccess)
+                PhotoUploadView(onUploaded: {
+                    showToast("Анимация на экране Dot")
+                })
                     .environmentObject(api)
                     .preferredColorScheme(preferDark ? .dark : .light)
                     .tint(DotTheme.toolbarTint(dark: preferDark))
@@ -119,11 +122,28 @@ struct ContentView: View {
                     Task { await connectAfterOnboarding() }
                 }
             }
-            .alert("На экране Dot", isPresented: $showSuccess) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Анимация отправлена на круглый дисплей.")
+            .overlay(alignment: .bottom) {
+                if toastVisible, let toastMessage {
+                    Text(toastMessage)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(DotTheme.void)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 12)
+                        .background(
+                            LinearGradient(
+                                colors: [DotTheme.ice, DotTheme.horizon],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            in: Capsule()
+                        )
+                        .shadow(color: DotTheme.cobalt.opacity(0.45), radius: 12, y: 4)
+                        .padding(.bottom, 28)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .allowsHitTesting(false)
+                }
             }
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: toastVisible)
         }
     }
 
@@ -292,19 +312,25 @@ struct ContentView: View {
                     Group {
                         if isApplying {
                             ProgressView()
-                                .tint(DotTheme.ice)
+                                .tint(DotTheme.void)
+                                .frame(minWidth: 88)
                         } else {
-                            Image(systemName: "arrow.down.to.line.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [DotTheme.ice, DotTheme.horizon],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
+                            Text("Apply")
+                                .font(.headline.weight(.semibold))
+                                .frame(minWidth: 88)
                         }
                     }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(DotTheme.void)
+                    .background(
+                        LinearGradient(
+                            colors: [DotTheme.ice, DotTheme.horizon],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        in: Capsule()
+                    )
                 }
                 .disabled(selectedItem == nil || isApplying)
                 .accessibilityLabel("Отправить на экран Dot")
@@ -406,9 +432,21 @@ struct ContentView: View {
         defer { isApplying = false }
         do {
             try await api.display(selectedItem)
-            showSuccess = true
+            showToast("Анимация на экране Dot")
+            locationTracker.captureLastSeen(host: api.host)
         } catch {
             applyError = error.localizedDescription
+        }
+    }
+
+    private func showToast(_ message: String) {
+        toastMessage = message
+        withAnimation { toastVisible = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_400_000_000)
+            await MainActor.run {
+                withAnimation { toastVisible = false }
+            }
         }
     }
 }

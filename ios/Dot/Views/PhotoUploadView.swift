@@ -5,7 +5,7 @@ struct PhotoUploadView: View {
     @EnvironmentObject private var api: PiAPIClient
     @Environment(\.dismiss) private var dismiss
 
-    @Binding var showSuccess: Bool
+    var onUploaded: () -> Void = {}
     @State private var pickerItem: PhotosPickerItem?
     @State private var isUploading = false
     @State private var errorText: String?
@@ -50,7 +50,7 @@ struct PhotoUploadView: View {
                     Button("Close") { dismiss() }
                 }
             }
-            .onChange(of: pickerItem) { _, newItem in
+            .onChange(of: pickerItem) { newItem in
                 guard let newItem else { return }
                 Task { await upload(item: newItem) }
             }
@@ -76,7 +76,7 @@ struct PhotoUploadView: View {
                 try await api.upload(data: raw, filename: "upload.gif", mimeType: "image/gif")
             }
 
-            showSuccess = true
+            onUploaded()
             dismiss()
         } catch {
             errorText = error.localizedDescription
