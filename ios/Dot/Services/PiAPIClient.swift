@@ -435,11 +435,26 @@ final class PiAPIClient: ObservableObject {
     }
 
     func previewURL(for item: MediaItem) -> URL {
-        baseURL.appending(path: item.previewUrl ?? "/api/preview/\(item.id)")
+        // API returns "/api/preview/{id}?v=N". Do NOT use appending(path:) —
+        // it percent-encodes "?" and breaks the query, so tiles stay blank.
+        let relative = item.previewUrl ?? "/api/preview/\(item.id)"
+        if let absolute = URL(string: relative, relativeTo: baseURL)?.absoluteURL {
+            return absolute
+        }
+        return baseURL.appending(path: "api/preview/\(item.id)")
+    }
+
+    /// Build API URL from a path like "/api/status" (no query) or "api/status".
+    private func apiURL(_ path: String) -> URL {
+        if let absolute = URL(string: path, relativeTo: baseURL)?.absoluteURL {
+            return absolute
+        }
+        let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return baseURL.appending(path: trimmed)
     }
 
     private func get<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
-        var request = URLRequest(url: baseURL.appending(path: path))
+        var request = URLRequest(url: apiURL(path))
         request.timeoutInterval = 8
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {

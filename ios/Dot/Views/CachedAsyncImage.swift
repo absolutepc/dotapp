@@ -16,9 +16,18 @@ struct CachedAsyncImage: View {
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
             } else if failed {
-                Color.gray.opacity(0.2)
+                ZStack {
+                    Color.white.opacity(0.06)
+                    Image(systemName: "photo")
+                        .font(.title3)
+                        .foregroundStyle(DotTheme.ice.opacity(0.45))
+                }
             } else {
-                ProgressView()
+                ZStack {
+                    Color.white.opacity(0.06)
+                    ProgressView()
+                        .tint(DotTheme.ice)
+                }
             }
         }
         .task(id: url?.absoluteString) {
@@ -27,6 +36,8 @@ struct CachedAsyncImage: View {
     }
 
     private func load() async {
+        image = nil
+        failed = false
         guard let url else {
             failed = true
             return
@@ -61,7 +72,7 @@ final class PreviewImageCacheStore {
     }
 
     func image(for url: URL) -> UIImage? {
-        let key = url.absoluteString as NSString
+        let key = cacheKey(for: url) as NSString
         if let mem = memory.object(forKey: key) {
             return mem
         }
@@ -78,22 +89,31 @@ final class PreviewImageCacheStore {
             return cached
         }
         var request = URLRequest(url: url)
-        request.timeoutInterval = 12
+        request.timeoutInterval = 20
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200,
               let image = UIImage(data: data)
         else {
             return nil
         }
-        memory.setObject(image, forKey: url.absoluteString as NSString)
+        let key = cacheKey(for: url) as NSString
+        memory.setObject(image, forKey: key)
         try? data.write(to: diskURL(for: url), options: .atomic)
         return image
     }
 
+    private func cacheKey(for url: URL) -> String {
+        url.absoluteString
+    }
+
     private func diskURL(for url: URL) -> URL {
-        let name = url.absoluteString
+        let name = cacheKey(for: url)
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: ":", with: "_")
+            .replacingOccurrences(of: "?", with: "_")
+            .replacingOccurrences(of: "&", with: "_")
+            .replacingOccurrences(of: "=", with: "_")
         return folder.appendingPathComponent(name + ".jpg")
     }
 }
