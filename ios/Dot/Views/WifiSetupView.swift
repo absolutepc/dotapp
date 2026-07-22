@@ -61,7 +61,8 @@ struct WifiSetupView: View {
                     bottomBar
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
-                        .background(DotTheme.deep.opacity(preferDark ? 0.92 : 0.55))
+                        .background(DotTheme.deep.opacity(preferDark ? 0.96 : 0))
+                        .background(preferDark ? Color.clear : Color.white)
                 }
             }
             .navigationTitle("Настройка Wi‑Fi")

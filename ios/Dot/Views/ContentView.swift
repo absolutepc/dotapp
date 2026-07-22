@@ -322,14 +322,21 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 12)
-                    .foregroundStyle(DotTheme.void)
+                    .foregroundStyle(preferDark ? DotTheme.void : .white)
                     .background(
-                        LinearGradient(
-                            colors: [DotTheme.ice, DotTheme.horizon],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        in: Capsule()
+                        Group {
+                            if preferDark {
+                                Capsule().fill(
+                                    LinearGradient(
+                                        colors: [DotTheme.ice, DotTheme.horizon],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                            } else {
+                                Capsule().fill(Color(red: 0.12, green: 0.28, blue: 0.55))
+                            }
+                        }
                     )
                 }
                 .disabled(selectedItem == nil || isApplying)
@@ -412,7 +419,7 @@ struct ContentView: View {
                 .padding(.bottom, 24)
             }
         }
-        .background(DotTheme.void.opacity(preferDark ? 0.28 : 0.08))
+        .background(preferDark ? DotTheme.void.opacity(0.35) : DotTheme.paperSoft)
     }
 
     private func subtitle(for item: MediaItem?) -> String {

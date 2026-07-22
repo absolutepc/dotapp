@@ -45,7 +45,7 @@ struct LastSeenLocationView: View {
                                 .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: true))
                             }
                             .padding()
-                            .background(DotTheme.deep.opacity(0.92))
+                            .background(preferDark ? DotTheme.deep.opacity(0.96) : Color.white)
                         }
                     } else {
                         ContentUnavailableFallback(
