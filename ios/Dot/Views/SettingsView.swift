@@ -72,7 +72,7 @@ struct SettingsView: View {
                     isBusy: $isBusy,
                     canReset: canResetToSetup
                 ) {
-                    await reprovision()
+                    try await reprovision()
                 }
                 .environmentObject(api)
                 .preferredColorScheme(preferDark ? .dark : .light)

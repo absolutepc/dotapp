@@ -259,7 +259,7 @@ struct WifiSetupView: View {
                 Button("Назад") {
                     goBack()
                 }
-                .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: false))
+                .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: false, expand: false))
                 .disabled(isBusy)
             }
 
@@ -268,7 +268,7 @@ struct WifiSetupView: View {
             Button(primaryButtonTitle) {
                 Task { await primaryAction() }
             }
-            .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: true))
+            .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: true, expand: true))
             .disabled(!canPrimary || isBusy)
         }
     }
