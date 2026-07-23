@@ -12,7 +12,7 @@ In the car you also do not carry a home router.
 iPhone **cannot** stay on Dot-Setup Wi‑Fi and run Personal Hotspot at the same time.  
 Do one step at a time (the app wizard enforces this):
 
-After Wi-Fi helpers are installed once (`install-wifi-provision.sh` / `install-pi.sh`):
+After Wi-Fi helpers are installed once (`sudo bash scripts/bootstrap-pi.sh` or `install-wifi-provision.sh` / `install-pi.sh`):
 
 1. Pi **automatically** opens Wi-Fi `Dot-Setup-XXXX` on boot until a phone hotspot is saved  
    (password default: `dotsetup1`)
@@ -52,6 +52,7 @@ sudo systemctl start dot-wifi-boot
 
 | Action | Command |
 |--------|---------|
+| Install everything (one command) | `sudo bash scripts/bootstrap-pi.sh` |
 | Install helpers + enable boot AP | `sudo bash scripts/install-wifi-provision.sh` |
 | Enter setup AP again | `sudo dot-enter-setup-ap` or `POST /api/wifi/reprovision` |
 | Wi-Fi status | `curl -s http://127.0.0.1:8080/api/wifi/status` |
