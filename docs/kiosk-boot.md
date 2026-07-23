@@ -24,8 +24,12 @@ Replace `mercy119` with your Pi username.
 ## Expected boot sequence
 
 1. Power on  
-2. ~20–40 s (Pi Zero 2W) — **black** round panel (no U-Boot / kernel text)  
-3. Dot logo animation
+2. ~15–40 s (Pi Zero 2W) — mostly black while Linux starts  
+3. **Dot power-on splash** (~3 s): expanding ring + wordmark `DOT`  
+4. Last selected logo animation
+
+Disable splash: in `dot-display` unit set `Environment=DOT_BOOT_SPLASH=0`, then  
+`sudo systemctl daemon-reload && sudo systemctl restart dot-display`.
 
 ## No text on the round display
 

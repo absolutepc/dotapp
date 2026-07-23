@@ -10,6 +10,7 @@ WorkingDirectory=/opt/dot
 Environment=PYTHONPATH=/opt/dot
 Environment=DISPLAY=:0
 Environment=SDL_VIDEODRIVER=x11
+Environment=DOT_BOOT_SPLASH=1
 # Xauthority is rewritten by fix-systemd-paths / setup for the real user
 Environment=XAUTHORITY=/home/pi/.Xauthority
 ExecStartPre=/bin/sleep 2

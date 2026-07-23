@@ -18,6 +18,8 @@ Environment=SDL_AUDIODRIVER=dummy
 Environment=SDL_VIDEO_EGL_DRIVER=libEGL.so.1
 Environment=SDL_VIDEO_GL_DRIVER=libGLESv2.so.2
 Environment=XDG_RUNTIME_DIR=/run/dot-display
+# Product power-on splash (set 0 to skip straight to logo frames)
+Environment=DOT_BOOT_SPLASH=1
 # Create runtime dir; wait for DRM
 ExecStartPre=/bin/sh -c 'mkdir -p /run/dot-display; chmod 700 /run/dot-display; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -e /dev/dri/card0 ] || [ -e /dev/dri/card1 ] && exit 0; sleep 0.5; done; exit 0'
 # Unbind kernel framebuffer console so KMSDRM owns HDMI (otherwise e2fsck text stays visible)

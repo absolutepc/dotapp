@@ -29,6 +29,7 @@ from firmware.config import (
     FRAMES_DIR,
     TARGET_FPS,
 )
+from firmware.display.boot_splash import play_power_on_splash
 from firmware.state import get_brightness
 
 # Never RAM-preload full clips on Pi Zero: blocking the loop makes the X11/SDL
@@ -97,23 +98,9 @@ def _init_pygame_display() -> pygame.Surface:
             )
             if used in {"offscreen", "dummy", "evdev"}:
                 raise pygame.error(f"refusing non-display backend: {used}")
-            # Optional diagnostic splash (DOT_BOOT_SPLASH=1). Default: stay black until logo frames.
-            if os.environ.get("DOT_BOOT_SPLASH", "").strip() in {"1", "true", "yes"}:
-                screen.fill((0, 90, 180))
-                pygame.draw.circle(screen, (255, 255, 255), (DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2), 110, 10)
-                pygame.draw.line(
-                    screen, (0, 255, 210),
-                    (30, DISPLAY_HEIGHT // 2), (DISPLAY_WIDTH - 30, DISPLAY_HEIGHT // 2), 8,
-                )
-                pygame.draw.line(
-                    screen, (0, 255, 210),
-                    (DISPLAY_WIDTH // 2, 30), (DISPLAY_WIDTH // 2, DISPLAY_HEIGHT - 30), 8,
-                )
-                pygame.display.flip()
-                print("boot splash drawn (DOT_BOOT_SPLASH=1)", flush=True)
-            else:
-                screen.fill((0, 0, 0))
-                pygame.display.flip()
+            # Black until power-on splash runs (product intro, not diagnostic cross).
+            screen.fill((0, 0, 0))
+            pygame.display.flip()
             return screen
         except pygame.error as exc:
             last_error = exc
@@ -127,8 +114,8 @@ class HDMIRenderer:
         self._screen = _init_pygame_display()
         pygame.display.set_caption("Dot")
         pygame.mouse.set_visible(False)
-        if os.environ.get("DOT_BOOT_SPLASH", "").strip() in {"1", "true", "yes"}:
-            time.sleep(2.0)
+        # Product power-on: branded intro, then last logo / waiting gray.
+        play_power_on_splash(self._screen)
 
         self._clock = pygame.time.Clock()
         self._running = True
