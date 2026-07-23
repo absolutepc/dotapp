@@ -1,6 +1,7 @@
 # Dot enclosure CAD
 
-Round head split like the reference badge:
+Process / look reference: [Vusi Studios reel](https://www.instagram.com/reel/DZIhncvRAz_/) (digital badge).  
+Round head split like that badge:
 
 1. **`front`** — **bezel + glass assembly** (printed frame with glass seat/glue shelf + LCD pocket)
 2. **`back`** — board pocket, **HDMI + USB-C on the rear** under UEDX6911

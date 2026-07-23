@@ -1,7 +1,7 @@
 // Dot enclosure v2 — CNC-style round head
+// Look/process ref: https://www.instagram.com/reel/DZIhncvRAz_/ (@vusistudios digital badge)
 // FRONT ASSEMBLY: printed bezel + cover glass seat (+ LCD pocket)
-//   — not a bezel-only ring; glass is part of this unit
-// BACK: board pocket; HDMI + USB-C through rear under UEDX6911
+// BACK: board pocket; HDMI + USB-C through rear under UEDX6911 (Dot-specific)
 //
 // part = "preview" | "front" | "back"
 // Units: mm

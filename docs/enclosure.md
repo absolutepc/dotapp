@@ -1,6 +1,8 @@
 # Dot enclosure — CNC-style thin round head
 
-Inspired by the machined “digital badge” process: round body, **front assembly = bezel + glass**, **HDMI + USB-C through the back** under the driver board. Pi Zero stays remote.
+Form / process reference: [Vusi Studios — digital badge reel](https://www.instagram.com/reel/DZIhncvRAz_/) (@vusistudios).  
+Same language: CNC round puck, **front assembly = bezel + glass**, thin metal body.  
+Dot diverges on I/O: **HDMI + USB-C through the back** under the driver board; Pi Zero stays remote.
 
 ```
                     front assembly (one unit)
@@ -16,9 +18,9 @@ Inspired by the machined “digital badge” process: round body, **front assemb
               cables → Pi Zero (remote)
 ```
 
-## Front assembly (your reference frame)
+## Front assembly (reference)
 
-What you see in the hand is **not a bezel alone** — it is the **front subassembly: printed frame + cover glass** (and the round panel behind the glass). In the reference project that whole front unit was made/printed as one face of the device.
+In the Vusi reel the held face is **not a bezel alone** — it is the **front subassembly: printed/machined frame + cover glass** (panel behind the glass). That whole front unit is one face of the device.
 
 Dot uses the same split:
 
