@@ -1,17 +1,15 @@
 [Unit]
 Description=Dot HDMI Display Renderer (kiosk, no desktop)
-# Start after local FS + udev so /dev/dri and /dev/fb0 exist
 After=local-fs.target systemd-udevd.service
 Wants=dot-api.service
 Before=getty@tty1.service
 Conflicts=getty@tty1.service
-StartLimitIntervalSec=60
-StartLimitBurst=20
+StartLimitIntervalSec=120
+StartLimitBurst=10
 
 [Service]
 Type=simple
-# Root is required for reliable KMSDRM without a seat/logind session.
-# (SSH probes as a normal user often fall back to "offscreen".)
+# Root + KMSDRM (no seat). Do not bind a TTY — tty hangup was restarting us in a loop.
 User=root
 WorkingDirectory=/opt/dot
 Environment=PYTHONPATH=/opt/dot
@@ -20,21 +18,16 @@ Environment=SDL_AUDIODRIVER=dummy
 Environment=SDL_VIDEO_EGL_DRIVER=libEGL.so.1
 Environment=SDL_VIDEO_GL_DRIVER=libGLESv2.so.2
 Environment=XDG_RUNTIME_DIR=/run/dot-display
-# Wait for a real display device (Pi Zero 2W can be slow after fsck)
-ExecStartPre=/bin/sh -c 'mkdir -p /run/dot-display; chmod 700 /run/dot-display; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -e /dev/dri/card0 ] || [ -e /dev/dri/card1 ] || [ -e /dev/fb0 ] && exit 0; sleep 0.5; done; echo "WARN: no DRM/fb device yet" >&2; exit 0'
-# Wipe leftover boot text (e2fsck / kernel) from the framebuffer before SDL starts
-ExecStartPre=/bin/sh -c 'setterm -cursor off -blank 0 -powerdown 0 </dev/tty1 >/dev/tty1 2>/dev/null || true; clear >/dev/tty1 2>/dev/null || true; if [ -e /dev/fb0 ]; then dd if=/dev/zero of=/dev/fb0 bs=1024 count=4096 status=none 2>/dev/null || true; fi'
-TTYPath=/dev/tty1
-TTYReset=yes
-TTYVHangup=yes
-StandardInput=tty
+ExecStartPre=/bin/sh -c 'mkdir -p /run/dot-display; chmod 700 /run/dot-display; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -e /dev/dri/card0 ] || [ -e /dev/dri/card1 ] || [ -e /dev/fb0 ] && exit 0; sleep 0.5; done; exit 0'
+ExecStartPre=/bin/sh -c 'if [ -e /dev/fb0 ]; then dd if=/dev/zero of=/dev/fb0 bs=1024 count=4096 status=none 2>/dev/null || true; fi'
+StandardInput=null
 StandardOutput=journal
 StandardError=journal
 ExecStart=/opt/dot/.venv/bin/python -m firmware.display.hdmi_renderer
-Restart=always
-RestartSec=2
-TimeoutStopSec=5
-KillMode=mixed
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=3
+KillMode=control-group
 FinalKillSignal=SIGKILL
 SendSIGKILL=yes
 

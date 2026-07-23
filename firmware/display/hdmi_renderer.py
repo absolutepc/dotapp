@@ -10,6 +10,15 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 
+# Must be set before importing pygame/SDL — otherwise ALSA hotplug threads
+# start and hang systemd stop (SIGKILL of SDLHotplugALSA).
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+os.environ.setdefault("SDL_VIDEODRIVER", "KMSDRM")
+os.environ.setdefault("SDL_VIDEO_EGL_DRIVER", "libEGL.so.1")
+os.environ.setdefault("SDL_VIDEO_GL_DRIVER", "libGLESv2.so.2")
+if not os.environ.get("XDG_RUNTIME_DIR"):
+    os.environ["XDG_RUNTIME_DIR"] = "/run/dot-display"
+
 import pygame
 from PIL import Image
 
