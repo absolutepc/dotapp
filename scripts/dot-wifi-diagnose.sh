@@ -25,7 +25,9 @@ echo "=== device ==="
 nmcli -t -f DEVICE,STATE,CONNECTION device 2>/dev/null || true
 ip -4 addr show wlan0 2>/dev/null || true
 echo
-echo "=== recent join / keepalive ==="
+echo "=== recent boot / watch / join ==="
+tail -n 20 /var/log/dot-wifi-boot.log 2>/dev/null || echo "(no boot log)"
+tail -n 15 /var/log/dot-wifi-watch.log 2>/dev/null || echo "(no watch log)"
 tail -n 15 /var/log/dot-wifi-join.log 2>/dev/null || echo "(no join log)"
 tail -n 10 /var/log/dot-wifi-keepalive.log 2>/dev/null || echo "(no keepalive log)"
 echo
