@@ -10,6 +10,26 @@ Round **480×480 @ 60 Hz** display driven by **Raspberry Pi Zero 2W** via **UEDX
 
 ## Quick start (Raspberry Pi)
 
+One command installs firmware, Wi‑Fi helpers, HDMI timing, and (by default) kiosk boot + Dot-Setup AP:
+
+```bash
+cd ~/dotapp
+git pull origin cursor/dot-e8ba   # or your branch
+sudo bash scripts/bootstrap-pi.sh
+# optional: sudo reboot   # if HDMI lines were just added to config.txt
+```
+
+Useful flags:
+
+```bash
+sudo bash scripts/bootstrap-pi.sh --pull              # git pull, then install
+sudo bash scripts/bootstrap-pi.sh --desktop           # keep graphical desktop
+sudo bash scripts/bootstrap-pi.sh --user mercy119     # service account
+sudo bash scripts/bootstrap-pi.sh --no-setup-ap       # don't start Dot-Setup now
+```
+
+Manual steps (same as before), if you prefer:
+
 ```bash
 # 1. Append docs/config.txt.example to /boot/firmware/config.txt and reboot
 # 2. Wire Pi mini-HDMI → UEDX6911 HDMI, USB OTG → board USB-C (see docs/wiring.md)
@@ -20,7 +40,7 @@ sudo bash scripts/install-wifi-provision.sh
 sudo bash scripts/enter-setup-ap.sh
 ```
 
-After setup AP is up, on iPhone join `Dot-Setup-XXXX`, open `http://192.168.4.1/setup/`, enter hotspot name/password.
+After setup AP is up, on iPhone join `Dot-Setup-XXXX`, open the **Dot app** Wi‑Fi wizard (or `http://192.168.4.1/setup/`), enter hotspot name/password.
 
 Day-to-day in the car: enable **Personal Hotspot** on iPhone → Pi joins automatically → use the app with the Pi LAN IP (`GET /api/wifi/status`).
 
