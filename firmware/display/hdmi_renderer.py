@@ -31,27 +31,29 @@ PREFETCH_AHEAD = 12
 
 
 def _init_pygame_display() -> pygame.Surface:
-    """Try SDL drivers in order: auto, env override, kmsdrm, fbcon, x11."""
-    # Help KMSDRM find EGL/GLES on Bookworm/Trixie without X11.
+    """Try SDL drivers until a *real* on-screen backend works (not offscreen)."""
     os.environ.setdefault("SDL_VIDEO_EGL_DRIVER", "libEGL.so.1")
     os.environ.setdefault("SDL_VIDEO_GL_DRIVER", "libGLESv2.so.2")
+    if not os.environ.get("XDG_RUNTIME_DIR"):
+        runtime = Path("/run/dot-display")
+        try:
+            runtime.mkdir(parents=True, exist_ok=True)
+            os.environ["XDG_RUNTIME_DIR"] = str(runtime)
+        except OSError:
+            os.environ["XDG_RUNTIME_DIR"] = "/tmp"
 
     preferred = os.environ.get("SDL_VIDEODRIVER")
-    # Empty / "auto" = let SDL pick; forced kmsdrm fails hard if DRM isn't ready.
-    drivers: list[str | None] = []
+    drivers: list[str] = []
     if preferred and preferred.lower() not in {"auto", "default"}:
         drivers.append(preferred)
-    drivers.append(None)  # SDL default order
-    for driver in ("kmsdrm", "fbcon", "x11"):
+    # SDL lists the driver as "KMSDRM"; lowercase often reports "not available".
+    for driver in ("KMSDRM", "kmsdrm", "fbcon", "x11"):
         if driver not in drivers:
             drivers.append(driver)
 
     last_error: Exception | None = None
     for driver in drivers:
-        if driver:
-            os.environ["SDL_VIDEODRIVER"] = driver
-        else:
-            os.environ.pop("SDL_VIDEODRIVER", None)
+        os.environ["SDL_VIDEODRIVER"] = driver
         pygame.display.quit()
         pygame.quit()
         try:
@@ -61,12 +63,14 @@ def _init_pygame_display() -> pygame.Surface:
                 (DISPLAY_WIDTH, DISPLAY_HEIGHT),
                 pygame.FULLSCREEN,
             )
-            used = pygame.display.get_driver()
-            print(f"Display driver: {used} (requested={driver or 'auto'})")
+            used = (pygame.display.get_driver() or "").lower()
+            print(f"Display driver: {used} (requested={driver})")
+            if used in {"offscreen", "dummy", "evdev"}:
+                raise pygame.error(f"refusing non-display backend: {used}")
             return screen
         except pygame.error as exc:
             last_error = exc
-            print(f"Driver {driver or 'auto'} failed: {exc}")
+            print(f"Driver {driver} failed: {exc}")
 
     raise RuntimeError(f"No SDL display driver available: {last_error}")
 

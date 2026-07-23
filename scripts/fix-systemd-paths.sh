@@ -51,12 +51,20 @@ for old in bmw-logo-api bmw-logo-display bmw-api bmw-display; do
 done
 
 rewrite_unit() {
-  local src="$1" dest="$2" exec_bin="$3" exec_args="$4"
+  local src="$1" dest="$2" exec_bin="$3" exec_args="$4" force_user="${5:-}"
   sed \
-    -e "s|^User=.*|User=${PI_USER}|" \
     -e "s|/opt/dot|${ROOT}|g" \
     -e "s|/home/pi/|/home/${PI_USER}/|g" \
     "${src}" >"${dest}"
+  if [[ -n "${force_user}" ]]; then
+    if grep -q '^User=' "${dest}"; then
+      sed -i "s|^User=.*|User=${force_user}|" "${dest}"
+    else
+      sed -i "/^\[Service\]/a User=${force_user}" "${dest}"
+    fi
+  else
+    sed -i "s|^User=.*|User=${PI_USER}|" "${dest}"
+  fi
   if grep -q '^ExecStart=' "${dest}"; then
     sed -i "s|^ExecStart=.*|ExecStart=${exec_bin} ${exec_args}|" "${dest}"
   fi
@@ -66,8 +74,14 @@ rewrite_unit() {
     "${dest}"
 }
 
-rewrite_unit "${DISPLAY_SRC}" /etc/systemd/system/dot-display.service \
-  "${VENV_BIN}/python" "-m firmware.display.hdmi_renderer"
+# Kiosk display needs root for DRM master on tty1; API stays as the login user.
+if [[ "${MODE}" == "kiosk" ]]; then
+  rewrite_unit "${DISPLAY_SRC}" /etc/systemd/system/dot-display.service \
+    "${VENV_BIN}/python" "-m firmware.display.hdmi_renderer" "root"
+else
+  rewrite_unit "${DISPLAY_SRC}" /etc/systemd/system/dot-display.service \
+    "${VENV_BIN}/python" "-m firmware.display.hdmi_renderer"
+fi
 
 rewrite_unit "${API_SRC}" /etc/systemd/system/dot-api.service \
   "${VENV_BIN}/uvicorn" "firmware.main:app --host 0.0.0.0 --port 8080"

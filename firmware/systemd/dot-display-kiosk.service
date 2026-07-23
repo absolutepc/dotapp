@@ -8,17 +8,19 @@ Conflicts=getty@tty1.service
 
 [Service]
 Type=simple
-User=pi
-SupplementaryGroups=video render
+# Root is required for reliable KMSDRM without a seat/logind session.
+# (SSH probes as a normal user often fall back to "offscreen".)
+User=root
 WorkingDirectory=/opt/dot
 Environment=PYTHONPATH=/opt/dot
-# Do not force SDL_VIDEODRIVER=kmsdrm — let hdmi_renderer try auto → kmsdrm → fbcon
+Environment=SDL_VIDEODRIVER=KMSDRM
 Environment=SDL_VIDEO_EGL_DRIVER=libEGL.so.1
 Environment=SDL_VIDEO_GL_DRIVER=libGLESv2.so.2
-# Wait for a real display device (Pi Zero 2W can be slow after fsck). Run as root.
-ExecStartPre=+/bin/sh -c 'for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -e /dev/dri/card0 ] || [ -e /dev/fb0 ] && exit 0; sleep 0.5; done; echo "WARN: no /dev/dri/card0 or /dev/fb0 yet" >&2; exit 0'
-# Wipe leftover boot text (e2fsck / kernel) from the framebuffer before SDL starts (root)
-ExecStartPre=+/bin/sh -c 'setterm -cursor off -blank 0 -powerdown 0 </dev/tty1 >/dev/tty1 2>/dev/null || true; clear >/dev/tty1 2>/dev/null || true; if [ -c /dev/fb0 ] || [ -b /dev/fb0 ] || [ -e /dev/fb0 ]; then dd if=/dev/zero of=/dev/fb0 bs=1024 count=4096 status=none 2>/dev/null || true; fi'
+Environment=XDG_RUNTIME_DIR=/run/dot-display
+# Wait for a real display device (Pi Zero 2W can be slow after fsck)
+ExecStartPre=/bin/sh -c 'mkdir -p /run/dot-display; chmod 700 /run/dot-display; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -e /dev/dri/card0 ] || [ -e /dev/dri/card1 ] || [ -e /dev/fb0 ] && exit 0; sleep 0.5; done; echo "WARN: no DRM/fb device yet" >&2; exit 0'
+# Wipe leftover boot text (e2fsck / kernel) from the framebuffer before SDL starts
+ExecStartPre=/bin/sh -c 'setterm -cursor off -blank 0 -powerdown 0 </dev/tty1 >/dev/tty1 2>/dev/null || true; clear >/dev/tty1 2>/dev/null || true; if [ -e /dev/fb0 ]; then dd if=/dev/zero of=/dev/fb0 bs=1024 count=4096 status=none 2>/dev/null || true; fi'
 TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
@@ -28,7 +30,6 @@ StandardError=journal
 ExecStart=/opt/dot/.venv/bin/python -m firmware.display.hdmi_renderer
 Restart=always
 RestartSec=3
-# Give DRM a moment after crash loops
 StartLimitIntervalSec=60
 StartLimitBurst=20
 
