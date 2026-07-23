@@ -305,22 +305,32 @@ class HDMIRenderer:
 
     def _handle_events(self) -> None:
         for event in pygame.event.get():
-            # Ignore QUIT: under X11 a transient WM event can kill the process;
-            # systemd then restarts it as a *new* window when switching logos.
+            # Never quit the kiosk renderer from SDL events (QUIT/ESC/etc).
             if event.type == pygame.QUIT:
-                print("Ignoring SDL QUIT (keep display process alive)")
+                print("Ignoring SDL QUIT (keep display process alive)", flush=True)
                 continue
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                print("ESC pressed — exiting renderer")
-                self._running = False
+            if event.type == pygame.KEYDOWN:
+                print(f"Ignoring key {event.key} (kiosk stays up)", flush=True)
+                continue
 
     def run(self) -> None:
-        print(f"Renderer started {DISPLAY_WIDTH}x{DISPLAY_HEIGHT} @ {TARGET_FPS}fps")
+        print(f"Renderer started {DISPLAY_WIDTH}x{DISPLAY_HEIGHT} @ {TARGET_FPS}fps", flush=True)
+        last_beat = 0.0
         while self._running:
             dt = self._clock.tick(TARGET_FPS) / 1000.0
             self._handle_events()
-            self._refresh_brightness(time.monotonic())
+            now = time.monotonic()
+            self._refresh_brightness(now)
             self._load_state()
+
+            if now - last_beat >= 15.0:
+                last_beat = now
+                print(
+                    f"heartbeat media={self._current_media_id} "
+                    f"frames={len(self._frame_paths)} idx={self._frame_index} "
+                    f"brightness={self._brightness}",
+                    flush=True,
+                )
 
             if not self._frame_paths:
                 # Dim gray (not pure black) so "no cache yet" is distinguishable
@@ -338,8 +348,8 @@ class HDMIRenderer:
             surface = self._get_surface(self._frame_index)
             self._blit_with_brightness(surface)
 
+        print("Renderer loop ended", flush=True)
         self._prefetch_wake.set()
-        pygame.quit()
 
 
 def main() -> None:
@@ -347,20 +357,24 @@ def main() -> None:
 
     renderer: HDMIRenderer | None = None
 
-    def _stop(*_args: object) -> None:
+    def _stop(signum: int, *_args: object) -> None:
+        print(f"signal {signum} received — stopping renderer", flush=True)
         if renderer is not None:
             renderer._running = False
         # Hard-exit if SDL teardown blocks (common with KMSDRM).
         signal.signal(signal.SIGALRM, lambda *_: os._exit(0))
-        signal.alarm(3)
+        signal.alarm(2)
 
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
+    # Do not die if the controlling terminal goes away
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
     renderer = HDMIRenderer()
     try:
         renderer.run()
     finally:
+        print("renderer main() exiting", flush=True)
         try:
             pygame.display.quit()
         except pygame.error:
@@ -369,7 +383,6 @@ def main() -> None:
             pygame.quit()
         except pygame.error:
             pass
-        sys.exit(0)
 
 
 if __name__ == "__main__":

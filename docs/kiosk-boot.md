@@ -52,13 +52,18 @@ sudo reboot
 This recreates the venv with `--system-site-packages` so Debian’s `python3-pygame`
 (linked to system SDL + kmsdrm) is used instead of a broken PyPI wheel.
 
-**Note:** over SSH, probes often show `OK auto -> offscreen` and `kmsdrm not available`.
-That is normal — KMSDRM needs the console (`tty1`). The kiosk unit runs as **root** on
-`tty1` with `SDL_VIDEODRIVER=KMSDRM`. Check success with:
+## Black screen still shows `e2fsck` while logs say `kmsdrm`
+
+The kernel **framebuffer console** can keep boot text on HDMI even while SDL
+renders via KMSDRM. Latest units unbind `vtconsole` before starting the renderer.
 
 ```bash
-journalctl -u dot-display -n 30 --no-pager | grep -i driver
-# expect: Display driver: kmsdrm
+cd ~/dotapp && git pull
+sudo bash scripts/fix-systemd-paths.sh mercy119 kiosk
+sudo systemctl restart dot-display
+# Leave it alone for 30s — look at the ROUND Dot display (not the SSH PC)
+journalctl -u dot-display -f
+# expect repeating: heartbeat media=… frames=…
 ```
 
 Check:
