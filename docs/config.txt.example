@@ -13,5 +13,7 @@ framebuffer_width=480
 framebuffer_height=480
 gpu_mem=128
 
-# Fallback if image is offset (uncomment and comment hdmi_cvt block above):
+# Fallback if image is offset / part of the round panel is blank:
+#   sudo bash scripts/fix-hdmi-480.sh --offset && sudo reboot
+# (or manually: comment hdmi_cvt, uncomment hdmi_timings below)
 # hdmi_timings=480 1 10 20 50 480 1 10 10 5 0 0 0 60 0 16960000 4
