@@ -95,6 +95,7 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showLastSeen) {
                 LastSeenLocationView(tracker: locationTracker)
+                    .environmentObject(api)
                     .preferredColorScheme(preferDark ? .dark : .light)
                     .tint(DotTheme.toolbarTint(dark: preferDark))
             }

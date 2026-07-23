@@ -22,7 +22,13 @@ If Xcode reports `ObservableObject` / `@Published` errors, ensure `import Combin
 3. **Every later day:** enable Personal Hotspot → Dot joins alone (boot + watch) → open app → **Найти автоматически** (probes saved IP, `dot.local`, `172.20.10.x`). No Setup AP needed.
 4. Browse gallery: **top half** = selected animation + send-to-Dot; **bottom** = library grid. Theme (`Theme/DotTheme.swift`): **dark** = deeper space-blue; **light** = plain white. Toolbar sun/moon toggles (`dot.appearance.dark`, default dark).
 5. **Настройки** (toolbar gear): brightness slider for the round display, theme, device info, Wi‑Fi wizard, **reset to Dot-Setup** (only while Dot is on Personal Hotspot / `mode=client`, with typed confirmation `СБРОС`), clear saved address, re-show intro.
-6. **Где Dot** (toolbar pin): last place the iPhone saw Dot while connected — **not** Apple Find My.
+6. **Где Dot** (toolbar pin): last place the iPhone saw Dot while connected — **not** Apple Find My. The phone saves GPS when the gallery connects (or via **Запросить геолокацию** on that screen).
+
+### Geolocation not saving a pin
+
+1. Target → **Info** must include **Privacy - Location When In Use Usage Description** (same text as `NSLocationWhenInUseUsageDescription` in `Info.plist`). Without this key the system never shows the permission dialog and GPS stays empty.
+2. On the iPhone: **Настройки → Dot → Геолокация → При использовании приложения** (and **Точная** if offered).
+3. Rebuild/reinstall after adding the key, open **Где Dot**, tap **Запросить геолокацию**, wait up to ~25 s (indoors GPS can be slow).
 
 ### How the app knows “first” vs “later”
 

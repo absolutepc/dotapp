@@ -2,6 +2,7 @@ import Combine
 import CoreLocation
 import Foundation
 import MapKit
+import UIKit
 
 struct DotLastSeen: Codable, Equatable, Identifiable {
     var id: String { "\(latitude),\(longitude),\(timestamp.timeIntervalSince1970)" }
@@ -31,19 +32,24 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
 
     @Published private(set) var lastSeen: DotLastSeen?
     @Published private(set) var authorizationDenied = false
+    @Published private(set) var isCapturing = false
     @Published var statusMessage: String?
 
     private let manager = CLLocationManager()
     private var pendingHost: String?
     private var waitingForFix = false
     private var updatesStarted = false
+    private var captureStartedAt: Date?
+    private var timeoutTask: Task<Void, Never>?
 
     override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
         manager.distanceFilter = kCLDistanceFilterNone
+        manager.pausesLocationUpdatesAutomatically = false
         lastSeen = Self.load()
+        refreshAuthorizationFlags()
     }
 
     func reloadFromDisk() {
@@ -53,37 +59,37 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
     }
 
     func requestPermissionIfNeeded() {
+        refreshAuthorizationFlags()
         switch manager.authorizationStatus {
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
-        case .denied, .restricted:
-            authorizationDenied = true
         default:
-            authorizationDenied = false
+            break
         }
     }
 
-    /// Call after a successful connection to the Pi.
+    /// Call after a successful connection to the Pi, or from the map screen to retry.
     func captureLastSeen(host: String?) {
         pendingHost = host
         statusMessage = nil
         waitingForFix = true
-        requestPermissionIfNeeded()
+        isCapturing = true
+        refreshAuthorizationFlags()
 
-        let status = manager.authorizationStatus
-        switch status {
+        switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
-            authorizationDenied = false
             requestFix()
         case .denied, .restricted:
             authorizationDenied = true
             waitingForFix = false
-            statusMessage = "Разрешите геолокацию, чтобы запоминать место Dot"
+            isCapturing = false
+            statusMessage = "Разрешите геолокацию в Настройках → Dot → Геолокация"
         case .notDetermined:
-            // waitingForFix stays true — resume in locationManagerDidChangeAuthorization
-            break
+            statusMessage = "Разрешите доступ к геолокации…"
+            manager.requestWhenInUseAuthorization()
         @unknown default:
-            break
+            waitingForFix = false
+            isCapturing = false
         }
     }
 
@@ -94,31 +100,71 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
         ])
     }
 
+    func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func refreshAuthorizationFlags() {
+        let status = manager.authorizationStatus
+        authorizationDenied = (status == .denied || status == .restricted)
+    }
+
     private func requestFix() {
-        // Prefer a one-shot fix; also briefly start updates as a fallback for
-        // Personal Hotspot / car scenarios where requestLocation alone can stall.
-        manager.requestLocation()
+        guard CLLocationManager.locationServicesEnabled() else {
+            waitingForFix = false
+            isCapturing = false
+            statusMessage = "Службы геолокации выключены на iPhone"
+            return
+        }
+
+        statusMessage = "Определяем координаты…"
+        captureStartedAt = Date()
+
+        // Continuous updates are more reliable than requestLocation() alone
+        // under Personal Hotspot / indoors / first fix after install.
         if !updatesStarted {
             updatesStarted = true
             manager.startUpdatingLocation()
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 8_000_000_000)
-                self.stopUpdatesIfNeeded()
-            }
+        }
+        manager.requestLocation()
+
+        timeoutTask?.cancel()
+        timeoutTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 25_000_000_000)
+            guard !Task.isCancelled, waitingForFix else { return }
+            stopUpdatesIfNeeded()
+            waitingForFix = false
+            isCapturing = false
+            statusMessage = "Не удалось получить GPS за 25 с. Выйдите ближе к окну или на улицу и нажмите ещё раз."
         }
     }
 
     private func stopUpdatesIfNeeded() {
+        timeoutTask?.cancel()
+        timeoutTask = nil
         guard updatesStarted else { return }
         updatesStarted = false
         manager.stopUpdatingLocation()
     }
 
     private func store(location: CLLocation) {
-        // Ignore clearly invalid / stale cache-only readings when possible.
+        guard waitingForFix else { return }
         guard location.horizontalAccuracy >= 0 else { return }
+
+        let elapsed = Date().timeIntervalSince(captureStartedAt ?? Date())
+        // Prefer a usable fix; accept coarser readings after a few seconds so
+        // indoor / hotspot sessions still get a pin.
+        let maxAccuracy: CLLocationAccuracy = elapsed < 4 ? 150 : 800
+        guard location.horizontalAccuracy <= maxAccuracy else {
+            statusMessage = "Сигнал слабый (±\(Int(location.horizontalAccuracy)) м)… ждём точнее"
+            return
+        }
+
         waitingForFix = false
+        isCapturing = false
         stopUpdatesIfNeeded()
+
         let seen = DotLastSeen(
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude,
@@ -128,15 +174,25 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
         )
         lastSeen = seen
         Self.save(seen)
-        statusMessage = nil
+        let meters = Int(location.horizontalAccuracy.rounded())
+        statusMessage = "Точка сохранена (±\(meters) м)"
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor in
+            refreshAuthorizationFlags()
             let status = manager.authorizationStatus
-            authorizationDenied = (status == .denied || status == .restricted)
-            if waitingForFix, status == .authorizedWhenInUse || status == .authorizedAlways {
-                requestFix()
+            if waitingForFix {
+                switch status {
+                case .authorizedWhenInUse, .authorizedAlways:
+                    requestFix()
+                case .denied, .restricted:
+                    waitingForFix = false
+                    isCapturing = false
+                    statusMessage = "Разрешите геолокацию в Настройках → Dot → Геолокация"
+                default:
+                    break
+                }
             }
         }
     }
@@ -150,25 +206,41 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            // Keep waitingForFix if we're still streaming updates.
-            if !updatesStarted {
-                waitingForFix = false
+            // While streaming updates, ignore transient locationUnknown and keep waiting.
+            if let cl = error as? CLError, cl.code == .locationUnknown, updatesStarted {
+                statusMessage = "Ищем GPS…"
+                return
             }
-            if lastSeen == nil {
+
+            stopUpdatesIfNeeded()
+            waitingForFix = false
+            isCapturing = false
+
+            if let cl = error as? CLError {
+                switch cl.code {
+                case .denied:
+                    authorizationDenied = true
+                    statusMessage = "Геолокация запрещена в настройках"
+                case .locationUnknown:
+                    statusMessage = "GPS пока недоступен. Попробуйте ещё раз у окна или на улице."
+                default:
+                    statusMessage = "Ошибка GPS: \(cl.localizedDescription)"
+                }
+            } else if lastSeen == nil {
                 statusMessage = "Не удалось получить координаты"
             }
-            print("Dot location error: \(error.localizedDescription)")
         }
     }
 
     private static func load() -> DotLastSeen? {
         guard let data = UserDefaults.standard.data(forKey: storageKey) else { return nil }
-        return try? JSONDecoder().decode(DotLastSeen.self, from: data)
+        let decoder = JSONDecoder()
+        // Dates were encoded with the default deferredToDate strategy.
+        return try? decoder.decode(DotLastSeen.self, from: data)
     }
 
     private static func save(_ value: DotLastSeen) {
         guard let data = try? JSONEncoder().encode(value) else { return }
         UserDefaults.standard.set(data, forKey: storageKey)
-        UserDefaults.standard.synchronize()
     }
 }

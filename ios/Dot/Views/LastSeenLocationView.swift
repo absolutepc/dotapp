@@ -4,6 +4,7 @@ import SwiftUI
 /// In-app last-seen map for Dot (phone GPS when connected — not Apple Find My).
 struct LastSeenLocationView: View {
     @ObservedObject var tracker: DotLocationTracker
+    @EnvironmentObject private var api: PiAPIClient
     @Environment(\.dismiss) private var dismiss
     @AppStorage("dot.appearance.dark") private var preferDark = true
 
@@ -32,9 +33,36 @@ struct LastSeenLocationView: View {
                                 Text(formatted(seen.timestamp))
                                     .font(.subheadline)
                                     .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+                                if seen.accuracy > 0 {
+                                    Text("Точность ±\(Int(seen.accuracy.rounded())) м")
+                                        .font(.caption)
+                                        .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+                                }
                                 Text("Точка записана, когда iPhone был на связи с Dot (обычно машина / Режим модема). Это не Локатор Apple Find My.")
                                     .font(.caption)
                                     .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+
+                                if tracker.isCapturing {
+                                    HStack(spacing: 8) {
+                                        ProgressView()
+                                        Text(tracker.statusMessage ?? "Обновляем…")
+                                            .font(.caption)
+                                            .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+                                    }
+                                } else if let message = tracker.statusMessage {
+                                    Text(message)
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
+
+                                Button {
+                                    tracker.captureLastSeen(host: api.host.isEmpty ? seen.host : api.host)
+                                } label: {
+                                    Label("Обновить точку", systemImage: "location.fill")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(DotPrimaryButtonStyle(dark: preferDark, prominent: false))
+                                .disabled(tracker.isCapturing)
 
                                 Button {
                                     tracker.openInMaps()
@@ -50,12 +78,17 @@ struct LastSeenLocationView: View {
                     } else {
                         ContentUnavailableFallback(
                             denied: tracker.authorizationDenied,
+                            isCapturing: tracker.isCapturing,
                             message: tracker.statusMessage,
-                            dark: preferDark
-                        ) {
-                            tracker.requestPermissionIfNeeded()
-                            tracker.captureLastSeen(host: nil)
-                        }
+                            dark: preferDark,
+                            onRetry: {
+                                tracker.requestPermissionIfNeeded()
+                                tracker.captureLastSeen(host: api.host.isEmpty ? nil : api.host)
+                            },
+                            onOpenSettings: {
+                                tracker.openAppSettings()
+                            }
+                        )
                     }
                 }
             }
@@ -76,6 +109,9 @@ struct LastSeenLocationView: View {
                         center: seen.coordinate,
                         span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
                     )
+                } else if api.canBrowseGallery, !tracker.isCapturing {
+                    // Device is online but no pin yet — capture immediately.
+                    tracker.captureLastSeen(host: api.host.isEmpty ? nil : api.host)
                 }
             }
             .onChange(of: tracker.lastSeen) { seen in
@@ -99,22 +135,30 @@ struct LastSeenLocationView: View {
 
 private struct ContentUnavailableFallback: View {
     let denied: Bool
+    var isCapturing: Bool = false
     let message: String?
     var dark: Bool = true
     var onRetry: () -> Void = {}
+    var onOpenSettings: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "mappin.slash")
-                .font(.system(size: 48))
-                .foregroundStyle(DotTheme.ice.opacity(0.7))
-            Text("Пока нет сохранённой точки")
+            if isCapturing {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .tint(DotTheme.ice)
+            } else {
+                Image(systemName: "mappin.slash")
+                    .font(.system(size: 48))
+                    .foregroundStyle(DotTheme.ice.opacity(0.7))
+            }
+            Text(isCapturing ? "Определяем место…" : "Пока нет сохранённой точки")
                 .font(.title3.bold())
                 .foregroundStyle(DotTheme.primaryText(dark: dark))
             Text(
                 denied
-                    ? "Разрешите геолокацию в Настройках → Dot, затем снова подключитесь к устройству."
-                    : "Подключитесь к Dot (Режим модема) — приложение запомнит место iPhone в этот момент."
+                    ? "Разрешите геолокацию в Настройках → Dot, затем нажмите кнопку ниже."
+                    : "Подключитесь к Dot (Режим модема) — приложение запомнит место iPhone. Можно запросить точку вручную."
             )
             .font(.subheadline)
             .foregroundStyle(DotTheme.secondaryText(dark: dark))
@@ -124,9 +168,17 @@ private struct ContentUnavailableFallback: View {
                 Text(message)
                     .font(.caption)
                     .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
             }
-            Button("Запросить геолокацию", action: onRetry)
-                .buttonStyle(DotPrimaryButtonStyle(dark: dark, prominent: true))
+            if denied {
+                Button("Открыть Настройки", action: onOpenSettings)
+                    .buttonStyle(DotPrimaryButtonStyle(dark: dark, prominent: true))
+                    .padding(.horizontal, 24)
+            }
+            Button(isCapturing ? "Ждём GPS…" : "Запросить геолокацию", action: onRetry)
+                .buttonStyle(DotPrimaryButtonStyle(dark: dark, prominent: !denied))
+                .disabled(isCapturing)
                 .padding(.horizontal, 24)
         }
         .padding()
@@ -135,4 +187,5 @@ private struct ContentUnavailableFallback: View {
 
 #Preview {
     LastSeenLocationView(tracker: DotLocationTracker())
+        .environmentObject(PiAPIClient())
 }
