@@ -96,3 +96,4 @@ See [docs/kiosk-boot.md](docs/kiosk-boot.md).
 - [Wi-Fi / iPhone hotspot](docs/wifi-provision.md)
 - [Kiosk boot](docs/kiosk-boot.md)
 - [Car power & mounting](docs/car-power.md)
+- [Thin enclosure (display + HDMI board)](docs/enclosure.md)
