@@ -32,15 +32,15 @@ PREFETCH_AHEAD = 12
 
 def _init_pygame_display() -> pygame.Surface:
     """Try SDL drivers until a *real* on-screen backend works (not offscreen)."""
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     os.environ.setdefault("SDL_VIDEO_EGL_DRIVER", "libEGL.so.1")
     os.environ.setdefault("SDL_VIDEO_GL_DRIVER", "libGLESv2.so.2")
-    if not os.environ.get("XDG_RUNTIME_DIR"):
-        runtime = Path("/run/dot-display")
-        try:
-            runtime.mkdir(parents=True, exist_ok=True)
-            os.environ["XDG_RUNTIME_DIR"] = str(runtime)
-        except OSError:
-            os.environ["XDG_RUNTIME_DIR"] = "/tmp"
+    runtime = Path(os.environ.get("XDG_RUNTIME_DIR") or "/run/dot-display")
+    try:
+        runtime.mkdir(parents=True, exist_ok=True)
+        os.environ["XDG_RUNTIME_DIR"] = str(runtime)
+    except OSError:
+        os.environ["XDG_RUNTIME_DIR"] = "/tmp"
 
     preferred = os.environ.get("SDL_VIDEODRIVER")
     drivers: list[str] = []
@@ -54,23 +54,31 @@ def _init_pygame_display() -> pygame.Surface:
     last_error: Exception | None = None
     for driver in drivers:
         os.environ["SDL_VIDEODRIVER"] = driver
-        pygame.display.quit()
-        pygame.quit()
         try:
-            pygame.init()
+            pygame.display.quit()
+        except pygame.error:
+            pass
+        try:
+            # Avoid pygame.init() — it starts the mixer and causes ALSA underruns
+            # on headless/kiosk Pi installs with no audio device.
+            if pygame.get_init():
+                pygame.quit()
+        except pygame.error:
+            pass
+        try:
             pygame.display.init()
             screen = pygame.display.set_mode(
                 (DISPLAY_WIDTH, DISPLAY_HEIGHT),
                 pygame.FULLSCREEN,
             )
             used = (pygame.display.get_driver() or "").lower()
-            print(f"Display driver: {used} (requested={driver})")
+            print(f"Display driver: {used} (requested={driver})", flush=True)
             if used in {"offscreen", "dummy", "evdev"}:
                 raise pygame.error(f"refusing non-display backend: {used}")
             return screen
         except pygame.error as exc:
             last_error = exc
-            print(f"Driver {driver} failed: {exc}")
+            print(f"Driver {driver} failed: {exc}", flush=True)
 
     raise RuntimeError(f"No SDL display driver available: {last_error}")
 
@@ -326,11 +334,32 @@ class HDMIRenderer:
 
 
 def main() -> None:
+    import signal
+
+    renderer: HDMIRenderer | None = None
+
+    def _stop(*_args: object) -> None:
+        if renderer is not None:
+            renderer._running = False
+        # Hard-exit if SDL teardown blocks (common with KMSDRM).
+        signal.signal(signal.SIGALRM, lambda *_: os._exit(0))
+        signal.alarm(3)
+
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+
     renderer = HDMIRenderer()
     try:
         renderer.run()
-    except KeyboardInterrupt:
-        pygame.quit()
+    finally:
+        try:
+            pygame.display.quit()
+        except pygame.error:
+            pass
+        try:
+            pygame.quit()
+        except pygame.error:
+            pass
         sys.exit(0)
 
 

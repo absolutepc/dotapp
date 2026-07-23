@@ -5,6 +5,8 @@ After=local-fs.target systemd-udevd.service
 Wants=dot-api.service
 Before=getty@tty1.service
 Conflicts=getty@tty1.service
+StartLimitIntervalSec=60
+StartLimitBurst=20
 
 [Service]
 Type=simple
@@ -14,6 +16,7 @@ User=root
 WorkingDirectory=/opt/dot
 Environment=PYTHONPATH=/opt/dot
 Environment=SDL_VIDEODRIVER=KMSDRM
+Environment=SDL_AUDIODRIVER=dummy
 Environment=SDL_VIDEO_EGL_DRIVER=libEGL.so.1
 Environment=SDL_VIDEO_GL_DRIVER=libGLESv2.so.2
 Environment=XDG_RUNTIME_DIR=/run/dot-display
@@ -29,9 +32,11 @@ StandardOutput=journal
 StandardError=journal
 ExecStart=/opt/dot/.venv/bin/python -m firmware.display.hdmi_renderer
 Restart=always
-RestartSec=3
-StartLimitIntervalSec=60
-StartLimitBurst=20
+RestartSec=2
+TimeoutStopSec=5
+KillMode=mixed
+FinalKillSignal=SIGKILL
+SendSIGKILL=yes
 
 [Install]
 WantedBy=multi-user.target
