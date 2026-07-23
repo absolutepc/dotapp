@@ -56,14 +56,16 @@ if [[ -f "${CMDLINE}" ]]; then
     -e 's/[[:space:]]*$//' \
     "${CMDLINE}"
 
-  for token in quiet loglevel=0 logo.nologo vt.global_cursor_default=0 consoleblank=0; do
+  for token in quiet loglevel=0 logo.nologo vt.global_cursor_default=0 consoleblank=0 systemd.show_status=false; do
     grep -qE "(^|[[:space:]])${token}([[:space:]]|$)" "${CMDLINE}" || sed -i "s/$/ ${token}/" "${CMDLINE}"
   done
 
-  # Prefer tty3 so kernel spam is not on the visible console
+  # Prefer tty3 so kernel / fsck spam is not on the visible HDMI console
   if grep -q 'console=tty1' "${CMDLINE}"; then
     sed -i 's/console=tty1/console=tty3/' "${CMDLINE}"
   fi
+  # Collapse duplicate spaces after sed removals
+  sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' "${CMDLINE}"
 
   echo "Updated ${CMDLINE}:"
   cat "${CMDLINE}"

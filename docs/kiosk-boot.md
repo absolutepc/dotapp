@@ -24,8 +24,41 @@ Replace `mercy119` with your Pi username.
 ## Expected boot sequence
 
 1. Power on
-2. ~20–40 s (Pi Zero 2W) — mostly black screen
+2. ~20–40 s (Pi Zero 2W) — mostly black screen (a brief `e2fsck … clean` line can flash and then disappear)
 3. Dot logo animation on the round display
+
+## Black screen stuck on `e2fsck … rootfs: clean`
+
+The filesystem is fine. That text is leftover console output because **the logo renderer never took over HDMI**.
+
+SSH in (Personal Hotspot / LAN) and run:
+
+```bash
+cd ~/dotapp   # or wherever the repo lives
+bash scripts/diagnose-kiosk.sh
+```
+
+Typical repair:
+
+```bash
+cd ~/dotapp
+sudo bash scripts/setup-kiosk-boot.sh mercy119
+# if diagnose says pygame/kmsdrm failed:
+bash scripts/fix-pygame-display.sh
+sudo systemctl restart dot-api dot-display
+show list
+show anim3
+sudo reboot
+```
+
+Check:
+
+```bash
+systemctl is-active dot-api dot-display
+journalctl -u dot-display -n 50 --no-pager
+```
+
+You want `active` and a log line like `Display driver: kmsdrm` (or `fbcon`).
 
 ## If splash still appears
 

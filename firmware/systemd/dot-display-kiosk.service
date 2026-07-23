@@ -1,7 +1,7 @@
 [Unit]
 Description=Dot HDMI Display Renderer (kiosk, no desktop)
-# Start as soon as local FS is up; API can come later (state file polled)
-After=local-fs.target
+# Start after local FS + udev so /dev/dri and /dev/fb0 exist
+After=local-fs.target systemd-udevd.service
 Wants=dot-api.service
 Before=getty@tty1.service
 Conflicts=getty@tty1.service
@@ -12,9 +12,12 @@ User=pi
 SupplementaryGroups=video render
 WorkingDirectory=/opt/dot
 Environment=PYTHONPATH=/opt/dot
+# Prefer kmsdrm; hdmi_renderer falls back to fbcon/x11 if this fails
 Environment=SDL_VIDEODRIVER=kmsdrm
-# Clear leftover boot text, then start renderer
-ExecStartPre=/bin/sh -c 'setterm -cursor off -blank 0 -powerdown 0 2>/dev/null || true; clear || true'
+# Wait for a real display device (Pi Zero 2W can be slow after fsck). Run as root.
+ExecStartPre=+/bin/sh -c 'for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -e /dev/dri/card0 ] || [ -e /dev/fb0 ] && exit 0; sleep 0.5; done; echo "WARN: no /dev/dri/card0 or /dev/fb0 yet" >&2; exit 0'
+# Wipe leftover boot text (e2fsck / kernel) from the framebuffer before SDL starts (root)
+ExecStartPre=+/bin/sh -c 'setterm -cursor off -blank 0 -powerdown 0 </dev/tty1 >/dev/tty1 2>/dev/null || true; clear >/dev/tty1 2>/dev/null || true; if [ -c /dev/fb0 ] || [ -b /dev/fb0 ] || [ -e /dev/fb0 ]; then dd if=/dev/zero of=/dev/fb0 bs=1024 count=4096 status=none 2>/dev/null || true; fi'
 TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
@@ -23,7 +26,10 @@ StandardOutput=journal
 StandardError=journal
 ExecStart=/opt/dot/.venv/bin/python -m firmware.display.hdmi_renderer
 Restart=always
-RestartSec=2
+RestartSec=3
+# Give DRM a moment after crash loops
+StartLimitIntervalSec=60
+StartLimitBurst=20
 
 [Install]
 WantedBy=multi-user.target
