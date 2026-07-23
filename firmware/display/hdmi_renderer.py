@@ -97,19 +97,23 @@ def _init_pygame_display() -> pygame.Surface:
             )
             if used in {"offscreen", "dummy", "evdev"}:
                 raise pygame.error(f"refusing non-display backend: {used}")
-            # Bright splash proves pixels reach the panel (vs silent black frames).
-            screen.fill((0, 90, 180))
-            pygame.draw.circle(screen, (255, 255, 255), (DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2), 110, 10)
-            pygame.draw.line(
-                screen, (0, 255, 210),
-                (30, DISPLAY_HEIGHT // 2), (DISPLAY_WIDTH - 30, DISPLAY_HEIGHT // 2), 8,
-            )
-            pygame.draw.line(
-                screen, (0, 255, 210),
-                (DISPLAY_WIDTH // 2, 30), (DISPLAY_WIDTH // 2, DISPLAY_HEIGHT - 30), 8,
-            )
-            pygame.display.flip()
-            print("boot splash drawn (blue + cross) — if panel is still black, HDMI pipeline is wrong", flush=True)
+            # Optional diagnostic splash (DOT_BOOT_SPLASH=1). Default: stay black until logo frames.
+            if os.environ.get("DOT_BOOT_SPLASH", "").strip() in {"1", "true", "yes"}:
+                screen.fill((0, 90, 180))
+                pygame.draw.circle(screen, (255, 255, 255), (DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2), 110, 10)
+                pygame.draw.line(
+                    screen, (0, 255, 210),
+                    (30, DISPLAY_HEIGHT // 2), (DISPLAY_WIDTH - 30, DISPLAY_HEIGHT // 2), 8,
+                )
+                pygame.draw.line(
+                    screen, (0, 255, 210),
+                    (DISPLAY_WIDTH // 2, 30), (DISPLAY_WIDTH // 2, DISPLAY_HEIGHT - 30), 8,
+                )
+                pygame.display.flip()
+                print("boot splash drawn (DOT_BOOT_SPLASH=1)", flush=True)
+            else:
+                screen.fill((0, 0, 0))
+                pygame.display.flip()
             return screen
         except pygame.error as exc:
             last_error = exc
@@ -123,8 +127,8 @@ class HDMIRenderer:
         self._screen = _init_pygame_display()
         pygame.display.set_caption("Dot")
         pygame.mouse.set_visible(False)
-        # Keep splash visible briefly so a black panel is distinguishable from "still booting"
-        time.sleep(2.0)
+        if os.environ.get("DOT_BOOT_SPLASH", "").strip() in {"1", "true", "yes"}:
+            time.sleep(2.0)
 
         self._clock = pygame.time.Clock()
         self._running = True

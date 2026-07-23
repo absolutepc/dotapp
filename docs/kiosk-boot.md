@@ -23,9 +23,30 @@ Replace `mercy119` with your Pi username.
 
 ## Expected boot sequence
 
-1. Power on
-2. ~20–40 s (Pi Zero 2W) — mostly black screen (a brief `e2fsck … clean` line can flash and then disappear)
-3. Dot logo animation on the round display
+1. Power on  
+2. ~20–40 s (Pi Zero 2W) — **black** round panel (no U-Boot / kernel text)  
+3. Dot logo animation
+
+## No text on the round display
+
+```bash
+cd ~/dotapp
+git pull
+sudo bash scripts/disable-splash.sh
+# or full kiosk re-apply:
+sudo bash scripts/setup-kiosk-boot.sh mercy119
+sudo reboot
+```
+
+What this does:
+
+- `disable_splash=1` / `avoid_warnings=1` in `config.txt`
+- Removes `console=tty1` / `tty3` from cmdline (keeps serial only)
+- Adds `quiet loglevel=0 logo.nologo fbcon=map:99`
+- Tries to silence **U-Boot** (`fw_setenv silent` / `stdout=serial` when available)
+- Enables `dot-blank-hdmi.service` to zero the framebuffer before the logo
+
+If white **U-Boot …** lines still appear for a second, your image’s U-Boot was built with HDMI console and needs env silence — check `/boot/firmware/dot-silent-uboot.txt` (or run `fw_setenv` as printed by the script).
 
 ## Black screen stuck on `e2fsck … rootfs: clean`
 

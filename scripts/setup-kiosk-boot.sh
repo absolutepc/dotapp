@@ -38,37 +38,14 @@ fi
 CONFIG="/boot/firmware/config.txt"
 [[ -f "${CONFIG}" ]] || CONFIG="/boot/config.txt"
 if [[ -f "${CONFIG}" ]]; then
-  grep -q '^disable_splash=1' "${CONFIG}" || echo "disable_splash=1" >>"${CONFIG}"
-  echo "Updated ${CONFIG} (disable_splash=1)"
+  grep -qE '^[[:space:]]*disable_splash=1' "${CONFIG}" || echo "disable_splash=1" >>"${CONFIG}"
+  grep -qE '^[[:space:]]*avoid_warnings=1' "${CONFIG}" || echo "avoid_warnings=1" >>"${CONFIG}"
+  echo "Updated ${CONFIG} (disable_splash=1, avoid_warnings=1)"
 fi
 
-# --- Quiet boot: cmdline.txt ---
-# IMPORTANT: do NOT add "splash" — that enables Plymouth ("Welcome to Raspberry Pi").
-CMDLINE="/boot/firmware/cmdline.txt"
-[[ -f "${CMDLINE}" ]] || CMDLINE="/boot/cmdline.txt"
-if [[ -f "${CMDLINE}" ]]; then
-  # Remove splash / plymouth flags that show the graphical boot screen
-  sed -i \
-    -e 's/\bsplash\b//g' \
-    -e 's/\bnosplash\b//g' \
-    -e 's/\bplymouth\.ignore-serial-consoles\b//g' \
-    -e 's/  */ /g' \
-    -e 's/[[:space:]]*$//' \
-    "${CMDLINE}"
-
-  for token in quiet loglevel=0 logo.nologo vt.global_cursor_default=0 consoleblank=0 systemd.show_status=false; do
-    grep -qE "(^|[[:space:]])${token}([[:space:]]|$)" "${CMDLINE}" || sed -i "s/$/ ${token}/" "${CMDLINE}"
-  done
-
-  # Prefer tty3 so kernel / fsck spam is not on the visible HDMI console
-  if grep -q 'console=tty1' "${CMDLINE}"; then
-    sed -i 's/console=tty1/console=tty3/' "${CMDLINE}"
-  fi
-  # Collapse duplicate spaces after sed removals
-  sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' "${CMDLINE}"
-
-  echo "Updated ${CMDLINE}:"
-  cat "${CMDLINE}"
+# Full silence: no HDMI VT, no U-Boot text if possible, early blank
+if [[ -f "${REPO_ROOT}/scripts/disable-splash.sh" ]]; then
+  bash "${REPO_ROOT}/scripts/disable-splash.sh" || true
 fi
 
 # --- No desktop / no Plymouth ---
@@ -93,11 +70,7 @@ if command -v raspi-config >/dev/null 2>&1; then
   raspi-config nonint do_boot_splash 1 2>/dev/null || true
 fi
 
-# Rebuild initramfs / black out leftover Plymouth art
-if [[ -f "${REPO_ROOT}/scripts/disable-splash.sh" ]]; then
-  # Full splash kill: cmdline + mask Plymouth + black theme + initramfs
-  bash "${REPO_ROOT}/scripts/disable-splash.sh" || true
-fi
+# Rebuild initramfs / black out leftover Plymouth art — already done via disable-splash.sh above
 
 # Prefer shared path rewriter (short unit names dot-api / dot-display)
 if [[ -x "${INSTALL_DIR}/scripts/fix-systemd-paths.sh" ]]; then
