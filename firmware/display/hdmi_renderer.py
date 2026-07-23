@@ -68,22 +68,48 @@ def _init_pygame_display() -> pygame.Surface:
         except pygame.error:
             pass
         try:
-            # Avoid pygame.init() — it starts the mixer and causes ALSA underruns
-            # on headless/kiosk Pi installs with no audio device.
             if pygame.get_init():
                 pygame.quit()
         except pygame.error:
             pass
         try:
+            # Full init with dummy audio (set above) so timer/events work on KMSDRM.
+            pygame.init()
+            try:
+                pygame.mixer.quit()
+            except pygame.error:
+                pass
             pygame.display.init()
+            pygame.mouse.set_visible(False)
+            flags = pygame.FULLSCREEN
+            if hasattr(pygame, "DOUBLEBUF"):
+                flags |= pygame.DOUBLEBUF
             screen = pygame.display.set_mode(
                 (DISPLAY_WIDTH, DISPLAY_HEIGHT),
-                pygame.FULLSCREEN,
+                flags,
             )
             used = (pygame.display.get_driver() or "").lower()
-            print(f"Display driver: {used} (requested={driver})", flush=True)
+            info = pygame.display.Info()
+            print(
+                f"Display driver: {used} (requested={driver}) "
+                f"mode={info.current_w}x{info.current_h} bits={info.bitsize}",
+                flush=True,
+            )
             if used in {"offscreen", "dummy", "evdev"}:
                 raise pygame.error(f"refusing non-display backend: {used}")
+            # Bright splash proves pixels reach the panel (vs silent black frames).
+            screen.fill((0, 90, 180))
+            pygame.draw.circle(screen, (255, 255, 255), (DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2), 110, 10)
+            pygame.draw.line(
+                screen, (0, 255, 210),
+                (30, DISPLAY_HEIGHT // 2), (DISPLAY_WIDTH - 30, DISPLAY_HEIGHT // 2), 8,
+            )
+            pygame.draw.line(
+                screen, (0, 255, 210),
+                (DISPLAY_WIDTH // 2, 30), (DISPLAY_WIDTH // 2, DISPLAY_HEIGHT - 30), 8,
+            )
+            pygame.display.flip()
+            print("boot splash drawn (blue + cross) — if panel is still black, HDMI pipeline is wrong", flush=True)
             return screen
         except pygame.error as exc:
             last_error = exc
@@ -97,6 +123,8 @@ class HDMIRenderer:
         self._screen = _init_pygame_display()
         pygame.display.set_caption("Dot")
         pygame.mouse.set_visible(False)
+        # Keep splash visible briefly so a black panel is distinguishable from "still booting"
+        time.sleep(2.0)
 
         self._clock = pygame.time.Clock()
         self._running = True
@@ -112,6 +140,7 @@ class HDMIRenderer:
         self._last_state_mtime = 0.0
         self._last_frames_mtime = 0.0
         self._brightness = get_brightness()
+        print(f"brightness={self._brightness} state={CURRENT_MEDIA_FILE}", flush=True)
         self._brightness_check_at = 0.0
         self._dim_overlay = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self._dim_overlay.fill((0, 0, 0))
@@ -145,7 +174,8 @@ class HDMIRenderer:
         if surface is not None:
             self._screen.blit(surface, (0, 0))
         else:
-            self._screen.fill((18, 18, 22))
+            # Bright red = missing frame (near-black was indistinguishable from "off")
+            self._screen.fill((160, 20, 40))
         if self._brightness < 100:
             self._screen.blit(self._dim_overlay, (0, 0))
         pygame.display.flip()
@@ -167,7 +197,10 @@ class HDMIRenderer:
             try:
                 surface = pygame.image.load(str(path))
                 if surface.get_size() == (DISPLAY_WIDTH, DISPLAY_HEIGHT):
-                    return surface.convert()
+                    try:
+                        return surface.convert()
+                    except pygame.error:
+                        return surface
             except pygame.error:
                 pass
         with Image.open(path) as img:
@@ -175,7 +208,10 @@ class HDMIRenderer:
             if rgb.size != (DISPLAY_WIDTH, DISPLAY_HEIGHT):
                 rgb = rgb.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.Resampling.BILINEAR)
             surface = pygame.image.fromstring(rgb.tobytes(), rgb.size, "RGB")
-        return surface.convert()
+        try:
+            return surface.convert()
+        except pygame.error:
+            return surface
 
     def _cache_put(self, index: int, surface: pygame.Surface) -> None:
         with self._cache_lock:

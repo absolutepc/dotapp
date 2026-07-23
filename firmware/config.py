@@ -17,12 +17,20 @@ MEDIA_DIR = DATA_ROOT / "media"
 FRAMES_DIR = DATA_ROOT / "frames"
 PREVIEW_DIR = DATA_ROOT / "previews"
 BUILTIN_ASSETS = REPO_ROOT / "assets"
-STATE_DIR = Path("/var/run/dot")
-if not STATE_DIR.exists():
-    STATE_DIR = DATA_ROOT / "state"
+# Persist across reboots (/var/run is tmpfs and loses current_media.json)
+STATE_DIR = DATA_ROOT / "state"
+STATE_DIR.mkdir(parents=True, exist_ok=True)
 
 CURRENT_MEDIA_FILE = STATE_DIR / "current_media.json"
 MANIFEST_FILE = DATA_ROOT / "manifest.json"
+
+# One-time migrate from older tmpfs path
+_legacy_current = Path("/var/run/dot/current_media.json")
+if _legacy_current.exists() and not CURRENT_MEDIA_FILE.exists():
+    try:
+        CURRENT_MEDIA_FILE.write_text(_legacy_current.read_text(encoding="utf-8"), encoding="utf-8")
+    except OSError:
+        pass
 
 # API
 API_HOST = "0.0.0.0"
