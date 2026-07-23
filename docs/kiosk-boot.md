@@ -52,6 +52,15 @@ sudo reboot
 This recreates the venv with `--system-site-packages` so Debian’s `python3-pygame`
 (linked to system SDL + kmsdrm) is used instead of a broken PyPI wheel.
 
+**Note:** over SSH, probes often show `OK auto -> offscreen` and `kmsdrm not available`.
+That is normal — KMSDRM needs the console (`tty1`). The kiosk unit runs as **root** on
+`tty1` with `SDL_VIDEODRIVER=KMSDRM`. Check success with:
+
+```bash
+journalctl -u dot-display -n 30 --no-pager | grep -i driver
+# expect: Display driver: kmsdrm
+```
+
 Check:
 
 ```bash

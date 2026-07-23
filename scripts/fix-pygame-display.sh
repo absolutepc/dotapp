@@ -97,70 +97,64 @@ if n == 0:
 PY
 
 echo
-echo "--- probe display (auto, then kmsdrm/fbcon/x11) ---"
+echo "--- probe display (SSH often cannot open KMSDRM; offscreen ≠ success) ---"
 ok=0
-probe() {
-  local mode="$1"
-  if sudo -u "${PROBE_USER}" "${PY}" - <<PY
-import os, sys
-# Clear forced driver for auto mode
-if "${mode}" == "auto":
-    os.environ.pop("SDL_VIDEODRIVER", None)
-else:
-    os.environ["SDL_VIDEODRIVER"] = "${mode}"
-os.environ.setdefault("SDL_VIDEO_EGL_DRIVER", "libEGL.so.1")
-os.environ.setdefault("SDL_VIDEO_GL_DRIVER", "libGLESv2.so.2")
-import pygame
-pygame.display.quit(); pygame.quit()
-pygame.init()
-pygame.display.init()
-screen = pygame.display.set_mode((64, 64))
-print("OK  ${mode} ->", pygame.display.get_driver())
-pygame.display.quit(); pygame.quit()
+have_kms=0
+if "${PY}" - <<'PY'
+import ctypes
+sdl = ctypes.CDLL("libSDL2-2.0.so.0")
+sdl.SDL_GetNumVideoDrivers.restype = ctypes.c_int
+sdl.SDL_GetVideoDriver.argtypes = [ctypes.c_int]
+sdl.SDL_GetVideoDriver.restype = ctypes.c_char_p
+names = [(sdl.SDL_GetVideoDriver(i) or b"").decode().lower() for i in range(sdl.SDL_GetNumVideoDrivers())]
+print("drivers:", ", ".join(names) or "(none)")
+raise SystemExit(0 if "kmsdrm" in names else 1)
 PY
-  then
-    ok=1
-  else
-    echo "NO  ${mode}"
-  fi
-}
+then
+  have_kms=1
+  ok=1
+  echo "OK  SDL lists KMSDRM (will use root+tty1 systemd service)"
+else
+  echo "NO  KMSDRM not in SDL driver list"
+fi
 
-probe auto
-probe kmsdrm
-probe fbcon
-probe x11
+# Optional live probe as root on tty context — may still fail over plain SSH
+if sudo env SDL_VIDEODRIVER=KMSDRM SDL_VIDEO_EGL_DRIVER=libEGL.so.1 \
+  SDL_VIDEO_GL_DRIVER=libGLESv2.so.2 XDG_RUNTIME_DIR=/run/dot-display \
+  "${PY}" -c "
+import os, pygame
+os.makedirs('/run/dot-display', exist_ok=True)
+os.environ['SDL_VIDEODRIVER']='KMSDRM'
+pygame.init(); pygame.display.init()
+s=pygame.display.set_mode((64,64))
+d=pygame.display.get_driver()
+print('OK  root KMSDRM ->', d)
+raise SystemExit(0 if d and d.lower() not in ('offscreen','dummy') else 1)
+" 2>/dev/null; then
+  ok=1
+else
+  echo "NOTE: live KMSDRM probe from SSH failed (common). Rely on systemd on tty1."
+fi
 
 echo
 if [[ "${ok}" -eq 0 ]]; then
-  echo "ERROR: still no usable display." >&2
-  echo "Run and paste output:" >&2
+  echo "ERROR: SDL has no KMSDRM. Check:" >&2
   echo "  ls -l /dev/dri /dev/fb0" >&2
-  echo "  ${PY} -c 'import pygame; print(pygame.version)'" >&2
-  echo "  kmscube  # should draw on the HDMI panel if DRM works" >&2
+  echo "  grep dtoverlay /boot/firmware/config.txt" >&2
   exit 1
 fi
 
-echo "--- rewrite systemd units ---"
-if [[ -x "${ROOT}/scripts/fix-systemd-paths.sh" ]]; then
-  sudo bash "${ROOT}/scripts/fix-systemd-paths.sh" "${PROBE_USER}" kiosk || \
-    sudo bash "${ROOT}/scripts/fix-systemd-paths.sh" "${PROBE_USER}" auto
-fi
-
-# Soften hard-coded SDL_VIDEODRIVER=kmsdrm so auto/fallback works
-if [[ -f /etc/systemd/system/dot-display.service ]]; then
-  sudo sed -i '/^Environment=SDL_VIDEODRIVER=/d' /etc/systemd/system/dot-display.service || true
-  if ! grep -q 'SDL_VIDEO_EGL_DRIVER' /etc/systemd/system/dot-display.service; then
-    sudo sed -i '/^Environment=PYTHONPATH=/a Environment=SDL_VIDEO_EGL_DRIVER=libEGL.so.1\nEnvironment=SDL_VIDEO_GL_DRIVER=libGLESv2.so.2' \
-      /etc/systemd/system/dot-display.service || true
-  fi
-  sudo systemctl daemon-reload
-fi
+echo "--- rewrite systemd units (kiosk display as root + KMSDRM) ---"
+sudo bash "${ROOT}/scripts/fix-systemd-paths.sh" "${PROBE_USER}" kiosk
 
 echo "Restarting Dot display…"
 sudo systemctl restart dot-api dot-display || true
 sleep 3
 systemctl is-active dot-api dot-display || true
-journalctl -u dot-display -n 20 --no-pager || true
+journalctl -u dot-display -n 25 --no-pager || true
 echo
-echo "Done. If active: show anim3 && sudo reboot"
-echo "NOTE: if you just added vc4-kms-v3d, reboot is required."
+echo "Look for: Display driver: kmsdrm"
+echo "Then: show anim3 && sudo reboot"
+if [[ "${have_kms}" -eq 1 ]]; then
+  echo "NOTE: 'OK auto -> offscreen' over SSH is normal; service runs as root on tty1."
+fi
