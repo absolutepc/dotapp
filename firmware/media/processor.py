@@ -21,9 +21,9 @@ MAX_VIDEO_FRAMES = 360
 # 12 fps keeps motion readable and finishes faster on Pi Zero first prepare
 VIDEO_TARGET_FPS = 12.0
 # Bump when PNG/JPEG cache encoding changes so ensure_frames rebuilds on Pi.
-# v7: GIF/static frames stored as JPEG (faster I/O on Pi Zero SD).
-FRAME_CACHE_VERSION = 7
-JPEG_QUALITY = 88
+# v8: inset hard circle + crush near-black (bezel blend); milder ffmpeg eq.
+FRAME_CACHE_VERSION = 8
+JPEG_QUALITY = 90
 # Bump when preview picking / thumb enhancement changes (does not rebuild frames).
 PREVIEW_VERSION = 3
 PREVIEW_SIZE = 280
@@ -254,7 +254,8 @@ class MediaProcessor:
             f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:flags=bilinear:"
             f"force_original_aspect_ratio=increase,"
             f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT},"
-            "eq=contrast=1.35:brightness=0.12:gamma=1.25"
+            # Mild contrast only — brightness>0 lifts blacks and fights the bezel.
+            "eq=contrast=1.18:brightness=0:gamma=1.08"
         )
         pattern = dest_dir / "%04d.jpg"
         cmd = [
@@ -273,7 +274,7 @@ class MediaProcessor:
             "-frames:v",
             str(MAX_VIDEO_FRAMES),
             "-q:v",
-            "6",
+            "5",
             str(pattern),
         ]
         logger.info(
@@ -290,7 +291,14 @@ class MediaProcessor:
         frames = list_frame_files(dest_dir)
         if not frames:
             raise RuntimeError(f"ffmpeg produced no frames for {source}")
-        logger.info("ffmpeg produced %d frames for %s", len(frames), source.name)
+
+        # Hard circle + crush near-black so IPS “raised blacks” match the bezel.
+        for path in frames:
+            with Image.open(path) as im:
+                masked = apply_circle_mask(self._ensure_visible(im.convert("RGBA")), self._mask)
+                masked.convert("RGB").save(path, quality=JPEG_QUALITY, optimize=True)
+
+        logger.info("ffmpeg produced %d frames for %s (masked)", len(frames), source.name)
         return frames, fps
 
     def process_file(
