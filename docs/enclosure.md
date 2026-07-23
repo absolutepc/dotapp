@@ -1,79 +1,87 @@
-# Dot enclosure — thin head (display + HDMI board)
+# Dot enclosure — CNC-style thin round head
 
-Goal: a **thin round housing** for the **2.8″ round IPS** and **UEDX6911-HDMI** driver board.  
-Raspberry Pi Zero 2W stays **remote** (glovebox / under dash) so the visible puck stays slim.
+Inspired by premium machined “digital badge” pucks: **thin round aluminum**, chamfered face, display in front, **HDMI + USB-C through the back** under the driver board. Pi Zero stays remote.
 
 ```
-        ┌──────── front bezel (thin lip) ────────┐
-        │     ⌀ ~70 mm active / glass ~73 mm     │
-        │────────── display module ──────────────│
-        │     FPC fold (gentle radius ≥ 3 mm)    │
-        │──────── UEDX6911-HDMI (~66×58 mm) ─────│
-        │     HDMI + USB-C exit at edge          │
-        └──────────── back cover ────────────────┘
-                         │
-              slim HDMI + USB cables → Pi Zero
+                    front (visible)
+        ┌──── chamfered bezel / AA window ────┐
+        │         round IPS glass             │
+        │──────────── FPC ────────────────────│
+        │      UEDX6911 board (flat)          │
+        │   connectors face REAR ↓            │
+        │  ┌────┐        ┌──────┐             │
+        │  │USB │        │ HDMI │  cutouts    │
+        └──┴────┴────────┴──────┴─────────────┘
+                    back
+              cables → Pi Zero (remote)
 ```
 
-## Parts (measured / catalog)
+## Target look (from your reference)
 
-| Part | Typical outline | Notes |
-|------|-----------------|--------|
-| Display | **73.03 × 76.48 mm** outer, **⌀ 70.13 mm** AA | VIEWE / UEDX48480028-Round-HMD family |
-| Driver | **66 × 58 mm** PCB (UEDX6911) | Confirm with calipers — revisions differ |
-| Stack target | **≤ 20–22 mm** overall depth | Side cable exits, not rear HDMI |
+- Round billet / turned OD, **chamfered outer rim**
+- Very thin stack (goal **16–20 mm** overall after measure)
+- Polished or anodized aluminum (prototype: black PETG)
+- Rear face mostly clean; ports + optional center mount boss
+- Not a side-exit brick — **ports on the back**, under the board
 
-**Measure your boards** before printing: length, width, thickness, connector overhang, FPC exit side.
+## Parts (catalog baselines — verify with calipers)
 
-## Design principles
+| Part | Outline | Notes |
+|------|---------|--------|
+| Display | 73.03 × 76.48 mm, AA ⌀ 70.13 | 2.8″ 480×480 |
+| UEDX6911 | ~66 × 58 mm PCB | Measure connector height toward rear |
+| Ports | HDMI Type A + USB-C | Face the back cover; short right-angle adapters if needed |
 
-1. **Brand face** — round aperture matches AA; bezel lip ~1.5–2.5 mm of pure black plastic so “IPS grey” meets a dark ring (helps the bezel blend).
-2. **Thin** — Pi not inside the head; only display + driver.
-3. **Serviceable** — snap or 3–4 M2 screws; open without destroying FPC.
-4. **Strain relief** — cable clamp for HDMI + USB; FPC cannot bend sharper than ~3 mm radius.
-5. **Heat** — small rear vents or metal backplate behind LT6911 if sealed in a hot car.
-6. **Mount** — flat back with 3M VHB / M4 boss / 17 mm ball socket (optional).
+## Stack (front → back)
 
-## Proposed dimensions (v1 parametric)
+1. Bezel lip / chamfer (brand face, black ring around AA)  
+2. Glass + LCD module pocket  
+3. FPC fold (≥ 3 mm bend radius)  
+4. Driver PCB, copper toward rear  
+5. Back plate with **HDMI + USB-C windows** aligned to connectors  
+6. Optional rear boss (M4 / 17 mm ball / pin mount)
 
-| Parameter | Default | Meaning |
-|-----------|---------|---------|
-| `outer_d` | 82 mm | Outer diameter of round shell |
-| `inner_glass_d` | 73.5 mm | Pocket for glass/module |
-| `aa_d` | 70.2 mm | Visible aperture |
-| `bezel_lip` | 2.0 mm | Black ring in front of glass |
-| `board_w` / `board_h` | 66 / 58 mm | Driver pocket |
-| `board_clear_z` | 9 mm | Height for PCB + connectors |
-| `wall` | 1.6 mm | Shell wall (PETG/ABS) |
-| `target_z` | ~20 mm | Overall thickness goal |
+## CAD
 
-CAD: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot_case.scad) (OpenSCAD → STL).
+Parametric model: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot_case.scad)
 
-## BOM (enclosure)
+| `part` | Export |
+|--------|--------|
+| `front` | Face + glass pocket + chamfer |
+| `back` | Board pocket + rear HDMI/USB cutouts + mount boss |
+| `preview` | Assembly ghost |
 
-- Front ring + back cover (3D print PETG, or CNC POM/aluminum later)
-- 4× M2×6 screws + brass inserts (optional)
-- Cable gland or printed strain clamp
-- 3M VHB ring for glass (if module not friction-fit)
-- Optional: 0.5 mm black foam between glass and bezel (kills light leak)
+Key parameters: `outer_d`, `aa_d`, `hdmi_*`, `usbc_*`, `board_*`, `overall_z`.
 
-## Print / prototype plan
+## CNC path (production intent)
 
-1. Caliper-measure display + UEDX6911 + connector stick-out.  
-2. Edit parameters at top of `dot_case.scad`.  
-3. Print **front** in black matte PETG (0.2 mm layers).  
-4. Print **back** with vents.  
-5. Dry-fit → adjust `board_*` and `inner_glass_d`.  
-6. In car: VHB or ball mount on back.
+Same process language as your reference reel:
 
-## Electrical (unchanged)
+1. **Lathe / turn** outer Ø + front chamfer + face flat  
+2. **Mill** glass pocket (front) and board pocket (back)  
+3. **Mill** HDMI + USB-C rectangles through back wall  
+4. **Drill** M2 screw circle + optional center mount hole  
+5. Deburr → bead-blast / polish → anodize black (preferred for Dot)
 
-See [wiring.md](wiring.md) and [car-power.md](car-power.md).  
-Head only needs: HDMI in, USB-C (power/touch), optional 5V if you split power.
+Fixture: soft jaws or vacuum for thin discs; keep wall ≥ 1.2 mm aluminum.
 
-## Next hardware steps
+## Prototype (print before metal)
 
-- [ ] User caliper sheet filled (photo + numbers)  
-- [ ] v1 STL printed and dry-fit  
-- [ ] Decide mount: adhesive vs ball  
-- [ ] Optional aluminum back for heat / premium feel  
+1. Measure glass, board, **rear connector stick-out** (critical for `overall_z`).  
+2. Edit `.scad` → export front/back STL.  
+3. Print black matte PETG → dry-fit.  
+4. Only then cut aluminum.
+
+## Mounting
+
+- Center rear boss: M4 threaded insert or 17 mm ball socket  
+- Or flat back + 3M VHB for grille  
+- Keep Pi + buck remote ([car-power.md](car-power.md))
+
+## Checklist
+
+- [ ] Calipers: glass, board, HDMI height, USB-C height, FPC side  
+- [ ] Confirm connector face = toward back (or order/use right-angle plugs)  
+- [ ] PETG v1 dry-fit  
+- [ ] CNC aluminum v1  
+- [ ] Anodize + foam light-seal under bezel  

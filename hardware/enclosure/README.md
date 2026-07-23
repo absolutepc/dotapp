@@ -1,24 +1,27 @@
-# Dot enclosure (CAD)
+# Dot enclosure CAD
 
-Parametric OpenSCAD model for a **thin round head**: 2.8″ display + UEDX6911 board.
+CNC-style **thin round head**: 2.8″ display + UEDX6911, **HDMI + USB-C on the back** under the board.
 
-- Spec / stack-up: [docs/enclosure.md](../../docs/enclosure.md)
+- Spec: [docs/enclosure.md](../../docs/enclosure.md)
 - Model: [`dot_case.scad`](dot_case.scad)
 
-## Quick start
+## Export
 
-1. Install [OpenSCAD](https://openscad.org/)
-2. Open `dot_case.scad`, set your caliper values
-3. `part = "front"` → render → STL  
-4. `part = "back"` → render → STL  
-5. Print in **black matte PETG**, 0.2 mm layers, ≥3 perimeters
+1. Open in [OpenSCAD](https://openscad.org/)
+2. Set caliper values (`hdmi_*`, `usbc_*`, `board_*`, `overall_z`)
+3. `part = "front"` → F6 → STL  
+4. `part = "back"` → F6 → STL  
 
-## Measure before v1 print
+Print PETG black matte for fit; aluminum CNC for final (see enclosure.md).
 
-| Item | Your mm |
-|------|---------|
-| Glass outer diameter / WxH | |
-| Active area diameter | |
-| Display module thickness | |
-| UEDX6911 L × W × H (with HDMI/USB) | |
-| FPC exit side | |
+## Measure (fill in)
+
+| Item | mm |
+|------|-----|
+| Glass outer | |
+| AA diameter | |
+| Module thickness | |
+| Board L × W × H | |
+| HDMI shell toward rear | |
+| USB-C shell toward rear | |
+| Connector center positions vs board | |
