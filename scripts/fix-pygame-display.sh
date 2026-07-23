@@ -34,26 +34,17 @@ echo "Rebuilding pygame in venv from source (linked to system SDL with kmsdrm)â€
 
 echo "Probe driversâ€¦"
 ok=0
-# Probe as the install user when possible (matches systemd User=)
 PROBE_USER="${SUDO_USER:-${USER}}"
-probe() {
-  local driver="$1"
-  sudo -u "${PROBE_USER}" env -u DISPLAY SDL_VIDEODRIVER="${driver}" "${PY}" - <<PY
-import os, pygame
-os.environ["SDL_VIDEODRIVER"] = "${driver}"
-pygame.display.quit()
-pygame.quit()
-pygame.init()
-pygame.display.init()
-screen = pygame.display.set_mode((64, 64))
-print(f"OK  ${driver} -> {pygame.display.get_driver()}")
-pygame.display.quit()
-pygame.quit()
-PY
-}
-
 for driver in kmsdrm fbcon x11; do
-  if probe "${driver}"; then
+  if sudo -u "${PROBE_USER}" env -u DISPLAY "SDL_VIDEODRIVER=${driver}" "${PY}" -c "
+import os, pygame
+os.environ['SDL_VIDEODRIVER'] = '${driver}'
+pygame.display.quit(); pygame.quit()
+pygame.init(); pygame.display.init()
+screen = pygame.display.set_mode((64, 64))
+print('OK  ${driver} ->', pygame.display.get_driver())
+pygame.display.quit(); pygame.quit()
+"; then
     ok=1
   else
     echo "NO  ${driver}"

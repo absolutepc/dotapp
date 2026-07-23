@@ -42,12 +42,20 @@ Typical repair:
 
 ```bash
 cd ~/dotapp
-sudo bash scripts/setup-kiosk-boot.sh mercy119
-# if diagnose says pygame/kmsdrm failed:
+git pull
+# Rebuild pygame WITH kmsdrm (PyPI wheel has none — this is the usual fix)
 bash scripts/fix-pygame-display.sh
-sudo systemctl restart dot-api dot-display
 show list
 show anim3
+sudo reboot
+```
+
+If `fix-pygame-display.sh` prints `OK kmsdrm` (or `fbcon`) and `dot-display` is `active`, the logo should appear.
+
+Also re-apply kiosk units if needed:
+
+```bash
+sudo bash scripts/setup-kiosk-boot.sh mercy119
 sudo reboot
 ```
 

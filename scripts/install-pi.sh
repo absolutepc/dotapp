@@ -24,8 +24,13 @@ echo "Install dir: ${INSTALL_DIR}"
 
 apt-get update
 apt-get install -y ffmpeg python3-venv python3-pip rsync git \
+  build-essential pkg-config python3-dev \
   libsdl2-2.0-0 libsdl2-image-2.0-0 libsdl2-mixer-2.0-0 libsdl2-ttf-2.0-0 \
-  libgbm1 libdrm2 libegl1 libxss1 libx11-6 libxext6 python3-pygame \
+  libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+  libgbm1 libdrm2 libegl1 libxss1 libx11-6 libxext6 \
+  libgbm-dev libdrm-dev libegl-dev \
+  libjpeg-dev libpng-dev \
+  python3-pygame \
   avahi-daemon
 
 if [[ "${INSTALL_DIR}" != "${REPO_ROOT}" ]]; then
@@ -49,8 +54,11 @@ fi
 venv/bin/pip install --upgrade pip
 venv/bin/pip install -r firmware/requirements.txt
 # Pip wheels often lack x11/kmsdrm on Pi — rebuild against system SDL
-venv/bin/pip install --no-cache-dir --force-reinstall --no-binary=pygame 'pygame>=2.5.0' \
-  || echo "WARNING: pygame source build failed; trying binary wheel" >&2
+if ! venv/bin/pip install --no-cache-dir --force-reinstall --no-binary=pygame 'pygame>=2.5.0,<3'; then
+  echo "WARNING: pygame source build failed; trying fix-pygame-display.sh" >&2
+  bash "${INSTALL_DIR}/scripts/fix-pygame-display.sh" || \
+    echo "WARNING: pygame still broken — run: bash scripts/fix-pygame-display.sh" >&2
+fi
 
 
 # Migrate legacy bmw-logo data dir if present
