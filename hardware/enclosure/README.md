@@ -1,6 +1,9 @@
 # Dot enclosure CAD
 
-CNC-style **thin round head**: 2.8″ display + UEDX6911, **HDMI + USB-C on the back** under the board.
+Round head split like the reference badge:
+
+1. **`front`** — matte black bezel + AA window (print first; this is the face in your photo)
+2. **`back`** — board pocket, **HDMI + USB-C on the rear** under UEDX6911
 
 - Spec: [docs/enclosure.md](../../docs/enclosure.md)
 - Model: [`dot_case.scad`](dot_case.scad)
@@ -8,11 +11,11 @@ CNC-style **thin round head**: 2.8″ display + UEDX6911, **HDMI + USB-C on the 
 ## Export
 
 1. Open in [OpenSCAD](https://openscad.org/)
-2. Set caliper values (`hdmi_*`, `usbc_*`, `board_*`, `overall_z`)
-3. `part = "front"` → F6 → STL  
-4. `part = "back"` → F6 → STL  
+2. Set calipers (`aa_d`, `inner_glass_d`, `hdmi_*`, `usbc_*`, `overall_z`)
+3. `part = "front"` → F6 → STL → **black matte PETG/resin**
+4. `part = "back"` → F6 → STL
 
-Print PETG black matte for fit; aluminum CNC for final (see enclosure.md).
+Print front face-up or on the mating face; sand the visible ring lightly for a uniform matte look.
 
 ## Measure (fill in)
 
@@ -21,6 +24,7 @@ Print PETG black matte for fit; aluminum CNC for final (see enclosure.md).
 | Glass outer | |
 | AA diameter | |
 | Module thickness | |
+| Bezel lip (desired black ring) | |
 | Board L × W × H | |
 | HDMI shell toward rear | |
 | USB-C shell toward rear | |

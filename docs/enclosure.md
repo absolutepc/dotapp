@@ -1,11 +1,11 @@
 # Dot enclosure — CNC-style thin round head
 
-Inspired by premium machined “digital badge” pucks: **thin round aluminum**, chamfered face, display in front, **HDMI + USB-C through the back** under the driver board. Pi Zero stays remote.
+Inspired by the machined “digital badge” process: round billet body, **printed/machined front bezel** around the glass, **HDMI + USB-C through the back** under the driver board. Pi Zero stays remote.
 
 ```
                     front (visible)
-        ┌──── chamfered bezel / AA window ────┐
-        │         round IPS glass             │
+        ┌──── black bezel ring (printed) ─────┐
+        │         round IPS glass / AA        │
         │──────────── FPC ────────────────────│
         │      UEDX6911 board (flat)          │
         │   connectors face REAR ↓            │
@@ -16,13 +16,30 @@ Inspired by premium machined “digital badge” pucks: **thin round aluminum**,
               cables → Pi Zero (remote)
 ```
 
-## Target look (from your reference)
+## Front part (your reference frame)
 
-- Round billet / turned OD, **chamfered outer rim**
-- Very thin stack (goal **16–20 mm** overall after measure)
-- Polished or anodized aluminum (prototype: black PETG)
-- Rear face mostly clean; ports + optional center mount boss
-- Not a side-exit brick — **ports on the back**, under the board
+The black circular face with the dark round screen is a **separate front piece** — in the reference project it was printed on a machine (FDM/SLA or plastic CNC), not the aluminum rear stack.
+
+Dot mirrors that split:
+
+| Piece | Role | Prototype | Production |
+|-------|------|-----------|------------|
+| **Front** | Matte black bezel + AA window + glass pocket | PETG / resin print | Optional: CNC plastic or anodized Al + black lip |
+| **Back** | Board pocket, rear HDMI/USB, mount boss | PETG print | Aluminum CNC (lathe + mill) |
+
+Target front look:
+
+- Thin **matte black** ring around the active area (not a thick phone-style chin)
+- Glass sits in a pocket behind a short lip (`bezel_lip`)
+- Outer rim can keep a light chamfer so the puck reads thin in hand
+- No ports on the front — only AA + bezel
+
+## Target overall look
+
+- Round OD, slim stack (goal **16–20 mm** after measure)
+- Front: black printed bezel (reference)
+- Body/back: polished or anodized aluminum when ready
+- Ports + optional center mount on the **rear**, under the board
 
 ## Parts (catalog baselines — verify with calipers)
 
@@ -34,11 +51,11 @@ Inspired by premium machined “digital badge” pucks: **thin round aluminum**,
 
 ## Stack (front → back)
 
-1. Bezel lip / chamfer (brand face, black ring around AA)  
-2. Glass + LCD module pocket  
+1. **Front bezel** (printed) — AA window + glass lip  
+2. Glass + LCD module  
 3. FPC fold (≥ 3 mm bend radius)  
-4. Driver PCB, copper toward rear  
-5. Back plate with **HDMI + USB-C windows** aligned to connectors  
+4. Driver PCB, connectors toward rear  
+5. **Back** — HDMI + USB-C windows under the board  
 6. Optional rear boss (M4 / 17 mm ball / pin mount)
 
 ## CAD
@@ -47,41 +64,41 @@ Parametric model: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot
 
 | `part` | Export |
 |--------|--------|
-| `front` | Face + glass pocket + chamfer |
-| `back` | Board pocket + rear HDMI/USB cutouts + mount boss |
+| `front` | Black bezel face + glass pocket (print this first) |
+| `back` | Board pocket + rear HDMI/USB + mount boss |
 | `preview` | Assembly ghost |
 
-Key parameters: `outer_d`, `aa_d`, `hdmi_*`, `usbc_*`, `board_*`, `overall_z`.
+Key parameters: `outer_d`, `aa_d`, `bezel_lip`, `hdmi_*`, `usbc_*`, `board_*`, `overall_z`.
 
-## CNC path (production intent)
+## Prototype path (match reference workflow)
 
-Same process language as your reference reel:
+1. Measure glass OD, AA, module thickness → set `aa_d`, `inner_glass_d`, `bezel_lip`.  
+2. Export **`part = "front"`** → print matte black PETG/resin → dry-fit glass.  
+3. Measure board + rear connector stick-out → set `overall_z`, port XY.  
+4. Export **`part = "back"`** → print → dry-fit board + cables.  
+5. Only then CNC aluminum back (and optional metal front).
 
-1. **Lathe / turn** outer Ø + front chamfer + face flat  
-2. **Mill** glass pocket (front) and board pocket (back)  
-3. **Mill** HDMI + USB-C rectangles through back wall  
-4. **Drill** M2 screw circle + optional center mount hole  
-5. Deburr → bead-blast / polish → anodize black (preferred for Dot)
+## CNC path (metal back / production)
 
-Fixture: soft jaws or vacuum for thin discs; keep wall ≥ 1.2 mm aluminum.
+1. Lathe outer Ø + face flats  
+2. Mill board pocket  
+3. Mill HDMI + USB-C through back wall  
+4. Drill M2 screw circle + mount hole  
+5. Deburr → finish → anodize  
 
-## Prototype (print before metal)
-
-1. Measure glass, board, **rear connector stick-out** (critical for `overall_z`).  
-2. Edit `.scad` → export front/back STL.  
-3. Print black matte PETG → dry-fit.  
-4. Only then cut aluminum.
+Front can stay printed black even with a metal back (same as the reference badge face).
 
 ## Mounting
 
-- Center rear boss: M4 threaded insert or 17 mm ball socket  
-- Or flat back + 3M VHB for grille  
-- Keep Pi + buck remote ([car-power.md](car-power.md))
+- Center rear boss: M4 insert or 17 mm ball  
+- Or flat back + 3M VHB  
+- Pi + buck remote ([car-power.md](car-power.md))
 
 ## Checklist
 
-- [ ] Calipers: glass, board, HDMI height, USB-C height, FPC side  
-- [ ] Confirm connector face = toward back (or order/use right-angle plugs)  
-- [ ] PETG v1 dry-fit  
-- [ ] CNC aluminum v1  
-- [ ] Anodize + foam light-seal under bezel  
+- [ ] Calipers: glass, AA, module Z, board, HDMI/USB stick-out  
+- [ ] Print front bezel → glass fit + black ring look  
+- [ ] Print back → ports under board  
+- [ ] Confirm connector face = toward back  
+- [ ] Optional CNC aluminum back  
+- [ ] Foam light-seal under bezel lip  
