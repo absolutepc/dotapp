@@ -27,11 +27,10 @@ buck OUT- ──── common GND with Pi and display board
 
 ## Mounting checklist
 
-- [ ] Round display behind grille with 3M adhesive ring (included on panel)
+- [ ] Round Dot **head** enclosure (display + UEDX6911) — see [enclosure.md](enclosure.md)
+- [ ] Pi Zero remote (glovebox); HDMI + USB strain relief
 - [ ] FPC ribbon strain relief — no sharp bends (<3 mm radius)
-- [ ] Pi and driver board in IP54-ish enclosure with ventilation slots
-- [ ] HDMI and USB cables secured against vibration
-- [ ] Display facing forward; test viewing angle in daylight
+- [ ] Mount: 3M VHB and/or ball socket on back of head
 - [ ] Buck converter not touching plastic — mount on metal/bracket for heat sink
 
 ## Acceptance tests in vehicle
