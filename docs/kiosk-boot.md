@@ -38,26 +38,19 @@ cd ~/dotapp   # or wherever the repo lives
 bash scripts/diagnose-kiosk.sh
 ```
 
-Typical repair:
+Typical repair (SDL / pygame with no video drivers):
 
 ```bash
 cd ~/dotapp
 git pull
-# Rebuild pygame WITH kmsdrm (PyPI wheel has none — this is the usual fix)
 bash scripts/fix-pygame-display.sh
-show list
+# Expect at least one "OK auto" or "OK kmsdrm"
 show anim3
 sudo reboot
 ```
 
-If `fix-pygame-display.sh` prints `OK kmsdrm` (or `fbcon`) and `dot-display` is `active`, the logo should appear.
-
-Also re-apply kiosk units if needed:
-
-```bash
-sudo bash scripts/setup-kiosk-boot.sh mercy119
-sudo reboot
-```
+This recreates the venv with `--system-site-packages` so Debian’s `python3-pygame`
+(linked to system SDL + kmsdrm) is used instead of a broken PyPI wheel.
 
 Check:
 

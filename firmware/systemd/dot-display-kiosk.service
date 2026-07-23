@@ -12,8 +12,9 @@ User=pi
 SupplementaryGroups=video render
 WorkingDirectory=/opt/dot
 Environment=PYTHONPATH=/opt/dot
-# Prefer kmsdrm; hdmi_renderer falls back to fbcon/x11 if this fails
-Environment=SDL_VIDEODRIVER=kmsdrm
+# Do not force SDL_VIDEODRIVER=kmsdrm — let hdmi_renderer try auto → kmsdrm → fbcon
+Environment=SDL_VIDEO_EGL_DRIVER=libEGL.so.1
+Environment=SDL_VIDEO_GL_DRIVER=libGLESv2.so.2
 # Wait for a real display device (Pi Zero 2W can be slow after fsck). Run as root.
 ExecStartPre=+/bin/sh -c 'for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -e /dev/dri/card0 ] || [ -e /dev/fb0 ] && exit 0; sleep 0.5; done; echo "WARN: no /dev/dri/card0 or /dev/fb0 yet" >&2; exit 0'
 # Wipe leftover boot text (e2fsck / kernel) from the framebuffer before SDL starts (root)
