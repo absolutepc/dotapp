@@ -14,18 +14,18 @@
     "file": "bmw/anim1.webm"
   },
   {
-    "id": "builtin-bmw-anim2",
-    "name": "Anim 2",
-    "category": "bmw",
-    "type": "animation",
-    "file": "bmw/anim2.webm"
-  },
-  {
     "id": "builtin-bmw-anim3",
     "name": "Anim 3",
     "category": "bmw",
     "type": "animation",
     "file": "bmw/anim3.webm"
+  },
+  {
+    "id": "builtin-bmw-anim4",
+    "name": "Anim 4",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim4.webm"
   },
   {
     "id": "builtin-bmw-anim5",
@@ -61,6 +61,62 @@
     "category": "bmw",
     "type": "animation",
     "file": "bmw/anim9.webm"
+  },
+  {
+    "id": "builtin-bmw-anim10",
+    "name": "Anim 10",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim10.webm"
+  },
+  {
+    "id": "builtin-bmw-anim11",
+    "name": "Anim 11",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim11.webm"
+  },
+  {
+    "id": "builtin-bmw-anim12",
+    "name": "Anim 12",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim12.webm"
+  },
+  {
+    "id": "builtin-bmw-anim13",
+    "name": "Anim 13",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim13.webm"
+  },
+  {
+    "id": "builtin-bmw-anim14",
+    "name": "Anim 14",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim14.webm"
+  },
+  {
+    "id": "builtin-bmw-anim15",
+    "name": "Anim 15",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim15.webm"
+  },
+  {
+    "id": "builtin-bmw-anim16",
+    "name": "Anim 16",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim16.webm"
+  },
+  {
+    "id": "builtin-bmw-anim17",
+    "name": "Anim 17",
+    "category": "bmw",
+    "type": "animation",
+    "file": "bmw/anim17.webm"
   },
   {
     "id": "builtin-bmw-project1",
