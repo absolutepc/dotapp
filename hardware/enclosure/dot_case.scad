@@ -77,8 +77,8 @@ module front() {
 }
 
 module back() {
-    z_back = overall_z - (bezel_lip + glass_pocket_z);
-    z_back = max(z_back, board_clear_z + wall + 1.5);
+    z_front_stack = bezel_lip + glass_pocket_z + 1.2;
+    z_back = max(overall_z - z_front_stack, board_clear_z + wall + 1.5);
     difference() {
         union() {
             round_shell_outer(z_back);
