@@ -21,23 +21,7 @@ Replace `mercy119` with your Pi username.
 5. Disables / masks desktop + Plymouth services
 6. Installs kiosk `dot-display.service` (SDL: kmsdrm → fbcon → x11)
 
-## Round panel: “black” looks grey vs the bezel
-
-IPS backlight cannot match OLED blacks. Dot mitigates this by:
-
-1. Insetting a **hard** circular mask (pure black rim toward the bezel)
-2. **Crushing** near-black pixels to RGB(0,0,0)
-3. Not lifting brightness in the ffmpeg extract path
-
-Rebuild frame cache after pull:
-
-```bash
-cd ~/dotapp && git pull origin cursor/dot-e8ba
-sudo rm -rf /var/lib/dot/frames/builtin-*
-sudo systemctl restart dot-api dot-display
-# first Apply / show may take a minute while frames rebuild
-show anim6
-```
+## Expected boot sequence
 
 1. Power on  
 2. ~15–40 s (Pi Zero 2W) — mostly black while Linux starts  

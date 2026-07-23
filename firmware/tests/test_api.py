@@ -187,31 +187,17 @@ def test_preview_picks_brighter_frame(client, tmp_path, monkeypatch):
 
 
 def test_circle_mask_frame_size():
-    from firmware.display.mask import apply_circle_mask, create_circle_mask, crush_blacks
+    from firmware.display.mask import apply_circle_mask, create_circle_mask
     from PIL import Image
 
     mask = create_circle_mask((480, 480))
     assert mask.size == (480, 480)
-    # Inset: outer pixels must stay masked off
-    assert mask.getpixel((0, 0)) == 0
-    assert mask.getpixel((240, 240)) == 255
 
     img = Image.new("RGBA", (480, 480), (255, 0, 0, 255))
     result = apply_circle_mask(img, mask)
     assert result.size == (480, 480)
-    # Corner should be true black
-    assert result.getpixel((0, 0))[:3] == (0, 0, 0)
-
-
-def test_crush_blacks_zeros_near_black():
-    from firmware.display.mask import crush_blacks
-    from PIL import Image
-
-    img = Image.new("RGB", (4, 4), (18, 16, 20))
-    img.putpixel((1, 1), (40, 40, 40))
-    out = crush_blacks(img, threshold=22)
-    assert out.getpixel((0, 0)) == (0, 0, 0)
-    assert out.getpixel((1, 1)) == (40, 40, 40)
+    # Corner should be black
+    assert result.getpixel((0, 0)) == (0, 0, 0, 255)
 
 
 def test_wifi_configure_writes_request(client, tmp_path, monkeypatch):
