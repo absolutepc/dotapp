@@ -71,9 +71,9 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
     /// Call after a successful connection to the Pi, or from the map screen to retry.
     func captureLastSeen(host: String?) {
         pendingHost = host
-        statusMessage = nil
         waitingForFix = true
         isCapturing = true
+        statusMessage = "Запрос геолокации…"
         refreshAuthorizationFlags()
 
         switch manager.authorizationStatus {
@@ -85,11 +85,24 @@ final class DotLocationTracker: NSObject, ObservableObject, CLLocationManagerDel
             isCapturing = false
             statusMessage = "Разрешите геолокацию в Настройках → Dot → Геолокация"
         case .notDetermined:
-            statusMessage = "Разрешите доступ к геолокации…"
+            statusMessage = "Системный запрос доступа к геолокации…"
             manager.requestWhenInUseAuthorization()
+            // If Info.plist key is missing, iOS never shows the dialog and never
+            // changes authorization — surface that after a short wait.
+            timeoutTask?.cancel()
+            timeoutTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                guard !Task.isCancelled, waitingForFix else { return }
+                if manager.authorizationStatus == .notDetermined {
+                    waitingForFix = false
+                    isCapturing = false
+                    statusMessage = "Нет диалога доступа. В Xcode: Target → Info → Privacy — Location When In Use Usage Description, затем переустановите приложение."
+                }
+            }
         @unknown default:
             waitingForFix = false
             isCapturing = false
+            statusMessage = "Неизвестный статус геолокации"
         }
     }
 
