@@ -1,45 +1,75 @@
-# dotapp — BMW Electronic Logo
+# dotapp — Dot electronic logo
 
 Round **480×480 @ 60 Hz** display driven by **Raspberry Pi Zero 2W** via **UEDX6911-HDMI V2.0**, controlled from an **iPhone** app over Wi‑Fi.
 
 ## Architecture
 
 - **Pi firmware** (`firmware/`): FastAPI server + Pygame HDMI renderer with circular mask
-- **iOS app** (`ios/BMWLogo/`): SwiftUI gallery, upload, apply to display
+- **iOS app** (`ios/Dot/`): SwiftUI gallery, upload, apply to display
 - **Assets** (`assets/`): Built-in roundel animations and emoji placeholders
 
 ## Quick start (Raspberry Pi)
+
+One command installs firmware, Wi‑Fi helpers, HDMI timing, and (by default) kiosk boot + Dot-Setup AP:
+
+```bash
+cd ~/dotapp
+git pull origin cursor/dot-e8ba   # or your branch
+sudo bash scripts/bootstrap-pi.sh
+# optional: sudo reboot   # if HDMI lines were just added to config.txt
+```
+
+Useful flags:
+
+```bash
+sudo bash scripts/bootstrap-pi.sh --pull              # git pull, then install
+sudo bash scripts/bootstrap-pi.sh --desktop           # keep graphical desktop
+sudo bash scripts/bootstrap-pi.sh --user mercy119     # service account
+sudo bash scripts/bootstrap-pi.sh --no-setup-ap       # don't start Dot-Setup now
+```
+
+Manual steps (same as before), if you prefer:
 
 ```bash
 # 1. Append docs/config.txt.example to /boot/firmware/config.txt and reboot
 # 2. Wire Pi mini-HDMI → UEDX6911 HDMI, USB OTG → board USB-C (see docs/wiring.md)
 # 3. Install firmware
-sudo bash scripts/install-pi.sh
-sudo bash scripts/setup-wifi-ap.sh
-sudo reboot
+sudo bash scripts/install-pi.sh mercy119 desktop
+# 4. One-time Wi-Fi: Pi will join your iPhone Personal Hotspot (keeps phone internet)
+sudo bash scripts/install-wifi-provision.sh
+sudo bash scripts/enter-setup-ap.sh
 ```
+
+After setup AP is up, on iPhone join `Dot-Setup-XXXX`, open the **Dot app** Wi‑Fi wizard (or `http://192.168.4.1/setup/`), enter hotspot name/password.
+
+Day-to-day in the car: enable **Personal Hotspot** on iPhone → Pi joins automatically → use the app with the Pi LAN IP (`GET /api/wifi/status`).
+
+Legacy always-on Pi AP (phone loses internet): `sudo bash scripts/setup-wifi-ap.sh`
 
 After boot:
 
-- Display shows default roundel animation
+- Display shows gallery animation
 - Switch logo: `show anim3` (also `show list`, `show status`)
-- API: `http://192.168.4.1:8080/api/status`
-- Wi‑Fi AP: `BMW-Logo-XXXX`
+- API status: `http://<pi-ip>:8080/api/status`
+- Wi-Fi help: [docs/wifi-provision.md](docs/wifi-provision.md)
 
 ## Quick start (iOS)
 
-See [ios/README.md](ios/README.md). Connect iPhone to the Pi AP, open the app, pick a logo, tap **Apply to Display**.
+See [ios/README.md](ios/README.md). Enable Personal Hotspot, wait for the Pi to join, open the app, pick a logo, tap **Apply to Display**.
 
 ## API
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/status` | Device status |
+| GET | `/api/status` | Device status (includes brightness) |
 | GET | `/api/gallery` | Media list |
 | POST | `/api/upload` | Upload PNG/GIF/JPG |
 | POST | `/api/display` | `{"media_id":"..."}` |
+| GET / POST | `/api/brightness` | Display brightness 5–100 (software dim on HDMI) |
 | DELETE | `/api/media/{id}` | Delete user media |
 | GET | `/api/preview/{id}` | Thumbnail |
+| GET | `/api/wifi/status` | Wi-Fi mode / Pi IP |
+| POST | `/api/wifi/configure` | Save phone hotspot and switch |
 
 ## Development (off-Pi)
 
@@ -63,5 +93,7 @@ See [docs/kiosk-boot.md](docs/kiosk-boot.md).
 
 - [Wiring & HDMI setup](docs/wiring.md)
 - [config.txt example](docs/config.txt.example)
+- [Wi-Fi / iPhone hotspot](docs/wifi-provision.md)
 - [Kiosk boot](docs/kiosk-boot.md)
 - [Car power & mounting](docs/car-power.md)
+- [Thin enclosure (display + HDMI board)](docs/enclosure.md)

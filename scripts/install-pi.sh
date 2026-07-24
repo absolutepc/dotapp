@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Install BMW Logo firmware on Raspberry Pi.
+# Install Dot firmware on Raspberry Pi.
 # Usage:
 #   cd ~/dotapp
 #   sudo bash scripts/install-pi.sh [username] [desktop|kiosk]
 #
-# Default: install in-place (this checkout), not /opt/bmw-logo.
-# Set BMW_LOGO_INSTALL=/opt/bmw-logo to copy into /opt instead.
+# Default: install in-place (this checkout), not /opt/dot.
+# Set DOT_INSTALL=/opt/dot to copy into /opt instead.
 set -euo pipefail
 
 PI_USER="${1:-${SUDO_USER:-pi}}"
 MODE="${2:-desktop}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-INSTALL_DIR="${BMW_LOGO_INSTALL:-${REPO_ROOT}}"
+INSTALL_DIR="${DOT_INSTALL:-${REPO_ROOT}}"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run with sudo: sudo bash scripts/install-pi.sh [username] [desktop|kiosk]" >&2
@@ -24,8 +24,14 @@ echo "Install dir: ${INSTALL_DIR}"
 
 apt-get update
 apt-get install -y ffmpeg python3-venv python3-pip rsync git \
+  build-essential pkg-config python3-dev \
   libsdl2-2.0-0 libsdl2-image-2.0-0 libsdl2-mixer-2.0-0 libsdl2-ttf-2.0-0 \
-  libgbm1 libdrm2 libegl1 libxss1 libx11-6 libxext6 python3-pygame
+  libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+  libgbm1 libdrm2 libegl1 libxss1 libx11-6 libxext6 \
+  libgbm-dev libdrm-dev libegl-dev \
+  libjpeg-dev libpng-dev \
+  python3-pygame \
+  avahi-daemon
 
 if [[ "${INSTALL_DIR}" != "${REPO_ROOT}" ]]; then
   echo "Syncing ${REPO_ROOT} → ${INSTALL_DIR}…"
@@ -48,12 +54,22 @@ fi
 venv/bin/pip install --upgrade pip
 venv/bin/pip install -r firmware/requirements.txt
 # Pip wheels often lack x11/kmsdrm on Pi — rebuild against system SDL
-venv/bin/pip install --no-cache-dir --force-reinstall --no-binary=pygame 'pygame>=2.5.0' \
-  || echo "WARNING: pygame source build failed; trying binary wheel" >&2
+if ! venv/bin/pip install --no-cache-dir --force-reinstall --no-binary=pygame 'pygame>=2.5.0,<3'; then
+  echo "WARNING: pygame source build failed; trying fix-pygame-display.sh" >&2
+  bash "${INSTALL_DIR}/scripts/fix-pygame-display.sh" || \
+    echo "WARNING: pygame still broken — run: bash scripts/fix-pygame-display.sh" >&2
+fi
 
-mkdir -p /var/lib/bmw-logo/{media,frames,previews,state}
-mkdir -p /var/run/bmw-logo
-chown -R "${PI_USER}:${PI_USER}" /var/lib/bmw-logo /var/run/bmw-logo
+
+# Migrate legacy bmw-logo data dir if present
+if [[ -d /var/lib/bmw-logo && ! -d /var/lib/dot ]]; then
+  mv /var/lib/bmw-logo /var/lib/dot
+elif [[ -d /var/lib/bmw-logo && -d /var/lib/dot ]]; then
+  echo "NOTE: both /var/lib/bmw-logo and /var/lib/dot exist — using /var/lib/dot"
+fi
+mkdir -p /var/lib/dot/{media,frames,previews,state}
+mkdir -p /var/run/dot
+chown -R "${PI_USER}:${PI_USER}" /var/lib/dot /var/run/dot
 # Do not chown the whole git tree if it already belongs to the user
 chown -R "${PI_USER}:${PI_USER}" "${INSTALL_DIR}/venv" 2>/dev/null || true
 
@@ -65,15 +81,30 @@ fi
 # Point systemd at this install + user + mode
 bash "${INSTALL_DIR}/scripts/fix-systemd-paths.sh" "${PI_USER}" "${MODE}"
 
+# Wi-Fi provisioning helpers (setup AP → iPhone hotspot)
+if [[ -f "${INSTALL_DIR}/scripts/install-wifi-provision.sh" ]]; then
+  bash "${INSTALL_DIR}/scripts/install-wifi-provision.sh" "${PI_USER}" || true
+fi
+
 systemctl daemon-reload
-systemctl enable bmw-api bmw-display
-systemctl restart bmw-api bmw-display || true
+systemctl enable dot-api dot-display
+systemctl restart dot-api dot-display || true
+
+# mDNS: phone can reach http://<hostname>.local:8080 / dot.local via dnsmasq in setup AP
+if command -v avahi-daemon >/dev/null 2>&1; then
+  install -m 644 "${INSTALL_DIR}/firmware/avahi/dot.service" /etc/avahi/services/dot.service
+  systemctl enable --now avahi-daemon 2>/dev/null || true
+  systemctl reload avahi-daemon 2>/dev/null || true
+fi
 
 echo ""
 echo "Install complete."
-echo "  API:     systemctl status bmw-api --no-pager"
-echo "  Display: systemctl status bmw-display --no-pager"
+echo "  API:     systemctl status dot-api --no-pager"
+echo "  Display: systemctl status dot-display --no-pager"
 echo "  Switch:  show anim3"
+echo "  Wi-Fi:   sudo bash ${INSTALL_DIR}/scripts/enter-setup-ap.sh"
+echo "           then open http://192.168.4.1/setup/ on iPhone"
+echo "  mDNS:    http://$(hostname).local:8080  (avahi)"
 echo ""
 if [[ "${MODE}" == "kiosk" ]]; then
   echo "Optional quiet kiosk boot:"

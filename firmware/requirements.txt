@@ -4,3 +4,4 @@ python-multipart>=0.0.9
 pillow>=10.2.0
 pygame>=2.5.0
 pydantic>=2.6.0
+qrcode>=7.4

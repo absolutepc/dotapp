@@ -5,46 +5,52 @@ struct PhotoUploadView: View {
     @EnvironmentObject private var api: PiAPIClient
     @Environment(\.dismiss) private var dismiss
 
-    @Binding var showSuccess: Bool
+    var onUploaded: () -> Void = {}
     @State private var pickerItem: PhotosPickerItem?
     @State private var isUploading = false
     @State private var errorText: String?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                PhotosPicker(selection: $pickerItem, matching: .any(of: [.images, .livePhotos])) {
-                    Label("Choose from Photos", systemImage: "photo.on.rectangle")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                }
-                .buttonStyle(.borderedProminent)
+            ZStack {
+                SpaceBlueBackground(dark: true)
+                VStack(spacing: 20) {
+                    PhotosPicker(selection: $pickerItem, matching: .any(of: [.images, .livePhotos])) {
+                        Label("Choose from Photos", systemImage: "photo.on.rectangle")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
+                    .buttonStyle(DotPrimaryButtonStyle(dark: true, prominent: true))
 
-                Text("Images are resized to 480×480 before upload.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if isUploading {
-                    ProgressView("Uploading…")
-                }
-
-                if let errorText {
-                    Text(errorText)
+                    Text("Images are resized to 480×480 before upload.")
                         .font(.caption)
-                        .foregroundStyle(.red)
-                }
+                        .foregroundStyle(DotTheme.secondaryText(dark: true))
 
-                Spacer()
+                    if isUploading {
+                        ProgressView("Uploading…")
+                            .tint(DotTheme.ice)
+                    }
+
+                    if let errorText {
+                        Text(errorText)
+                            .font(.caption)
+                            .foregroundStyle(Color(red: 1.0, green: 0.55, blue: 0.55))
+                    }
+
+                    Spacer()
+                }
+                .padding()
             }
-            .padding()
             .navigationTitle("Upload")
             .navigationBarTitleDisplayMode(.inline)
+            .dotNavigationChrome(dark: true)
+            .tint(DotTheme.ice)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
             }
-            .onChange(of: pickerItem) { _, newItem in
+            .onChange(of: pickerItem) { newItem in
                 guard let newItem else { return }
                 Task { await upload(item: newItem) }
             }
@@ -70,7 +76,7 @@ struct PhotoUploadView: View {
                 try await api.upload(data: raw, filename: "upload.gif", mimeType: "image/gif")
             }
 
-            showSuccess = true
+            onUploaded()
             dismiss()
         } catch {
             errorText = error.localizedDescription

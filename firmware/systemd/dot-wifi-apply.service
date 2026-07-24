@@ -1,0 +1,8 @@
+[Unit]
+Description=Apply Dot Wi-Fi client request (phone hotspot)
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/dot-wifi-apply
+Nice=5

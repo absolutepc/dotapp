@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=== BMW Logo hardware smoke test ==="
+echo "=== Dot hardware smoke test ==="
 
 if command -v tvservice >/dev/null 2>&1; then
   echo "Display mode:"

@@ -18,14 +18,19 @@ logger = logging.getLogger(__name__)
 
 VIDEO_SUFFIXES = {".webm", ".mp4", ".mov"}
 MAX_VIDEO_FRAMES = 360
-# 15 fps keeps motion smooth enough and finishes in seconds on Pi Zero
-VIDEO_TARGET_FPS = 15.0
+# 12 fps keeps motion readable and finishes faster on Pi Zero first prepare
+VIDEO_TARGET_FPS = 12.0
 # Bump when PNG/JPEG cache encoding changes so ensure_frames rebuilds on Pi.
-FRAME_CACHE_VERSION = 6
+# v7: GIF/static frames stored as JPEG (faster I/O on Pi Zero SD).
+FRAME_CACHE_VERSION = 7
+JPEG_QUALITY = 88
+# Bump when preview picking / thumb enhancement changes (does not rebuild frames).
+PREVIEW_VERSION = 3
+PREVIEW_SIZE = 280
 
 
 def list_frame_files(frame_dir: Path) -> list[Path]:
-    """Cached display frames (GIF→PNG, video→JPEG)."""
+    """Cached display frames (all JPEG preferred; legacy PNG still accepted)."""
     if not frame_dir.is_dir():
         return []
     return sorted(
@@ -63,13 +68,138 @@ class MediaProcessor:
             rgba = ImageEnhance.Contrast(rgba).enhance(1.2)
         return rgba
 
+    def _score_preview_frame(self, image: Image.Image, *, index: int, total: int) -> float:
+        """Prefer mid-clip frames that are bright enough, colorful, and detailed."""
+        rgb = image.convert("RGB")
+        w, h = rgb.size
+        # Center crop — ignore outer black from circle / letterbox.
+        sample = rgb.crop((w // 5, h // 5, 4 * w // 5, 4 * h // 5))
+        stat = ImageStat.Stat(sample)
+        r, g, b = stat.mean
+        lum = (r + g + b) / 3.0
+        var = sum(stat.var) / 3.0
+        # Colorfulness: how far from gray.
+        chroma = (abs(r - g) + abs(g - b) + abs(b - r)) / 3.0
+
+        # Near-black / near-white thumbs look bad in the gallery.
+        if lum < 18:
+            return lum * 0.2
+        if lum > 230:
+            return 40.0
+
+        # Prefer the middle of the clip (logo usually fully formed).
+        t = index / max(total - 1, 1)
+        mid_bonus = 1.0 - abs(t - 0.45) * 1.4  # peak near 45%
+        mid_bonus = max(0.35, mid_bonus)
+
+        # Target a readable mid-tone, not the absolute brightest flash frame.
+        lum_score = 100.0 - abs(lum - 95.0) * 0.55
+        return (lum_score + 0.04 * var + 1.8 * chroma) * mid_bonus
+
+    def _pick_best_preview_frame(self, frame_paths: list[Path]) -> Image.Image:
+        if not frame_paths:
+            raise RuntimeError("No frames for preview")
+        if len(frame_paths) == 1:
+            return Image.open(frame_paths[0]).convert("RGB")
+
+        n = len(frame_paths)
+        # Sample more of the clip; still capped for Pi Zero.
+        sample_count = min(28, n)
+        indices = sorted({int(i * (n - 1) / max(sample_count - 1, 1)) for i in range(sample_count)})
+        # Bias sampling toward the middle third.
+        lo, hi = int(n * 0.2), max(int(n * 0.8), int(n * 0.2) + 1)
+        mid_extra = list(range(lo, hi, max(1, (hi - lo) // 8)))
+        indices = sorted(set(indices) | set(mid_extra))
+
+        best_score = -1.0
+        best: Image.Image | None = None
+        for idx in indices:
+            with Image.open(frame_paths[idx]) as im:
+                score = self._score_preview_frame(im, index=idx, total=n)
+                if score > best_score:
+                    best_score = score
+                    best = im.convert("RGB").copy()
+        assert best is not None
+        return best
+
+    def _enhance_preview_thumb(self, image: Image.Image) -> Image.Image:
+        """Make gallery thumbs readable without blowing out neon colors."""
+        rgb = image.convert("RGB")
+        # Gentle auto-contrast keeps structure without washing colors.
+        rgb = ImageOps.autocontrast(rgb, cutoff=1)
+        w, h = rgb.size
+        sample = rgb.crop((w // 4, h // 4, 3 * w // 4, 3 * h // 4))
+        lum = sum(ImageStat.Stat(sample).mean) / 3.0
+        target = 92.0
+        if lum < 40:
+            rgb = ImageEnhance.Brightness(rgb).enhance(min(2.6, target / max(lum, 1.0)))
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.22)
+        elif lum < 70:
+            rgb = ImageEnhance.Brightness(rgb).enhance(min(1.55, target / max(lum, 1.0)))
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.12)
+        elif lum > 160:
+            rgb = ImageEnhance.Brightness(rgb).enhance(0.88)
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.08)
+        rgb = ImageEnhance.Color(rgb).enhance(1.22)
+        rgb = ImageEnhance.Sharpness(rgb).enhance(1.15)
+        return rgb
+
     def _save_preview(self, media_id: str, frame: Image.Image) -> None:
         from firmware.config import PREVIEW_DIR
 
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
-        thumb = frame.copy()
-        thumb.thumbnail((160, 160), Image.Resampling.LANCZOS)
-        thumb.convert("RGB").save(PREVIEW_DIR / f"{media_id}.jpg", quality=90)
+        enhanced = self._enhance_preview_thumb(frame)
+        thumb = ImageOps.fit(
+            enhanced,
+            (PREVIEW_SIZE, PREVIEW_SIZE),
+            method=Image.Resampling.LANCZOS,
+            centering=(0.5, 0.5),
+        )
+        # Round mask so tiles match the Dot circle (black outside).
+        mask = create_circle_mask((PREVIEW_SIZE, PREVIEW_SIZE))
+        rounded = apply_circle_mask(thumb.convert("RGBA"), mask)
+        rounded.convert("RGB").save(
+            PREVIEW_DIR / f"{media_id}.jpg",
+            quality=92,
+            optimize=True,
+        )
+
+    def _write_preview_from_frames(self, media_id: str, frame_paths: list[Path], meta_path: Path) -> None:
+        best = self._pick_best_preview_frame(frame_paths)
+        try:
+            self._save_preview(media_id, best)
+        finally:
+            best.close()
+        meta: dict = {}
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except Exception:
+                meta = {}
+        meta["preview_version"] = PREVIEW_VERSION
+        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+    def ensure_preview(self, item: MediaItem) -> bool:
+        """Refresh gallery thumb from existing frames if missing or stale."""
+        from firmware.config import FRAMES_DIR, PREVIEW_DIR
+
+        frame_dir = FRAMES_DIR / item.id
+        paths = list_frame_files(frame_dir)
+        if not paths:
+            return False
+        meta_path = frame_dir / "meta.json"
+        preview_path = PREVIEW_DIR / f"{item.id}.jpg"
+        meta: dict = {}
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except Exception:
+                meta = {}
+        if preview_path.exists() and int(meta.get("preview_version") or 0) == PREVIEW_VERSION:
+            return True
+        logger.info("Refreshing preview for %s (v%s)", item.id, PREVIEW_VERSION)
+        self._write_preview_from_frames(item.id, paths, meta_path)
+        return True
 
     def _probe_duration(self, source: Path) -> float | None:
         try:
@@ -134,7 +264,7 @@ class MediaProcessor:
             "error",
             "-y",
             "-threads",
-            "2",
+            "1",
             "-i",
             str(decode_src),
             "-an",
@@ -143,7 +273,7 @@ class MediaProcessor:
             "-frames:v",
             str(MAX_VIDEO_FRAMES),
             "-q:v",
-            "5",
+            "6",
             str(pattern),
         ]
         logger.info(
@@ -204,8 +334,10 @@ class MediaProcessor:
 
                     fitted = self._ensure_visible(self._fit_square(composed))
                     masked = apply_circle_mask(fitted, self._mask)
-                    out = frame_dir / f"{idx:04d}.png"
-                    masked.convert("RGB").save(out)
+                    out = frame_dir / f"{idx:04d}.jpg"
+                    masked.convert("RGB").save(
+                        out, quality=JPEG_QUALITY, optimize=True
+                    )
                     frame_paths.append(out)
                     duration_ms = frame.info.get("duration", int(1000 / TARGET_FPS))
                     durations.append(max(duration_ms, 1) / 1000.0)
@@ -215,8 +347,8 @@ class MediaProcessor:
             with Image.open(source) as im:
                 fitted = self._ensure_visible(self._fit_square(im))
                 masked = apply_circle_mask(fitted, self._mask)
-                out = frame_dir / "0000.png"
-                masked.convert("RGB").save(out)
+                out = frame_dir / "0000.jpg"
+                masked.convert("RGB").save(out, quality=JPEG_QUALITY, optimize=True)
                 frame_paths.append(out)
                 durations = [1.0 / TARGET_FPS]
             media_type = "image"
@@ -231,11 +363,11 @@ class MediaProcessor:
             "fps": fps,
             "source_suffix": suffix,
             "cache_version": FRAME_CACHE_VERSION,
+            "preview_version": PREVIEW_VERSION,
         }
         (frame_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
-        with Image.open(frame_paths[0]) as first:
-            self._save_preview(media_id, first)
+        self._write_preview_from_frames(media_id, frame_paths, frame_dir / "meta.json")
 
         # Keep relative path for builtins so resolve_source_path stays stable
         if builtin:
@@ -262,11 +394,9 @@ class MediaProcessor:
         self.storage.add(item)
         return item
 
-    def ensure_frames(self, item: MediaItem) -> None:
-        """Build frame cache for a manifest item if missing or stale."""
-        from firmware.config import FRAMES_DIR, REPO_ROOT
+    def _resolve_source(self, item: MediaItem) -> Path:
+        from firmware.config import REPO_ROOT
 
-        frame_dir = FRAMES_DIR / item.id
         source = self.storage.resolve_source_path(item)
         if not source.is_absolute():
             source = REPO_ROOT / source
@@ -274,42 +404,50 @@ class MediaProcessor:
             # Common GitHub upload rename with spaces
             alt = source.parent / source.name.replace("_", " ")
             if alt.exists():
-                source = alt
-            else:
-                raise FileNotFoundError(f"Source not found: {source}")
+                return alt
+            raise FileNotFoundError(f"Source not found: {source}")
+        return source
 
+    def frames_ready(self, item: MediaItem) -> bool:
+        """True when on-disk frame cache is usable (no rebuild needed)."""
+        from firmware.config import FRAMES_DIR
+
+        try:
+            source = self._resolve_source(item)
+        except FileNotFoundError:
+            return False
+
+        frame_dir = FRAMES_DIR / item.id
         existing = list_frame_files(frame_dir)
         meta_path = frame_dir / "meta.json"
-        needs_rebuild = False
-        meta: dict = {}
-        if meta_path.exists():
-            try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            except Exception:
-                meta = {}
-                needs_rebuild = True
-
-        if not existing:
-            needs_rebuild = True
-        elif int(meta.get("cache_version") or 0) != FRAME_CACHE_VERSION:
-            needs_rebuild = True
-        elif meta.get("source_suffix") and meta.get("source_suffix") != source.suffix.lower():
-            needs_rebuild = True
-        elif int(meta.get("frame_count") or 0) != len(existing):
-            needs_rebuild = True
-        elif source.suffix.lower() in VIDEO_SUFFIXES and len(existing) <= 1:
-            needs_rebuild = True
-        elif source.suffix.lower() == ".gif":
+        if not existing or not meta_path.exists():
+            return False
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            return False
+        if int(meta.get("cache_version") or 0) != FRAME_CACHE_VERSION:
+            return False
+        if meta.get("source_suffix") and meta.get("source_suffix") != source.suffix.lower():
+            return False
+        if int(meta.get("frame_count") or 0) != len(existing):
+            return False
+        if source.suffix.lower() in VIDEO_SUFFIXES and len(existing) <= 1:
+            return False
+        if source.suffix.lower() == ".gif":
             try:
                 with Image.open(source) as im:
                     source_frames = min(int(getattr(im, "n_frames", 1) or 1), MAX_GIF_FRAMES)
                 if len(existing) < source_frames:
-                    needs_rebuild = True
+                    return False
             except Exception:
-                needs_rebuild = True
+                return False
+        return True
 
-        if not needs_rebuild:
+    def ensure_frames(self, item: MediaItem) -> None:
+        """Build frame cache for a manifest item if missing or stale."""
+        if self.frames_ready(item):
             return
-
+        source = self._resolve_source(item)
         logger.info("Rebuilding frames for %s from %s", item.id, source.name)
         self.process_file(item.id, source, item.name, builtin=item.builtin)
