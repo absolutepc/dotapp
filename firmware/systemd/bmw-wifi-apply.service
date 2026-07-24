@@ -1,0 +1,8 @@
+[Unit]
+Description=Apply BMW Logo Wi-Fi client request (phone hotspot)
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/bmw-wifi-apply
+Nice=5
