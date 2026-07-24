@@ -15,6 +15,17 @@ Native **SwiftUI** app for iPhone (iOS 16+).
 
 If Xcode reports `ObservableObject` / `@Published` errors, ensure `import Combine` is present in `PiAPIClient.swift` and `DotApp.swift`.
 
+## HTML mockup
+
+Interactive phone preview aligned with the SwiftUI layout (space-blue theme, top preview + library, Settings / Wi‑Fi / «Где Dot»):
+
+```bash
+python3 -m http.server 5500
+# → http://localhost:5500/ios/mockup/
+```
+
+Uses `assets/catalog.json` + media locally; switch to **Live Dot** to hit the Pi API.
+
 ## Usage
 
 1. **First launch (onboarding slides):** shown once per iPhone install, flag `UserDefaults` key `dot.onboarding.completed`. To see them again: **Настройки → Показать введение**, or connection screen → **Показать введение**.
