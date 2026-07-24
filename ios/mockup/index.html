@@ -3,48 +3,70 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Dot — gallery preview</title>
+  <title>Dot — app mockup</title>
   <style>
     :root {
-      --bg: #f2f2f7;
-      --card: #ffffff;
-      --secondary-bg: #e5e5ea;
-      --label: #000000;
-      --secondary-label: #8e8e93;
-      --blue: #007aff;
-      --red: #ff3b30;
-      --orange: #ff9500;
-      --green: #34c759;
-      --separator: rgba(60, 60, 67, 0.12);
-      --shadow: rgba(0, 0, 0, 0.18);
+      --void: #04060f;
+      --deep: #080d1f;
+      --navy: #0b142e;
+      --cobalt: #122452;
+      --horizon: #244785;
+      --ice: #7ab2f2;
+      --mist: #b8d1f0;
+      --panel: #0e1630;
+      --bg0: #04060f;
+      --bg1: #080d1f;
+      --text: #ffffff;
+      --text2: rgba(184, 209, 240, 0.65);
+      --sep: rgba(122, 178, 242, 0.18);
+      --danger: #ff7380;
       --phone-w: 390px;
       --phone-h: 844px;
+    }
+    html.light {
+      --void: #ffffff;
+      --deep: #ffffff;
+      --navy: #f5f5f7;
+      --cobalt: #e8eef8;
+      --horizon: #1f478c;
+      --ice: #1f478c;
+      --mist: #595a66;
+      --panel: #f0f0f5;
+      --bg0: #ffffff;
+      --bg1: #f5f5f7;
+      --text: #14141a;
+      --text2: #595a66;
+      --sep: rgba(31, 71, 140, 0.28);
     }
 
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
       background:
-        radial-gradient(1200px 600px at 20% 0%, #2c2c2e 0%, transparent 55%),
-        radial-gradient(900px 500px at 90% 20%, #1c1c1e 0%, transparent 50%),
-        #0d0d0f;
-      color: var(--label);
+        radial-gradient(900px 500px at 15% 0%, #1a2748 0%, transparent 55%),
+        radial-gradient(700px 400px at 90% 10%, #0c1228 0%, transparent 50%),
+        #07080c;
+      color: var(--text);
       display: grid;
       place-items: center;
       min-height: 100%;
       padding: 24px 16px 40px;
-      gap: 16px;
+      gap: 14px;
+    }
+    html.light body {
+      background: linear-gradient(180deg, #e8ecf4, #d8dde8);
     }
 
     .page-note {
-      max-width: 460px;
+      max-width: 480px;
       color: #c7c7cc;
       font-size: 13px;
       line-height: 1.45;
       text-align: center;
     }
+    html.light .page-note { color: #3a3a3c; }
     .page-note code {
       background: #2c2c2e;
       padding: 1px 6px;
@@ -68,7 +90,7 @@
       color: #fff;
     }
     .toolbar-btns button { cursor: pointer; }
-    .toolbar-btns button.active { background: var(--blue); }
+    .toolbar-btns button.active { background: var(--ice); color: var(--void); }
     .toolbar-btns input {
       width: min(220px, 70vw);
       background: #1c1c1e;
@@ -86,11 +108,9 @@
     }
     .phone-notch {
       position: absolute;
-      top: 18px;
-      left: 50%;
+      top: 18px; left: 50%;
       transform: translateX(-50%);
-      width: 118px;
-      height: 34px;
+      width: 118px; height: 34px;
       background: #000;
       border-radius: 20px;
       z-index: 5;
@@ -99,10 +119,16 @@
       height: 100%;
       border-radius: 38px;
       overflow: hidden;
-      background: var(--bg);
       position: relative;
       display: flex;
       flex-direction: column;
+      background:
+        radial-gradient(280px 280px at 72% 12%, rgba(18,36,82,.45), transparent 70%),
+        radial-gradient(220px 220px at 18% 78%, rgba(122,178,242,.08), transparent 65%),
+        linear-gradient(145deg, var(--bg0), var(--bg1) 55%, var(--navy));
+    }
+    html.light .screen {
+      background: linear-gradient(180deg, #fff, #f5f5f7);
     }
 
     .status-bar {
@@ -113,92 +139,170 @@
       align-items: flex-start;
       font-size: 15px;
       font-weight: 600;
-      background: var(--bg);
       flex-shrink: 0;
+      color: var(--text);
     }
-    .status-bar .right { font-size: 13px; }
+    .status-bar .right { font-size: 13px; opacity: .85; }
 
     .nav {
       height: 44px;
       display: grid;
-      grid-template-columns: 56px 1fr 56px;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      padding: 0 8px;
-      background: var(--bg);
-      border-bottom: 0.5px solid var(--separator);
+      padding: 0 10px;
       flex-shrink: 0;
+      background: color-mix(in srgb, var(--deep) 92%, transparent);
+      backdrop-filter: blur(14px);
+      border-bottom: 0.5px solid var(--sep);
     }
     .nav h1 {
       margin: 0;
       text-align: center;
       font-size: 17px;
       font-weight: 600;
+      color: var(--text);
     }
+    .nav-side {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+    .nav-side.right { justify-content: flex-end; }
     .nav-btn {
       border: 0;
       background: transparent;
-      color: var(--blue);
-      font: inherit;
-      font-size: 17px;
+      color: var(--ice);
+      width: 36px; height: 36px;
+      border-radius: 10px;
       cursor: pointer;
-      padding: 8px;
+      font-size: 17px;
+      display: grid;
+      place-items: center;
     }
-    .nav-btn.icon { font-size: 20px; line-height: 1; }
+    .nav-btn:active { opacity: .7; }
+    .nav-btn.text {
+      width: auto;
+      padding: 0 8px;
+      font-size: 16px;
+      font-weight: 500;
+    }
 
     .view { display: none; flex: 1; min-height: 0; flex-direction: column; }
     .view.active { display: flex; }
 
-    .connection {
-      padding: 28px 20px 20px;
+    /* Gallery: top preview + bottom library (matches ContentView) */
+    .gallery {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .preview-pane {
+      flex: 1;
+      min-height: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 22px;
-      text-align: center;
+      justify-content: center;
+      padding: 8px 20px 12px;
+      gap: 16px;
     }
-    .connection h2 { margin: 0; font-size: 22px; font-weight: 700; }
-    .steps {
-      width: 100%;
-      text-align: left;
-      background: var(--secondary-bg);
-      border-radius: 12px;
-      padding: 16px;
+    .preview-orb {
+      position: relative;
+      width: 260px; height: 260px;
       display: grid;
-      gap: 12px;
-      font-size: 15px;
+      place-items: center;
     }
-    .step { display: flex; gap: 10px; align-items: flex-start; }
-    .badge {
-      width: 22px; height: 22px; border-radius: 50%;
-      background: var(--blue); color: #fff; font-size: 12px; font-weight: 700;
-      display: grid; place-items: center; flex-shrink: 0;
+    .preview-glow {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(122,178,242,.28), rgba(18,36,82,.15), transparent 70%);
+      animation: glow 2.4s ease-in-out infinite alternate;
+      pointer-events: none;
     }
-    .err { color: var(--red); font-size: 12px; max-width: 300px; min-height: 1em; }
-    .addr { color: var(--secondary-label); font-size: 12px; }
-
-    .status-row {
+    @keyframes glow {
+      from { transform: scale(0.96); opacity: .85; }
+      to { transform: scale(1.05); opacity: 1; }
+    }
+    .preview-ring {
+      position: absolute;
+      width: 228px; height: 228px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      background:
+        linear-gradient(var(--deep), var(--deep)) padding-box,
+        linear-gradient(135deg, rgba(122,178,242,.55), rgba(36,71,133,.2)) border-box;
+      pointer-events: none;
+    }
+    .preview-disc {
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: 0 14px 28px rgba(18, 36, 82, .45);
+      position: relative;
+      z-index: 1;
+    }
+    .preview-disc img, .preview-disc video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .preview-meta-row {
+      width: 100%;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      font-size: 15px;
-      color: var(--secondary-label);
+      gap: 12px;
     }
-    .dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--green); flex-shrink: 0;
+    .preview-meta-row h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
     }
-    .status-row .res { margin-left: auto; font-size: 12px; }
+    .preview-meta-row .sub {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 4px;
+    }
+    .btn-apply {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      min-width: 88px;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--void);
+      background: linear-gradient(135deg, var(--ice), var(--horizon));
+      flex-shrink: 0;
+    }
+    html.light .btn-apply { color: #fff; background: #1f478c; }
+    .btn-apply:disabled { opacity: .45; cursor: default; }
+
+    .library {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: color-mix(in srgb, var(--void) 35%, transparent);
+      border-top: 1px solid var(--sep);
+    }
+    html.light .library { background: #f5f5f7; }
 
     .segmented {
-      margin: 8px 16px 12px;
-      background: var(--secondary-bg);
+      margin: 12px 16px 10px;
+      background: color-mix(in srgb, var(--panel) 90%, #000);
       border-radius: 9px;
       padding: 2px;
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 2px;
     }
+    html.light .segmented { background: #e5e5ea; }
     .segmented button {
       border: 0;
       background: transparent;
@@ -207,49 +311,63 @@
       font: inherit;
       font-size: 13px;
       font-weight: 500;
+      color: var(--text2);
       cursor: pointer;
     }
     .segmented button.active {
-      background: var(--card);
-      box-shadow: 0 1px 3px rgba(0,0,0,.12);
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,.18);
     }
+    html.light .segmented button.active { background: #fff; }
 
     .grid-wrap {
       flex: 1;
       overflow: auto;
-      padding: 0 16px 24px;
+      padding: 0 16px 28px;
       -webkit-overflow-scrolling: touch;
     }
     .grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
+      gap: 10px;
     }
     .tile {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
+      aspect-ratio: 1;
       border: 0;
-      background: transparent;
       padding: 0;
-      font: inherit;
-      color: inherit;
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--panel);
+      cursor: pointer;
+      position: relative;
     }
-    .thumb {
-      width: 112px;
-      height: 112px;
-      border-radius: 50%;
+    .tile img, .tile video {
+      width: 100%; height: 100%;
       object-fit: cover;
-      background: #d1d1d6;
       display: block;
-      image-rendering: auto;
-      -ms-interpolation-mode: bicubic;
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
     }
-    .thumb.is-loading {
-      background: linear-gradient(90deg, #e5e5ea, #f2f2f7, #e5e5ea);
+    .tile.selected::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      border: 3px solid transparent;
+      background:
+        linear-gradient(transparent, transparent) padding-box,
+        linear-gradient(135deg, var(--ice), var(--horizon)) border-box;
+      pointer-events: none;
+    }
+    .tile.upload {
+      display: grid;
+      place-items: center;
+      color: var(--text2);
+      font-size: 13px;
+      gap: 6px;
+    }
+    .tile.upload .plus { font-size: 22px; font-weight: 600; }
+    .tile.is-loading {
+      background: linear-gradient(90deg, var(--panel), var(--navy), var(--panel));
       background-size: 200% 100%;
       animation: shimmer 1.1s linear infinite;
     }
@@ -257,156 +375,220 @@
       from { background-position: 100% 0; }
       to { background-position: -100% 0; }
     }
-    video.thumb {
-      pointer-events: none;
-    }
-    .thumb-fallback {
-      width: 112px;
-      height: 112px;
-      border-radius: 50%;
-      background: var(--secondary-bg);
-      display: grid;
-      place-items: center;
-      color: var(--secondary-label);
-      font-size: 12px;
-    }
-    .thumb.upload {
-      background: var(--secondary-bg);
-      color: var(--blue);
-      border-radius: 12px;
-      width: 100%;
-      aspect-ratio: 1;
-      display: grid;
-      place-items: center;
-      font-size: 32px;
-      font-weight: 600;
-    }
-    .tile span {
-      font-size: 11px;
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
 
-    .sheet-backdrop {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,.28);
-      display: none;
-      z-index: 10;
-    }
-    .sheet-backdrop.show { display: block; }
-    .sheet {
-      position: absolute;
-      left: 0; right: 0; bottom: 0;
-      top: 56px;
-      background: var(--bg);
-      border-radius: 16px 16px 0 0;
-      z-index: 11;
-      display: none;
-      flex-direction: column;
-      box-shadow: 0 -8px 30px var(--shadow);
-    }
-    .sheet.show { display: flex; }
-    .sheet .nav {
-      border-radius: 16px 16px 0 0;
-      background: rgba(242,242,247,.92);
-      backdrop-filter: blur(12px);
-    }
-
-    .preview-body {
-      padding: 24px 20px;
+    /* Connection */
+    .connection {
+      padding: 20px 20px 28px;
+      overflow: auto;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 18px;
       text-align: center;
-      overflow: auto;
     }
-    .preview-circle {
-      width: 300px;
-      height: 300px;
-      border-radius: 50%;
-      object-fit: cover;
-      box-shadow: 0 8px 24px rgba(0,0,0,.2);
-      background: #d1d1d6;
-      display: block;
-      image-rendering: auto;
-    }
-    video.preview-circle {
-      background: #000;
-    }
-    .preview-body h2 {
+    .connection h2 {
       margin: 0;
-      font-size: 22px;
+      font-size: 28px;
       font-weight: 700;
     }
-    .meta {
-      color: var(--secondary-label);
-      font-size: 15px;
-      margin-top: -8px;
+    .connection .lead {
+      margin: 0;
+      color: var(--text2);
+      font-size: 17px;
+      font-weight: 600;
     }
-    .btn {
+    .panel {
+      width: 100%;
+      text-align: left;
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .steps { display: grid; gap: 12px; font-size: 15px; }
+    .step { display: flex; gap: 10px; align-items: flex-start; }
+    .badge {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--ice), var(--horizon));
+      color: var(--void);
+      font-size: 12px; font-weight: 700;
+      display: grid; place-items: center; flex-shrink: 0;
+    }
+    html.light .badge { color: #fff; }
+    .err { color: var(--danger); font-size: 13px; min-height: 1em; }
+    .field {
       width: 100%;
       border: 0;
       border-radius: 12px;
+      padding: 12px 14px;
+      font: inherit;
+      font-size: 16px;
+      background: color-mix(in srgb, var(--panel) 80%, #000);
+      color: var(--text);
+    }
+    html.light .field { background: #e8e8ed; }
+    .btn {
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
       padding: 14px 16px;
       font: inherit;
       font-size: 17px;
       font-weight: 600;
       cursor: pointer;
     }
-    .btn-primary { background: var(--blue); color: #fff; }
-    .btn-primary:disabled { opacity: .45; }
-    .btn-danger { background: transparent; color: var(--red); font-weight: 400; }
+    .btn-primary {
+      color: var(--void);
+      background: linear-gradient(135deg, var(--ice), var(--horizon));
+    }
+    html.light .btn-primary { color: #fff; background: #1f478c; }
+    .btn-ghost {
+      background: var(--panel);
+      color: var(--text);
+      font-weight: 500;
+    }
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      font-weight: 500;
+    }
 
-    .upload-body {
-      padding: 20px;
+    /* Sheets */
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      display: none;
+      z-index: 20;
+    }
+    .sheet-backdrop.show { display: block; }
+    .sheet {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      top: 52px;
+      background:
+        linear-gradient(160deg, var(--bg0), var(--bg1) 60%, var(--navy));
+      border-radius: 16px 16px 0 0;
+      z-index: 21;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 -10px 40px rgba(0,0,0,.35);
+    }
+    html.light .sheet {
+      background: linear-gradient(180deg, #fff, #f5f5f7);
+    }
+    .sheet.show { display: flex; }
+    .sheet .nav {
+      border-radius: 16px 16px 0 0;
+    }
+    .sheet-body {
+      flex: 1;
+      overflow: auto;
+      padding: 16px 16px 32px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
-    .hint {
+    .section-label {
       font-size: 12px;
-      color: var(--secondary-label);
-      text-align: center;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text2);
+      margin: 4px 2px 0;
     }
-
-    .home-indicator {
+    .row {
+      background: var(--panel);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text);
+      font-size: 16px;
+    }
+    .row .muted { color: var(--text2); font-size: 14px; }
+    .row.stack {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--ice);
+    }
+    .map-placeholder {
+      height: 220px;
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 45% 48%, rgba(122,178,242,.35), transparent 28%),
+        linear-gradient(160deg, #1a3a28, #0e1f18 40%, #152238);
+      position: relative;
+      overflow: hidden;
+    }
+    html.light .map-placeholder {
+      background:
+        radial-gradient(circle at 45% 48%, rgba(31,71,140,.35), transparent 28%),
+        linear-gradient(160deg, #cfe8d4, #e8f0f8);
+    }
+    .map-pin {
       position: absolute;
-      left: 50%;
-      bottom: 10px;
-      transform: translateX(-50%);
-      width: 134px;
-      height: 5px;
-      border-radius: 3px;
-      background: #000;
-      opacity: .7;
-      z-index: 20;
-      pointer-events: none;
+      left: 45%; top: 48%;
+      transform: translate(-50%, -100%);
+      width: 18px; height: 18px;
+      background: var(--ice);
+      border-radius: 50% 50% 50% 0;
+      rotate: -45deg;
+      box-shadow: 0 4px 12px rgba(0,0,0,.35);
+    }
+    .wifi-icon {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: rgba(18,36,82,.4);
+      display: grid;
+      place-items: center;
+      font-size: 48px;
+      filter: drop-shadow(0 0 18px rgba(122,178,242,.35));
     }
 
     .toast {
       position: absolute;
-      left: 24px; right: 24px; top: 90px;
-      background: rgba(30,30,30,.92);
-      color: #fff;
-      border-radius: 14px;
-      padding: 14px 16px;
+      left: 28px; right: 28px; bottom: 36px;
+      background: linear-gradient(90deg, var(--ice), var(--horizon));
+      color: var(--void);
+      border-radius: 999px;
+      padding: 12px 18px;
       font-size: 14px;
-      z-index: 30;
+      font-weight: 600;
+      text-align: center;
+      z-index: 40;
       display: none;
-      text-align: center;
+      box-shadow: 0 8px 24px rgba(18,36,82,.45);
     }
-    .toast.show { display: block; animation: fade .25s ease; }
-    @keyframes fade { from { opacity: 0; transform: translateY(-6px); } }
+    html.light .toast { color: #fff; }
+    .toast.show { display: block; animation: rise .28s ease; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
+    .home-indicator {
+      position: absolute;
+      left: 50%; bottom: 10px;
+      transform: translateX(-50%);
+      width: 134px; height: 5px;
+      border-radius: 3px;
+      background: var(--text);
+      opacity: .55;
+      z-index: 50;
+      pointer-events: none;
+    }
     .loading {
-      padding: 40px 16px;
+      padding: 28px 8px;
       text-align: center;
-      color: var(--secondary-label);
+      color: var(--text2);
       font-size: 14px;
+      grid-column: 1 / -1;
     }
 
     @media (max-width: 430px) {
@@ -425,11 +607,10 @@
 </head>
 <body>
   <p class="page-note">
-    Макет с <strong>реальной галереей и GIF-анимациями</strong>.
-    Локально: откройте через сервер из корня репо
-    (<code>python3 -m http.server 5500</code> →
-    <code>http://localhost:5500/ios/mockup/</code>).
-    На Dot: <code>http://192.168.4.1:8080/mockup/</code>
+    HTML-макет приложения Dot (как в SwiftUI): превью сверху, библиотека снизу,
+    настройки / Wi‑Fi / «Где Dot». Локально:
+    <code>python3 -m http.server 5500</code> →
+    <code>http://localhost:5500/ios/mockup/</code>
   </p>
   <div class="toolbar-btns">
     <button type="button" id="btnLocal" class="active" onclick="useLocal()">Local assets</button>
@@ -446,85 +627,160 @@
         <div class="right">▌▌▌▌ ▉</div>
       </div>
 
+      <div class="nav" id="mainNav">
+        <div class="nav-side">
+          <button class="nav-btn" type="button" title="Wi‑Fi" onclick="openSheet('wifi')">📶</button>
+          <button class="nav-btn" type="button" title="Где Dot" onclick="openSheet('location')">📍</button>
+        </div>
+        <h1>Dot</h1>
+        <div class="nav-side right">
+          <button class="nav-btn" type="button" title="Настройки" onclick="openSheet('settings')">⚙</button>
+          <button class="nav-btn" type="button" id="themeBtn" title="Тема" onclick="toggleTheme()">☀</button>
+          <button class="nav-btn" type="button" title="Обновить" onclick="reloadGallery()">↻</button>
+        </div>
+      </div>
+
       <section id="view-gallery" class="view active">
-        <div class="nav">
-          <div></div>
-          <h1>Dot</h1>
-          <button class="nav-btn icon" type="button" title="Refresh" onclick="reloadGallery()">↻</button>
-        </div>
-        <div class="status-row">
-          <span class="dot"></span>
-          <span id="currentName">Loading…</span>
-          <span class="res" id="resolution">480x480</span>
-        </div>
-        <div class="segmented" role="tablist">
-          <button type="button" class="active" data-cat="bmw" onclick="setCategory('bmw', this)">Gallery</button>
-          <button type="button" data-cat="emoji" onclick="setCategory('emoji', this)">Emoji</button>
-          <button type="button" data-cat="custom" onclick="setCategory('custom', this)">My Media</button>
-        </div>
-        <div class="grid-wrap">
-          <div class="loading" id="loading">Loading gallery…</div>
-          <div class="grid" id="grid" hidden></div>
+        <div class="gallery">
+          <div class="preview-pane">
+            <div class="preview-orb">
+              <div class="preview-glow"></div>
+              <div class="preview-ring"></div>
+              <div class="preview-disc">
+                <img id="heroImg" alt="" hidden />
+                <video id="heroVideo" autoplay muted loop playsinline hidden></video>
+              </div>
+            </div>
+            <div class="preview-meta-row">
+              <div style="min-width:0;flex:1">
+                <h2 id="heroName">Выберите анимацию</h2>
+                <div class="sub" id="heroSub">480×480</div>
+              </div>
+              <button class="btn-apply" type="button" id="btnApply" onclick="applySelected()">Apply</button>
+            </div>
+          </div>
+          <div class="library">
+            <div class="segmented" role="tablist">
+              <button type="button" class="active" data-cat="bmw" onclick="setCategory('bmw', this)">Галерея</button>
+              <button type="button" data-cat="emoji" onclick="setCategory('emoji', this)">Emoji</button>
+              <button type="button" data-cat="custom" onclick="setCategory('custom', this)">Мои</button>
+            </div>
+            <div class="grid-wrap">
+              <div class="grid" id="grid">
+                <div class="loading" id="loading">Загрузка галереи…</div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="view-connection" class="view">
-        <div class="nav">
-          <div></div>
-          <h1>Dot</h1>
-          <button class="nav-btn icon" type="button" onclick="useLive()">↻</button>
-        </div>
         <div class="connection">
-          <div aria-hidden="true">
-            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-              <path d="M8 26c13-12 35-12 48 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
-              <path d="M16 34c9-8 23-8 32 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
-              <path d="M24 42c5-4 11-4 16 0" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
-              <circle cx="32" cy="50" r="3.5" fill="#ff9500"/>
-              <path d="M46 10 L54 28" stroke="#ff9500" stroke-width="4" stroke-linecap="round"/>
-              <circle cx="54" cy="33" r="2.8" fill="#ff9500"/>
-            </svg>
-          </div>
-          <h2>Connect to Dot Wi‑Fi</h2>
-          <div class="steps">
-            <div class="step"><span class="badge">1</span><span>Open Settings → Wi‑Fi</span></div>
-            <div class="step"><span class="badge">2</span><span>Join network Dot-XXXX</span></div>
-            <div class="step"><span class="badge">3</span><span>Return here and tap Refresh</span></div>
+          <div class="wifi-icon" aria-hidden="true">📡</div>
+          <h2>Dot</h2>
+          <p class="lead" id="connLead">Подключение</p>
+          <button class="panel" type="button" onclick="openSheet('location')" style="border:0;cursor:pointer;color:inherit;font:inherit">
+            <div style="font-weight:600;margin-bottom:4px">📍 Последнее место Dot</div>
+            <div style="font-size:12px;color:var(--text2)" id="lastSeenHint">Открыть карту</div>
+          </button>
+          <div class="panel steps">
+            <div class="step"><span class="badge">1</span><span>Откройте Настройки → Wi‑Fi</span></div>
+            <div class="step"><span class="badge">2</span><span>Подключитесь к сети телефона / Dot</span></div>
+            <div class="step"><span class="badge">3</span><span>Вернитесь и нажмите «Найти Dot»</span></div>
           </div>
           <div class="err" id="connError"></div>
-          <div class="addr" id="connAddr">Device address: 192.168.4.1:8080</div>
+          <input class="field" id="hostField" type="text" placeholder="192.168.4.1 или 172.20.10.x" />
+          <button class="btn btn-primary" type="button" onclick="useLive()">Найти Dot</button>
+          <button class="btn btn-ghost" type="button" onclick="openSheet('wifi')">Мастер Wi‑Fi</button>
         </div>
       </section>
 
       <div class="sheet-backdrop" id="backdrop" onclick="closeSheets()"></div>
 
-      <div class="sheet" id="sheet-preview">
+      <!-- Settings -->
+      <div class="sheet" id="sheet-settings">
         <div class="nav">
-          <button class="nav-btn" type="button" onclick="closeSheets()">Close</button>
-          <h1>Preview</h1>
-          <div></div>
+          <div class="nav-side"><button class="nav-btn text" type="button" onclick="closeSheets()">Закрыть</button></div>
+          <h1>Настройки</h1>
+          <div class="nav-side right"></div>
         </div>
-        <div class="preview-body">
-          <img class="preview-circle" id="previewThumb" alt="" />
-          <video class="preview-circle" id="previewVideo" autoplay muted loop playsinline style="display:none"></video>
-          <h2 id="previewName">Default</h2>
-          <div class="meta" id="previewMeta">Animation</div>
-          <button class="btn btn-primary" type="button" id="btnApply" onclick="applyItem()">Apply to Display</button>
-          <button class="btn btn-danger" type="button" id="btnDelete" style="display:none" onclick="deleteItem()">Delete</button>
+        <div class="sheet-body">
+          <div class="section-label">Оформление</div>
+          <div class="row">
+            <span id="themeLabel">Тёмная тема</span>
+            <button class="nav-btn text" type="button" onclick="toggleTheme()">Сменить</button>
+          </div>
+
+          <div class="section-label">Дисплей</div>
+          <div class="row stack">
+            <div style="display:flex;justify-content:space-between">
+              <span>Яркость экрана Dot</span>
+              <span class="muted" id="brightnessVal">100%</span>
+            </div>
+            <input type="range" id="brightness" min="5" max="100" value="100" />
+            <div class="muted" style="font-size:12px">Программная яркость на круге. В Live — уходит на Dot.</div>
+          </div>
+
+          <div class="section-label">Устройство</div>
+          <div class="row"><span>Имя</span><span class="muted" id="devName">dot</span></div>
+          <div class="row"><span>Адрес</span><span class="muted" id="devHost">—</span></div>
+          <div class="row"><span>Разрешение</span><span class="muted" id="devRes">480×480</span></div>
+          <div class="row"><span>На экране</span><span class="muted" id="devCurrent">—</span></div>
+          <button class="btn btn-ghost" type="button" onclick="useLive()">Найти Dot</button>
+
+          <div class="section-label">Wi‑Fi</div>
+          <button class="btn btn-ghost" type="button" onclick="closeSheets(); openSheet('wifi')">Мастер настройки Wi‑Fi</button>
+          <button class="btn btn-danger" type="button" onclick="showToast('Сброс Dot-Setup — только на живом Dot')">Сбросить Wi‑Fi Dot</button>
         </div>
       </div>
 
+      <!-- Location -->
+      <div class="sheet" id="sheet-location">
+        <div class="nav">
+          <div class="nav-side"><button class="nav-btn text" type="button" onclick="closeSheets()">Закрыть</button></div>
+          <h1>Где Dot</h1>
+          <div class="nav-side right"></div>
+        </div>
+        <div class="sheet-body">
+          <div class="map-placeholder"><div class="map-pin"></div></div>
+          <div class="row stack">
+            <strong>Последнее место</strong>
+            <span class="muted" id="locTime">Когда телефон был рядом с Dot по Wi‑Fi — GPS телефона (не Find My).</span>
+          </div>
+          <button class="btn btn-primary" type="button" onclick="showToast('В приложении откроется Карты')">Открыть в Картах</button>
+        </div>
+      </div>
+
+      <!-- Wi‑Fi wizard -->
+      <div class="sheet" id="sheet-wifi">
+        <div class="nav">
+          <div class="nav-side"><button class="nav-btn text" type="button" onclick="closeSheets()">Закрыть</button></div>
+          <h1>Wi‑Fi</h1>
+          <div class="nav-side right"></div>
+        </div>
+        <div class="sheet-body" style="align-items:center;text-align:center">
+          <div class="wifi-icon">📶</div>
+          <h2 style="margin:0;font-size:22px">Подключить Dot к Wi‑Fi</h2>
+          <div class="panel steps" style="text-align:left">
+            <div class="step"><span class="badge">1</span><span>Включите точку доступа на iPhone</span></div>
+            <div class="step"><span class="badge">2</span><span>На Dot: подключитесь к телефону (или Dot-Setup)</span></div>
+            <div class="step"><span class="badge">3</span><span>Вернитесь в приложение → Найти Dot</span></div>
+          </div>
+          <button class="btn btn-primary" type="button" onclick="useLive(); closeSheets()">Найти Dot</button>
+        </div>
+      </div>
+
+      <!-- Upload -->
       <div class="sheet" id="sheet-upload">
         <div class="nav">
-          <button class="nav-btn" type="button" onclick="closeSheets()">Close</button>
-          <h1>Upload</h1>
-          <div></div>
+          <div class="nav-side"><button class="nav-btn text" type="button" onclick="closeSheets()">Закрыть</button></div>
+          <h1>Добавить</h1>
+          <div class="nav-side right"></div>
         </div>
-        <div class="upload-body">
+        <div class="sheet-body">
           <input id="fileInput" type="file" accept="image/*,.gif,.webp,.webm,.mp4,video/*" hidden />
-          <button class="btn btn-primary" type="button" onclick="document.getElementById('fileInput').click()">Choose from Photos</button>
-          <div class="hint">Images are resized on Dot after upload. GIF and WebM both play on the round display (up to 360 frames).</div>
-          <div class="hint" id="uploadHint">Upload works in Live Dot mode.</div>
+          <button class="btn btn-primary" type="button" onclick="document.getElementById('fileInput').click()">Выбрать из Фото</button>
+          <div class="muted" style="text-align:center;font-size:12px" id="uploadHint">Upload работает в режиме Live Dot.</div>
         </div>
       </div>
 
@@ -534,45 +790,25 @@
   </div>
 
   <script>
-    const FALLBACK_CATALOG = [
-      { id: "builtin-bmw-radar4", name: "Radar 4", category: "bmw", type: "animation", file: "bmw/radar4.webm" },
-      { id: "builtin-bmw-anim1", name: "Anim 1", category: "bmw", type: "animation", file: "bmw/anim1.webm" },
-      { id: "builtin-bmw-anim2", name: "Anim 2", category: "bmw", type: "animation", file: "bmw/anim2.webm" },
-      { id: "builtin-bmw-anim3", name: "Anim 3", category: "bmw", type: "animation", file: "bmw/anim3.webm" },
-      { id: "builtin-bmw-anim5", name: "Anim 5", category: "bmw", type: "animation", file: "bmw/anim5.webm" },
-      { id: "builtin-bmw-anim6", name: "Anim 6", category: "bmw", type: "animation", file: "bmw/anim6.webm" },
-      { id: "builtin-bmw-anim7", name: "Anim 7", category: "bmw", type: "animation", file: "bmw/anim7.webm" },
-      { id: "builtin-bmw-anim8", name: "Anim 8", category: "bmw", type: "animation", file: "bmw/anim8.webm" },
-      { id: "builtin-bmw-anim9", name: "Anim 9", category: "bmw", type: "animation", file: "bmw/anim9.webm" },
-      { id: "builtin-bmw-project1", name: "Project 1", category: "bmw", type: "animation", file: "bmw/project1.webm" },
-      { id: "builtin-bmw-project2", name: "Project 2", category: "bmw", type: "animation", file: "bmw/project2.webm" },
-      { id: "builtin-bmw-project3", name: "Project 3", category: "bmw", type: "animation", file: "bmw/project3.webm" },
-      { id: "builtin-emoji-smile", name: "Smile", category: "emoji", type: "image", file: "emoji/smile.png" },
-      { id: "builtin-emoji-cool", name: "Cool", category: "emoji", type: "image", file: "emoji/cool.png" },
-      { id: "builtin-emoji-heart-eyes", name: "Heart Eyes", category: "emoji", type: "image", file: "emoji/heart-eyes.png" },
-      { id: "builtin-emoji-star", name: "Star", category: "emoji", type: "image", file: "emoji/star.png" },
-      { id: "builtin-emoji-fire", name: "Fire", category: "emoji", type: "image", file: "emoji/fire.png" },
-      { id: "builtin-emoji-party", name: "Party", category: "emoji", type: "image", file: "emoji/party.png" },
-      { id: "builtin-emoji-wink", name: "Wink", category: "emoji", type: "animation", file: "emoji/wink.gif" },
-      { id: "builtin-emoji-bounce", name: "Bounce", category: "emoji", type: "animation", file: "emoji/bounce.gif" },
-      { id: "builtin-emoji-laugh", name: "Laugh", category: "emoji", type: "animation", file: "emoji/laugh.gif" },
-    ];
-
-    let mode = "local"; // local | live
+    let mode = "local";
     let category = "bmw";
     let items = [];
     let selected = null;
-    let status = { current_name: "Ready", resolution: "480x480" };
+    let preferDark = true;
+    let status = { current_name: "Ready", resolution: "480x480", device: "dot" };
+    const thumbCache = new Map();
+    const THUMB_SIZE = 240;
 
     function apiBase() {
       return document.getElementById("apiBase").value.replace(/\/$/, "");
     }
 
     function mediaCategory(item) {
+      if (item.category === "Gallery" || item.category === "bmw") return "bmw";
       if (item.category) return item.category;
       const id = item.id || "";
       if (id.includes("emoji")) return "emoji";
-      if (item.builtin === false || (!id.includes("builtin-"))) return "custom";
+      if (item.builtin === false || !id.includes("builtin-")) return "custom";
       return "bmw";
     }
 
@@ -582,28 +818,22 @@
     }
 
     function assetRelPath(item) {
-      const rel = item.file || item.filename || "";
-      return rel.replace(/^assets\//, "");
+      return (item.file || item.filename || "").replace(/^assets\//, "");
     }
 
-    /** Repo assets root: works on GitHub Pages, file://, and Pi /mockup/. */
     function staticAssetsRoot() {
       const onPiMockup =
         location.protocol.startsWith("http") &&
         /\/mockup(\/|$)/.test(location.pathname) &&
         !location.hostname.endsWith("github.io");
-      if (onPiMockup) {
-        return `${location.origin}/assets/`;
-      }
+      if (onPiMockup) return `${location.origin}/assets/`;
       return new URL("../../assets/", location.href).href;
     }
 
     function staticAssetUrl(relPath) {
-      const rel = (relPath || "").replace(/^assets\//, "");
-      return encodeURI(staticAssetsRoot() + rel);
+      return encodeURI(staticAssetsRoot() + (relPath || "").replace(/^assets\//, ""));
     }
 
-    /** H.264 MP4 sibling for browser playback (Safari cannot play VP9 WebM). */
     function siblingMp4Url(item) {
       const rel = assetRelPath(item);
       if (!/\.webm$/i.test(rel)) return "";
@@ -617,21 +847,14 @@
           : `${apiBase()}${item.source_url}`;
         return encodeURI(raw);
       }
-      if (item.file) {
-        return staticAssetUrl(item.file);
-      }
+      if (item.file) return staticAssetUrl(item.file);
       return "";
     }
 
     function playUrl(item) {
-      if (isVideo(item)) {
-        return siblingMp4Url(item) || sourceUrl(item);
-      }
+      if (isVideo(item)) return siblingMp4Url(item) || sourceUrl(item);
       return sourceUrl(item);
     }
-
-    const THUMB_SIZE = 224; // 2x for retina; displayed at ~112 CSS px
-    const thumbCache = new Map();
 
     function previewUrl(item) {
       if (item.preview_url) {
@@ -643,6 +866,60 @@
       return "";
     }
 
+    function toggleTheme() {
+      preferDark = !preferDark;
+      document.documentElement.classList.toggle("light", !preferDark);
+      document.getElementById("themeBtn").textContent = preferDark ? "☀" : "☾";
+      document.getElementById("themeLabel").textContent = preferDark ? "Тёмная тема" : "Светлая тема";
+    }
+
+    function setConnected(on, err = "") {
+      document.getElementById("view-gallery").classList.toggle("active", on);
+      document.getElementById("view-connection").classList.toggle("active", !on);
+      document.getElementById("connError").textContent = err || "";
+      document.getElementById("devHost").textContent = apiBase().replace(/^https?:\/\//, "");
+      document.getElementById("hostField").value = apiBase().replace(/^https?:\/\//, "");
+    }
+
+    function openSheet(name) {
+      closeSheets();
+      document.getElementById("backdrop").classList.add("show");
+      const id = name === "settings" ? "sheet-settings"
+        : name === "location" ? "sheet-location"
+        : name === "wifi" ? "sheet-wifi"
+        : name === "upload" ? "sheet-upload" : null;
+      if (id) document.getElementById(id).classList.add("show");
+      if (name === "upload") {
+        document.getElementById("uploadHint").textContent =
+          mode === "live" ? "Выберите файл для загрузки на Dot." : "Переключитесь в Live Dot для upload.";
+      }
+      if (name === "settings") syncDeviceRows();
+    }
+
+    function closeSheets() {
+      document.getElementById("backdrop").classList.remove("show");
+      ["sheet-settings", "sheet-location", "sheet-wifi", "sheet-upload"].forEach((id) => {
+        document.getElementById(id).classList.remove("show");
+      });
+    }
+
+    function setCategory(cat, btn) {
+      category = cat;
+      document.querySelectorAll(".segmented button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const first = items.filter((m) => mediaCategory(m) === category)[0];
+      if (first) selectItem(first, false);
+      renderGrid();
+    }
+
+    function syncDeviceRows() {
+      document.getElementById("devName").textContent = status.device || "dot";
+      document.getElementById("devHost").textContent = apiBase().replace(/^https?:\/\//, "");
+      document.getElementById("devRes").textContent = status.resolution || "480×480";
+      document.getElementById("devCurrent").textContent =
+        status.current_name || status.current || "—";
+    }
+
     function coverDraw(ctx, source, size) {
       const sw = source.videoWidth || source.naturalWidth || source.width;
       const sh = source.videoHeight || source.naturalHeight || source.height;
@@ -650,12 +927,10 @@
       const scale = Math.max(size / sw, size / sh);
       const dw = sw * scale;
       const dh = sh * scale;
-      const dx = (size - dw) / 2;
-      const dy = (size - dh) / 2;
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
       ctx.clearRect(0, 0, size, size);
-      ctx.drawImage(source, dx, dy, dw, dh);
+      ctx.drawImage(source, (size - dw) / 2, (size - dh) / 2, dw, dh);
     }
 
     function loadImage(url) {
@@ -672,39 +947,14 @@
       return new Promise((resolve, reject) => {
         const video = document.createElement("video");
         video.muted = true;
-        video.defaultMuted = true;
         video.playsInline = true;
-        video.setAttribute("playsinline", "");
-        video.setAttribute("webkit-playsinline", "");
         video.preload = "auto";
-        video.crossOrigin = "anonymous";
         let settled = false;
-        const cleanup = () => {
-          video.pause();
-          video.removeAttribute("src");
-          video.load();
-        };
-        const fail = () => {
-          if (settled) return;
-          settled = true;
-          cleanup();
-          reject(new Error("video thumb failed"));
-        };
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          resolve({ video, cleanup });
-        };
+        const cleanup = () => { video.pause(); video.removeAttribute("src"); video.load(); };
+        const fail = () => { if (!settled) { settled = true; cleanup(); reject(new Error("fail")); } };
+        const finish = () => { if (!settled) { settled = true; resolve({ video, cleanup }); } };
         video.onloadeddata = () => {
-          const seekTo = Math.min(0.12, (video.duration || 1) * 0.05);
-          if (video.readyState >= 2) {
-            try {
-              video.currentTime = seekTo;
-            } catch (_) {
-              finish();
-              return;
-            }
-          }
+          try { video.currentTime = Math.min(0.12, (video.duration || 1) * 0.05); } catch (_) { finish(); return; }
           video.onseeked = finish;
           setTimeout(finish, 400);
         };
@@ -718,16 +968,13 @@
       const key = item.id + ":" + (item.file || item.source_url || item.preview_url || "");
       if (thumbCache.has(key)) return thumbCache.get(key);
 
-      // Live Dot: prefer API JPEG preview when it already exists
       const apiPreview = previewUrl(item);
       if (apiPreview && mode === "live") {
         try {
           await loadImage(apiPreview + (apiPreview.includes("?") ? "&" : "?") + "t=" + Date.now());
           thumbCache.set(key, apiPreview);
           return apiPreview;
-        } catch (_) {
-          // fall through — WebM may not have a preview until first display
-        }
+        } catch (_) {}
       }
 
       const url = playUrl(item) || sourceUrl(item);
@@ -746,197 +993,119 @@
           coverDraw(ctx, video, THUMB_SIZE);
           cleanup();
         } else {
-          const img = await loadImage(url);
-          coverDraw(ctx, img, THUMB_SIZE);
+          coverDraw(ctx, await loadImage(url), THUMB_SIZE);
         }
-        // Mild blur+sharpen substitute: draw again slightly inset for softer edges
-        const soft = document.createElement("canvas");
-        soft.width = THUMB_SIZE;
-        soft.height = THUMB_SIZE;
-        const sctx = soft.getContext("2d");
-        sctx.imageSmoothingEnabled = true;
-        sctx.imageSmoothingQuality = "high";
-        sctx.filter = "blur(0.35px)";
-        sctx.drawImage(canvas, 0, 0);
-        sctx.filter = "none";
-        sctx.globalAlpha = 0.65;
-        sctx.drawImage(canvas, 0, 0);
-        const dataUrl = soft.toDataURL("image/jpeg", 0.92);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
         thumbCache.set(key, dataUrl);
         return dataUrl;
       } catch (_) {
-        // Last resort: raw URL (GIF/PNG work as <img>; WebM may still fail as img)
         return isVideo(item) ? "" : url;
       }
     }
 
-    function setConnected(on, err = "") {
-      document.getElementById("view-gallery").classList.toggle("active", on);
-      document.getElementById("view-connection").classList.toggle("active", !on);
-      document.getElementById("connError").textContent = err || "";
-      document.getElementById("connAddr").textContent = `Device address: ${apiBase().replace(/^https?:\/\//, "")}`;
+    function renderHero() {
+      const img = document.getElementById("heroImg");
+      const video = document.getElementById("heroVideo");
+      const nameEl = document.getElementById("heroName");
+      const subEl = document.getElementById("heroSub");
+      const apply = document.getElementById("btnApply");
+
+      if (!selected) {
+        img.hidden = true;
+        video.hidden = true;
+        video.pause();
+        nameEl.textContent = "Выберите анимацию";
+        subEl.textContent = status.resolution || "480×480";
+        apply.disabled = true;
+        return;
+      }
+
+      nameEl.textContent = selected.name;
+      subEl.textContent = selected.isAnimation || selected.type === "animation" || isVideo(selected)
+        ? `Анимация · ${selected.fps || 60} fps`
+        : "Статичное изображение";
+      apply.disabled = false;
+      apply.textContent = mode === "live" ? "Apply" : "Apply";
+
+      if (isVideo(selected)) {
+        img.hidden = true;
+        img.removeAttribute("src");
+        video.hidden = false;
+        video.muted = true;
+        video.loop = true;
+        const mp4 = siblingMp4Url(selected);
+        const webm = sourceUrl(selected);
+        video.onerror = () => {
+          if (mp4 && video.src.includes(".mp4") && webm) {
+            video.src = webm;
+            video.load();
+          }
+        };
+        video.src = mp4 || webm;
+        video.load();
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+        video.hidden = true;
+        img.hidden = false;
+        const url = sourceUrl(selected);
+        img.src = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
+      }
     }
 
-    function setCategory(cat, btn) {
-      category = cat;
-      document.querySelectorAll(".segmented button").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      renderGrid();
-    }
-
-    function showLoading(on, text = "Loading gallery…") {
-      document.getElementById("loading").hidden = !on;
-      document.getElementById("loading").textContent = text;
-      document.getElementById("grid").hidden = on;
-    }
-
-    function renderStatus() {
-      document.getElementById("currentName").textContent = status.current_name || status.current || "Ready";
-      document.getElementById("resolution").textContent = status.resolution || "480x480";
+    function selectItem(item, regrid = true) {
+      selected = item;
+      renderHero();
+      if (regrid) renderGrid();
     }
 
     function renderGrid() {
       const grid = document.getElementById("grid");
       grid.innerHTML = "";
+      const filtered = items.filter((m) => mediaCategory(m) === category);
+
+      if (!filtered.length && category !== "custom") {
+        grid.innerHTML = `<div class="loading">Пусто</div>`;
+        return;
+      }
+
       if (category === "custom") {
         const upload = document.createElement("button");
-        upload.className = "tile";
+        upload.className = "tile upload";
         upload.type = "button";
-        upload.innerHTML = `<div class="thumb upload">＋<div style="font-size:12px;margin-top:4px">Upload</div></div><span></span>`;
-        upload.onclick = () => openUpload();
+        upload.innerHTML = `<span class="plus">＋</span><span>Добавить</span>`;
+        upload.onclick = () => openSheet("upload");
         grid.appendChild(upload);
       }
 
-      const filtered = items.filter((m) => mediaCategory(m) === category);
       filtered.forEach((item) => {
         const b = document.createElement("button");
-        b.className = "tile";
+        b.className = "tile is-loading" + (selected && selected.id === item.id ? " selected" : "");
         b.type = "button";
+        b.onclick = () => selectItem(item);
         const img = document.createElement("img");
-        img.className = "thumb is-loading";
         img.alt = item.name;
-        img.width = 112;
-        img.height = 112;
-        const label = document.createElement("span");
-        label.textContent = item.name;
-        b.append(img, label);
-        b.onclick = () => openPreview(item);
+        b.appendChild(img);
         grid.appendChild(b);
-
         makeSmoothThumb(item).then((src) => {
+          b.classList.remove("is-loading");
           if (!src) {
-            img.replaceWith(Object.assign(document.createElement("div"), {
-              className: "thumb-fallback",
-              textContent: "?",
-            }));
+            b.textContent = "?";
             return;
           }
-          img.onload = () => img.classList.remove("is-loading");
-          img.onerror = () => {
-            img.replaceWith(Object.assign(document.createElement("div"), {
-              className: "thumb-fallback",
-              textContent: "?",
-            }));
-          };
           img.src = src;
         });
       });
     }
 
-    function openPreview(item) {
-      selected = item;
-      const img = document.getElementById("previewThumb");
-      const video = document.getElementById("previewVideo");
-      if (isVideo(item)) {
-        img.style.display = "none";
-        img.removeAttribute("src");
-        video.style.display = "block";
-        video.muted = true;
-        video.defaultMuted = true;
-        video.autoplay = true;
-        video.loop = true;
-        video.playsInline = true;
-        video.setAttribute("playsinline", "");
-        video.setAttribute("webkit-playsinline", "");
-        video.setAttribute("muted", "");
-        video.controls = false;
-
-        const mp4 = siblingMp4Url(item);
-        const webm = sourceUrl(item);
-        let tryingFallback = false;
-
-        const kick = () => {
-          const p = video.play();
-          if (p && typeof p.then === "function") {
-            p.catch(() => {
-              // Autoplay block — retry muted
-              video.muted = true;
-              video.play().catch(() => {});
-            });
-          }
-        };
-
-        video.onerror = () => {
-          if (!tryingFallback && mp4 && webm && video.src.includes(".mp4")) {
-            tryingFallback = true;
-            video.src = webm;
-            video.load();
-            return;
-          }
-          showToast("Видео не воспроизводится в этом браузере");
-        };
-        video.onloadeddata = kick;
-        video.oncanplay = kick;
-        video.src = mp4 || webm;
-        video.load();
-        kick();
-      } else {
-        video.pause();
-        video.removeAttribute("src");
-        video.load();
-        video.style.display = "none";
-        img.style.display = "block";
-        const url = sourceUrl(item);
-        img.onerror = () => showToast("Не удалось загрузить анимацию");
-        // Cache-bust so GIF restarts animation when reopening
-        img.src = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
-        img.alt = item.name;
-      }
-      document.getElementById("previewName").textContent = item.name;
-      document.getElementById("previewMeta").textContent = isVideo(item)
-        ? "Video · preview MP4 / WebM"
-        : (item.type === "animation" || (item.file || item.filename || "").endsWith(".gif")
-          ? "Animation · GIF"
-          : "Static image");
-      document.getElementById("btnDelete").style.display =
-        item.builtin === false || mediaCategory(item) === "custom" ? "block" : "none";
-      document.getElementById("btnApply").disabled = mode !== "live";
-      document.getElementById("btnApply").textContent =
-        mode === "live" ? "Apply to Display" : "Apply (Live Dot only)";
-      document.getElementById("backdrop").classList.add("show");
-      document.getElementById("sheet-preview").classList.add("show");
-      document.getElementById("sheet-upload").classList.remove("show");
-    }
-
-    function openUpload() {
-      document.getElementById("uploadHint").textContent =
-        mode === "live"
-          ? "Choose an image/GIF to upload to Dot."
-          : "Switch to Live Dot mode to upload.";
-      document.getElementById("backdrop").classList.add("show");
-      document.getElementById("sheet-upload").classList.add("show");
-      document.getElementById("sheet-preview").classList.remove("show");
-    }
-
-    function closeSheets() {
-      document.getElementById("backdrop").classList.remove("show");
-      document.getElementById("sheet-preview").classList.remove("show");
-      document.getElementById("sheet-upload").classList.remove("show");
-    }
-
-    async function applyItem() {
-      if (!selected || mode !== "live") {
-        showToast("Подключите Live Dot, чтобы отправить на дисплей");
+    async function applySelected() {
+      if (!selected) return;
+      if (mode !== "live") {
+        showToast("Анимация на экране Dot (demo)");
+        status.current_name = selected.name;
+        syncDeviceRows();
         return;
       }
       const btn = document.getElementById("btnApply");
@@ -949,44 +1118,26 @@
         });
         if (!res.ok) throw new Error("display failed");
         status.current_name = selected.name;
-        renderStatus();
-        closeSheets();
-        showToast("Applied — Image sent to the round display.");
-      } catch (e) {
+        syncDeviceRows();
+        showToast("Анимация на экране Dot");
+      } catch (_) {
         showToast("Не удалось отправить на дисплей");
       } finally {
         btn.disabled = false;
       }
     }
 
-    async function deleteItem() {
-      if (!selected || mode !== "live") return;
-      try {
-        const res = await fetch(`${apiBase()}/api/media/${selected.id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error("delete failed");
-        closeSheets();
-        await reloadGallery();
-        showToast("Deleted");
-      } catch (e) {
-        showToast("Cannot delete");
-      }
-    }
-
     async function loadLocal() {
-      showLoading(true);
-      let catalog = FALLBACK_CATALOG;
-      const candidates = [
-        new URL("../../assets/catalog.json", location.href).href,
-        "../../assets/catalog.json",
-      ];
-      for (const path of candidates) {
-        try {
-          const res = await fetch(path, { cache: "no-store" });
-          if (res.ok) {
-            catalog = await res.json();
-            break;
-          }
-        } catch (_) {}
+      document.getElementById("loading")?.remove();
+      const grid = document.getElementById("grid");
+      grid.innerHTML = `<div class="loading">Загрузка галереи…</div>`;
+      let catalog = [];
+      try {
+        const res = await fetch(new URL("../../assets/catalog.json", location.href).href, { cache: "no-store" });
+        if (res.ok) catalog = await res.json();
+      } catch (_) {}
+      if (!catalog.length) {
+        showToast("Не удалось загрузить catalog.json");
       }
       items = catalog.map((e) => ({
         id: e.id,
@@ -996,16 +1147,38 @@
         file: e.file,
         builtin: true,
         fps: 60,
+        isAnimation: e.type === "animation",
       }));
-      status = { current_name: items[0]?.name || "Ready", resolution: "480x480" };
-      renderStatus();
-      showLoading(false);
+      status = {
+        current_name: items[0]?.name || "Ready",
+        resolution: "480x480",
+        device: "dot",
+      };
+      selected = items.find((i) => mediaCategory(i) === category) || items[0] || null;
+      renderHero();
       renderGrid();
       setConnected(true);
+      syncDeviceRows();
+    }
+
+    function normalizeApiBase(raw) {
+      let v = (raw || "").trim();
+      if (!v) return apiBase();
+      if (!/^https?:\/\//i.test(v)) v = "http://" + v;
+      v = v.replace(/\/$/, "");
+      const noProto = v.replace(/^https?:\/\//i, "");
+      if (!/:\d+/.test(noProto.split("/")[0])) v += ":8080";
+      return v;
     }
 
     async function loadLive() {
-      showLoading(true, "Connecting to Dot…");
+      const host = document.getElementById("hostField")?.value?.trim();
+      if (host) {
+        document.getElementById("apiBase").value = normalizeApiBase(host);
+      }
+
+      const grid = document.getElementById("grid");
+      grid.innerHTML = `<div class="loading">Подключение к Dot…</div>`;
       try {
         const [statusRes, galleryRes] = await Promise.all([
           fetch(`${apiBase()}/api/status`, { cache: "no-store" }),
@@ -1013,22 +1186,26 @@
         ]);
         if (!statusRes.ok || !galleryRes.ok) throw new Error("API error");
         status = await statusRes.json();
-        const gallery = await galleryRes.json();
-        items = gallery.map((e) => ({
+        items = (await galleryRes.json()).map((e) => ({
           ...e,
           category: mediaCategory(e),
+          isAnimation: e.type === "animation" || e.is_animation,
         }));
-        renderStatus();
-        showLoading(false);
+        selected = items.find((i) => i.id === status.current)
+          || items.find((i) => mediaCategory(i) === category)
+          || items[0]
+          || null;
+        renderHero();
         renderGrid();
         setConnected(true);
+        syncDeviceRows();
         document.getElementById("btnLocal").classList.remove("active");
         document.getElementById("btnLive").classList.add("active");
+        document.getElementById("locTime").textContent =
+          "Сейчас · GPS телефона при связи с Dot";
       } catch (e) {
-        showLoading(false);
         setConnected(false, e.message || "Cannot reach Dot API");
-        document.getElementById("view-gallery").classList.remove("active");
-        document.getElementById("view-connection").classList.add("active");
+        document.getElementById("connLead").textContent = "Нет связи с устройством";
       }
     }
 
@@ -1060,8 +1237,30 @@
       t.textContent = text;
       t.classList.add("show");
       clearTimeout(showToast._timer);
-      showToast._timer = setTimeout(() => t.classList.remove("show"), 2200);
+      showToast._timer = setTimeout(() => t.classList.remove("show"), 1800);
     }
+
+    document.getElementById("brightness").addEventListener("input", (ev) => {
+      document.getElementById("brightnessVal").textContent = `${ev.target.value}%`;
+    });
+    document.getElementById("brightness").addEventListener("change", async (ev) => {
+      const level = Number(ev.target.value);
+      if (mode !== "live") {
+        showToast(`Яркость ${level}% (demo)`);
+        return;
+      }
+      try {
+        const res = await fetch(`${apiBase()}/api/brightness`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brightness: level }),
+        });
+        if (!res.ok) throw new Error("brightness failed");
+        showToast(`Яркость ${level}%`);
+      } catch (_) {
+        showToast("Не удалось изменить яркость");
+      }
+    });
 
     document.getElementById("fileInput").addEventListener("change", async (ev) => {
       const file = ev.target.files && ev.target.files[0];
@@ -1084,8 +1283,8 @@
         });
         closeSheets();
         await loadLive();
-        showToast("Applied — Image sent to the round display.");
-      } catch (e) {
+        showToast("Анимация на экране Dot");
+      } catch (_) {
         showToast("Upload failed");
       }
     });
@@ -1099,7 +1298,6 @@
     tickClock();
     setInterval(tickClock, 10000);
 
-    // Auto: if opened from Pi API host, prefer live
     if (location.port === "8080" || location.hostname === "192.168.4.1") {
       document.getElementById("apiBase").value = location.origin;
       useLive();
