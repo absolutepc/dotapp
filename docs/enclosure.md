@@ -1,104 +1,96 @@
-# Dot enclosure — CNC-style thin round head
+# Dot enclosure — thin round head
 
-Inspired by the machined “digital badge” process: round body, **front assembly = bezel + glass**, **HDMI + USB-C through the back** under the driver board. Pi Zero stays remote.
+Learnings applied from the reference digital-badge build (CNC puck process + product architecture):
+
+| Learned | What we do on Dot |
+|---------|-------------------|
+| **CNC unibody aluminum** body, not a plastic toy shell | Production = one machined puck; PETG front/back only for fit prototypes |
+| **Front = bezel + glass** as one face (optical bond) | Glass bonded to panel / seated in front pocket — not a floating bezel ring |
+| **Three-stage metal finish** | Chem polish → hand polish → hard coat / anodize (not raw mill marks) |
+| **Head vs remote box** | Round head = display + UEDX6911; Pi + buck = remote “power/control” box |
+| **Rear I/O under the board** | HDMI + USB-C exit the **back**, under the HDMI board (your requirement) |
+| Chamfered thin disc + rear mount boss | Same silhouette; center boss for ball / M4 |
 
 ```
-                    front assembly (one unit)
-        ┌──── printed bezel + bonded glass ───┐
-        │         round cover glass / AA      │
-        │──────── LCD + FPC ──────────────────│
-        │      UEDX6911 board (flat)          │
-        │   connectors face REAR ↓            │
-        │  ┌────┐        ┌──────┐             │
-        │  │USB │        │ HDMI │  cutouts    │
-        └──┴────┴────────┴──────┴─────────────┘
-                    back
-              cables → Pi Zero (remote)
+   head (unibody aluminum puck)          remote box
+  ┌─ bezel + optically bonded glass ─┐   ┌─────────────┐
+  │         round IPS / AA           │   │ Pi Zero 2W  │
+  │──────── LCD + FPC ───────────────│   │ + buck 12→5 │
+  │      UEDX6911 (flat)             │←──│ HDMI + USB  │
+  │   HDMI + USB-C face REAR ↓       │   └─────────────┘
+  └──────────────────────────────────┘
 ```
 
-## Front assembly (your reference frame)
+## Architecture
 
-What you see in the hand is **not a bezel alone** — it is the **front subassembly: printed frame + cover glass** (and the round panel behind the glass). In the reference project that whole front unit was made/printed as one face of the device.
+Same split the reference product uses (display head + separate power/control box):
 
-Dot uses the same split:
+| Unit | Contains | Notes |
+|------|----------|--------|
+| **Head** | Glass + LCD + UEDX6911 in CNC unibody | Thin, visible, grille/badge mount |
+| **Remote box** | Pi Zero 2W + buck / harness | Glovebox / under dash — see [car-power.md](car-power.md) |
+| **Cables** | HDMI + USB (power/data) | Short, strain-relieved into rear ports |
 
-| Piece | Role | Prototype | Production |
-|-------|------|-----------|------------|
-| **Front assembly** | Bezel frame + cover glass (bonded) + LCD pocket | Print frame, seat/glue glass | Same; optional CNC frame |
-| **Back** | Board pocket, rear HDMI/USB, mount boss | PETG print | Aluminum CNC |
+Power targets aligned with that pattern: **12V automotive** via buck, or stable **USB-C 5V/3A** into the head board when bench-testing.
 
-Front assembly details:
+## Front face (bezel + glass)
 
-- Matte black outer frame with thin ring around AA  
-- **Cover glass** seated flush in a glue/seat shelf (part of this unit, not a loose drop-in later)  
-- LCD module retained behind the glass inside the same front shell  
-- Outer rim light chamfer so the puck reads thin  
-- No ports on the front
+Not “bezel only”. The held face is:
 
-## Target overall look
+1. Thin black AA ring (machined lip or printed insert)  
+2. **Cover glass** — prefer **optical bond** to the LCD (AR coating if the panel will sit outdoors / behind grille)  
+3. LCD stack retained in the front pocket of the unibody  
 
-- Round OD, slim stack (goal **16–20 mm** after measure)
-- Front: black bezel **with glass** as one face
-- Body/back: polished or anodized aluminum when ready
-- Ports + optional center mount on the **rear**, under the board
+Prototype: printed front frame with glass glue shelf → bond glass → seat LCD.  
+Production: mill the glass/LCD pockets into the unibody; bond glass in place.
 
-## Parts (catalog baselines — verify with calipers)
+## Unibody CNC (production)
 
-| Part | Outline | Notes |
-|------|---------|--------|
-| Cover glass / AA | AA ⌀ ~70.13; glass OD ~73+ | Measure your panel glass |
-| Display module | 73.03 × 76.48 mm outline | 2.8″ 480×480 under glass |
-| UEDX6911 | ~66 × 58 mm PCB | Connector height toward rear |
-| Ports | HDMI Type A + USB-C | Face the back; right-angle if needed |
+Aerospace-style billet aluminum (6061-T6 or similar):
 
-## Stack (front → back)
+1. **Lathe** — outer Ø, face flats, front chamfer (thin-in-hand look)  
+2. **Mill front** — AA window / glass seat / LCD pocket  
+3. **Mill back** — board pocket; **HDMI + USB-C** through rear wall under the board  
+4. **Drill** — screw bosses or through-holes + center mount  
+5. **Finish** — chemical polish → hand polish → durable coat / black anodize  
+6. Deburr port edges; foam light-seal under AA lip  
 
-1. **Front assembly** — bezel + cover glass (bonded) + LCD in pocket  
-2. FPC fold (≥ 3 mm bend radius) into the body  
-3. Driver PCB in the back, connectors toward rear  
-4. **Back** — HDMI + USB-C windows under the board  
-5. Optional rear boss (M4 / 17 mm ball / pin mount)
+Keep structural wall ≥ **1.2 mm**. Fixture: soft jaws / vacuum for thin discs.
 
-## CAD
+## Prototype (print before metal)
 
-Parametric model: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot_case.scad)
+Two-piece PETG only to prove stack height and port XY — then lock dims into unibody toolpath.
 
-| `part` | Export |
-|--------|--------|
-| `front` | Bezel+glass frame (glass seat, glue shelf, LCD pocket) |
+| `part` in CAD | Role |
+|---------------|------|
+| `front` | Bezel + glass seat + LCD pocket (print, bond glass) |
 | `back` | Board pocket + rear HDMI/USB + mount boss |
-| `preview` | Assembly ghost |
+| `unibody` | Single-body preview of production aluminum puck |
+| `preview` | Ghost assembly |
 
-Key parameters: `outer_d`, `aa_d`, `glass_od`, `glass_thick`, `glue_w`, `hdmi_*`, `usbc_*`, `overall_z`.
+Model: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot_case.scad)
 
-## Prototype path
+## Parts (measure before cutting)
 
-1. Measure **glass OD / thickness / AA** and LCD stack → set front params.  
-2. Export **`part = "front"`** → print → **bond glass into seat** → fit LCD behind it.  
-3. Measure board + rear connector stick-out → ports / `overall_z`.  
-4. Export **`part = "back"`** → print → dry-fit board + cables.  
-5. Then CNC aluminum back if needed.
+| Part | Catalog baseline | Measure |
+|------|------------------|---------|
+| Glass / AA | AA ⌀ ~70.13; glass OD ~73+ | OD, thickness, AR face |
+| LCD module | 73.03 × 76.48 mm | Stack height behind glass |
+| UEDX6911 | ~66 × 58 mm | Connector stick-out **to rear** |
+| Ports | HDMI + USB-C | Centers vs board; shell size |
 
-## CNC path (metal back / production)
-
-1. Lathe outer Ø + face flats  
-2. Mill board pocket  
-3. Mill HDMI + USB-C through back wall  
-4. Drill screw circle + mount hole  
-5. Deburr → finish → anodize  
-
-Front assembly can stay printed black + glass even with a metal back.
+Goal overall head thickness after measure: **~16–20 mm**.
 
 ## Mounting
 
-- Center rear boss: M4 insert or 17 mm ball  
-- Or flat back + 3M VHB  
-- Pi + buck remote ([car-power.md](car-power.md))
+- Rear center boss: M4 insert or 17 mm ball  
+- Or flat back + 3M VHB for grille  
+- Cable strain relief at rear ports so the head stays thin and clean
 
 ## Checklist
 
-- [ ] Calipers: glass OD/Z, AA, LCD Z, board, HDMI/USB stick-out  
-- [ ] Print front → glue glass → LCD behind glass  
-- [ ] Print back → ports under board  
-- [ ] Confirm connector face = toward back  
-- [ ] Optional CNC aluminum back  
+- [ ] Calipers: glass, AA, LCD Z, board, HDMI/USB stick-out + XY  
+- [ ] PETG front → optical/glue bond glass → LCD  
+- [ ] PETG back → ports under board dry-fit with cables  
+- [ ] Lock dims → CNC unibody + three-stage finish  
+- [ ] Vehicle: 12V buck or USB-C 5V/3A; remote Pi box  

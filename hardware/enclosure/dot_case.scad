@@ -1,29 +1,30 @@
-// Dot enclosure v2 — CNC-style round head
-// FRONT ASSEMBLY: printed bezel + cover glass seat (+ LCD pocket)
-//   — not a bezel-only ring; glass is part of this unit
-// BACK: board pocket; HDMI + USB-C through rear under UEDX6911
+// Dot enclosure — CNC-style round head
+// Production intent: CNC unibody aluminum (chem polish → hand polish → coat)
+// Prototype: split front/back PETG to prove glass bond + rear ports
+// Architecture: thin head (display+UEDX6911) + remote Pi/power box
+// FRONT: bezel + optically bonded cover glass + LCD pocket
+// BACK / unibody rear: HDMI + USB-C under the board
 //
-// part = "preview" | "front" | "back"
+// part = "preview" | "front" | "back" | "unibody"
 // Units: mm
 
 /* [Which part] */
-part = "preview"; // ["preview", "front", "back"]
+part = "preview"; // ["preview", "front", "back", "unibody"]
 
-/* [Outer] */
+/* [Outer — unibody silhouette] */
 outer_d = 84;
 chamfer = 1.6;
-wall = 1.5;
-overall_z = 18;
+wall = 1.5;             // ≥1.2 mm aluminum in production
+overall_z = 18;         // lock after measuring rear connector stick-out
 
-/* [Front assembly — bezel + glass] */
-// Reference face = black frame with glass already in it (one subassembly).
-aa_d = 70.2;            // visible aperture through glass
-glass_od = 73.5;        // cover glass outer diameter
-glass_thick = 1.1;      // cover glass thickness
-glue_w = 1.2;           // radial glue / seat shelf under glass rim
-bezel_lip = 0.9;        // black frame in front of glass (thin ring)
-lcd_pocket_z = 3.2;     // LCD module depth behind glass
-fpc_slot_w = 22;        // FPC exit toward board (rear of front shell)
+/* [Front — bezel + glass (optical bond target)] */
+aa_d = 70.2;
+glass_od = 73.5;
+glass_thick = 1.1;
+glue_w = 1.2;           // seat shelf under glass rim (optical bond in production)
+bezel_lip = 0.9;
+lcd_pocket_z = 3.2;
+fpc_slot_w = 22;
 fpc_slot_h = 1.2;
 
 /* [Driver board — connectors face rear] */
@@ -62,6 +63,7 @@ $fn = 128;
 function glass_seat_z() = bezel_lip + glass_thick;
 function front_z() = glass_seat_z() + lcd_pocket_z + 0.8;
 function back_z() = max(overall_z - front_z(), board_clear_z + wall + 2.5);
+function unibody_z() = overall_z;
 
 module chamfered_disc(d, h, ch) {
     hull() {
@@ -79,15 +81,19 @@ module board_2d() {
         ], center = true);
 }
 
-// ---------- FRONT ASSEMBLY (print frame; bond glass; seat LCD) ----------
-// z=0 mates to back; z=front_z() is the visible face.
-// Stack (visible → back): bezel lip → cover glass → glue shelf → LCD → FPC
-// Glue shelf = glass pocket wider than LCD pocket (rim left under glass).
+module rear_ports(through_z) {
+    translate([hdmi_x, hdmi_y, -0.1])
+        cube([hdmi_w + 2 * port_inset, hdmi_h + 2 * port_inset, through_z], center = true);
+    translate([usbc_x, usbc_y, -0.1])
+        cube([usbc_w + 2 * port_inset, usbc_h + 2 * port_inset, through_z], center = true);
+}
+
+// ---------- FRONT (prototype print; bond glass; seat LCD) ----------
 module front() {
     z = front_z();
     glass_z0 = z - bezel_lip - glass_thick;
     lcd_z0 = glass_z0 - lcd_pocket_z;
-    lcd_d = glass_od - 2 * glue_w; // shelf width under glass = glue_w
+    lcd_d = glass_od - 2 * glue_w;
 
     difference() {
         union() {
@@ -98,19 +104,15 @@ module front() {
                         cylinder(d = 6.5, h = max(1, lcd_z0 + 0.2));
         }
 
-        // AA through bezel lip (in front of glass)
         translate([0, 0, glass_z0 + glass_thick - 0.05])
             cylinder(d = aa_d, h = bezel_lip + 0.2);
 
-        // Cover glass seat (glass belongs in this front assembly)
         translate([0, 0, glass_z0])
             cylinder(d = glass_od + 2 * tolerance, h = glass_thick + 0.05);
 
-        // LCD pocket behind glass — smaller OD leaves glue/seat shelf
         translate([0, 0, lcd_z0 - 0.05])
             cylinder(d = lcd_d + 2 * tolerance, h = lcd_pocket_z + 0.15);
 
-        // FPC exit toward the back / board
         translate([0, -(glass_od / 2) + 2, lcd_z0 - 0.1])
             cube([fpc_slot_w, 12, fpc_slot_h + lcd_pocket_z], center = true);
 
@@ -121,7 +123,6 @@ module front() {
     }
 }
 
-// Ghost glass for preview (not exported)
 module ghost_glass() {
     z = front_z();
     glass_z0 = z - bezel_lip - glass_thick;
@@ -129,8 +130,8 @@ module ghost_glass() {
         cylinder(d = glass_od, h = glass_thick);
 }
 
-// ---------- BACK ----------
-// z=0 = outer back (ports visible); z=back_z() mates to front.
+// ---------- BACK (prototype) ----------
+// z=0 outer back; z=back_z() mates to front
 module back_v2() {
     z = back_z();
     difference() {
@@ -151,11 +152,7 @@ module back_v2() {
             linear_extrude(height = board_clear_z + 1)
                 board_2d();
 
-        translate([hdmi_x, hdmi_y, -0.1])
-            cube([hdmi_w + 2 * port_inset, hdmi_h + 2 * port_inset, wall + 0.3], center = true);
-        translate([usbc_x, usbc_y, -0.1])
-            cube([usbc_w + 2 * port_inset, usbc_h + 2 * port_inset, wall + 0.3], center = true);
-
+        rear_ports(wall + 0.3);
         translate([hdmi_x, hdmi_y, wall - 0.05])
             cube([hdmi_w + 2 * port_inset, hdmi_h + 2 * port_inset, board_clear_z], center = true);
         translate([usbc_x, usbc_y, wall - 0.05])
@@ -164,10 +161,6 @@ module back_v2() {
         translate([0, 0, -mount_boss_h - 0.1])
             cylinder(d = mount_hole_d, h = mount_boss_h + wall + 0.3);
 
-        for (x = [-16, 0, 16])
-            translate([x, 18, -0.05])
-                cube([8, 1.6, wall + 0.2], center = true);
-
         for (a = [45, 135, 225, 315])
             rotate([0, 0, a])
                 translate([screw_circle, 0, -0.1])
@@ -175,11 +168,63 @@ module back_v2() {
     }
 }
 
+// ---------- UNIBODY (production aluminum puck) ----------
+// z=0 = outer back (ports); z=unibody_z() = visible front face
+// Front pockets milled from +Z; board + ports from -Z / through rear wall.
+module unibody() {
+    z = unibody_z();
+    glass_z0 = z - bezel_lip - glass_thick;
+    lcd_z0 = glass_z0 - lcd_pocket_z;
+    lcd_d = glass_od - 2 * glue_w;
+    // Mid floor thickness between LCD pocket and board cavity
+    floor_top = lcd_z0;
+    board_cavity_h = board_clear_z + 1.0;
+    // Keep a solid floor: board cavity rises from wall up, stops below floor_top
+    board_cavity_top = min(wall + board_cavity_h, floor_top - 0.8);
+
+    difference() {
+        union() {
+            chamfered_disc(outer_d, z, chamfer);
+            translate([0, 0, -mount_boss_h + 0.01])
+                cylinder(d = mount_boss_d, h = mount_boss_h);
+        }
+
+        // --- front: AA, glass seat, LCD ---
+        translate([0, 0, glass_z0 + glass_thick - 0.05])
+            cylinder(d = aa_d, h = bezel_lip + 0.2);
+        translate([0, 0, glass_z0])
+            cylinder(d = glass_od + 2 * tolerance, h = glass_thick + 0.05);
+        translate([0, 0, lcd_z0 - 0.05])
+            cylinder(d = lcd_d + 2 * tolerance, h = lcd_pocket_z + 0.15);
+
+        // FPC channel toward rim
+        translate([0, -(glass_od / 2) + 2, lcd_z0 - 0.1])
+            cube([fpc_slot_w, 12, fpc_slot_h + lcd_pocket_z], center = true);
+
+        // --- rear: board pocket under floor ---
+        translate([0, 0, wall])
+            cylinder(d = outer_d - 2 * wall, h = max(0.2, board_cavity_top - wall));
+
+        translate([0, board_y_shift, wall])
+            linear_extrude(height = max(0.2, board_cavity_top - wall + 0.2))
+                board_2d();
+
+        // HDMI + USB-C through rear wall (under board)
+        rear_ports(wall + 0.3);
+        translate([hdmi_x, hdmi_y, wall - 0.05])
+            cube([hdmi_w + 2 * port_inset, hdmi_h + 2 * port_inset, board_clear_z], center = true);
+        translate([usbc_x, usbc_y, wall - 0.05])
+            cube([usbc_w + 2 * port_inset, usbc_h + 2 * port_inset, board_clear_z], center = true);
+
+        translate([0, 0, -mount_boss_h - 0.1])
+            cylinder(d = mount_hole_d, h = mount_boss_h + wall + 0.3);
+    }
+}
+
 module preview_stack() {
     color("DimGray")
         translate([0, 0, back_z() + 0.4])
             front();
-    // glass as part of front assembly
     color("AliceBlue", 0.35)
         translate([0, 0, back_z() + 0.4])
             ghost_glass();
@@ -199,4 +244,5 @@ module preview_stack() {
 
 if (part == "front") front();
 else if (part == "back") back_v2();
+else if (part == "unibody") unibody();
 else preview_stack();

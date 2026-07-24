@@ -1,11 +1,10 @@
 # Dot enclosure CAD
 
-Round head split like the reference badge:
+Production intent from the reference badge build: **CNC unibody aluminum** head  
+(chem polish → hand polish → coat), **bezel + bonded glass** face, rear HDMI/USB  
+under the driver board. Pi + buck stay in a remote box.
 
-1. **`front`** — **bezel + glass assembly** (printed frame with glass seat/glue shelf + LCD pocket)
-2. **`back`** — board pocket, **HDMI + USB-C on the rear** under UEDX6911
-
-The reference face in-hand is not a bezel alone: glass is bonded into that front unit.
+Prototype with split PETG (`front` / `back`), then lock dims into `unibody`.
 
 - Spec: [docs/enclosure.md](../../docs/enclosure.md)
 - Model: [`dot_case.scad`](dot_case.scad)
@@ -14,8 +13,9 @@ The reference face in-hand is not a bezel alone: glass is bonded into that front
 
 1. Open in [OpenSCAD](https://openscad.org/)
 2. Set calipers (`glass_od`, `glass_thick`, `aa_d`, `hdmi_*`, `usbc_*`, `overall_z`)
-3. `part = "front"` → F6 → STL → print → **bond cover glass** → seat LCD
-4. `part = "back"` → F6 → STL
+3. `part = "front"` → print → bond glass → seat LCD  
+4. `part = "back"` → print → dry-fit ports  
+5. `part = "unibody"` → production-shaped single puck (CNC target)
 
 ## Measure (fill in)
 
