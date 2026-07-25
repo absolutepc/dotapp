@@ -1,0 +1,13 @@
+[Unit]
+Description=Dot Wi-Fi first-boot / hotspot join
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/dot-wifi-boot
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

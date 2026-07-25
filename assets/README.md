@@ -22,19 +22,27 @@ sudo rm -rf /var/lib/bmw-logo/frames/builtin-*
 sudo systemctl restart bmw-api bmw-display
 ```
 
-## Gallery animations (12 items)
+## Gallery animations
 
 | File | Name | Type |
 |------|------|------|
 | radar4.webm | Radar 4 | animation |
 | anim1.webm | Anim 1 | animation |
-| anim2.webm | Anim 2 | animation |
 | anim3.webm | Anim 3 | animation |
+| anim4.webm | Anim 4 | animation |
 | anim5.webm | Anim 5 | animation |
 | anim6.webm | Anim 6 | animation |
 | anim7.webm | Anim 7 | animation |
 | anim8.webm | Anim 8 | animation |
 | anim9.webm | Anim 9 | animation |
+| anim10.webm | Anim 10 | animation |
+| anim11.webm | Anim 11 | animation |
+| anim12.webm | Anim 12 | animation |
+| anim13.webm | Anim 13 | animation |
+| anim14.webm | Anim 14 | animation |
+| anim15.webm | Anim 15 | animation |
+| anim16.webm | Anim 16 | animation |
+| anim17.webm | Anim 17 | animation |
 | project1.webm | Project 1 | animation |
 | project2.webm | Project 2 | animation |
 | project3.webm | Project 3 | animation |

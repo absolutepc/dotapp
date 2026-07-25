@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-API="${BMW_LOGO_API:-http://127.0.0.1:8080}"
+API="${DOT_API:-http://127.0.0.1:8080}"
 NAME="${1:-list}"
 
 api_get() {
@@ -22,9 +22,9 @@ api_get() {
     fi
     sleep 1
   done
-  echo "API not ready at ${API}${path} (is bmw-api running?)" >&2
-  echo "  systemctl status bmw-api --no-pager" >&2
-  echo "  journalctl -u bmw-api -n 40 --no-pager" >&2
+  echo "API not ready at ${API}${path} (is dot-api running?)" >&2
+  echo "  systemctl status dot-api --no-pager" >&2
+  echo "  journalctl -u dot-api -n 40 --no-pager" >&2
   return 1
 }
 
@@ -94,6 +94,6 @@ BODY="$(printf '%s' "$RESP" | sed '$d')"
 CODE="$(printf '%s' "$RESP" | tail -n1)"
 echo "$BODY"
 if [[ "$CODE" != "200" ]]; then
-  echo "HTTP ${CODE:-000} — is bmw-api active?" >&2
+  echo "HTTP ${CODE:-000} — is dot-api active?" >&2
   exit 1
 fi

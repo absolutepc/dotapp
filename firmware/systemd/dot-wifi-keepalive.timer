@@ -1,0 +1,12 @@
+[Unit]
+Description=Dot soft Wi-Fi keepalive timer
+
+[Timer]
+# Faster while trying to catch iPhone hotspot; when online the unit is a cheap ping.
+OnBootSec=20s
+OnUnitActiveSec=15s
+AccuracySec=3s
+Unit=dot-wifi-keepalive.service
+
+[Install]
+WantedBy=timers.target
