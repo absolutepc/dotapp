@@ -39,7 +39,11 @@ DEVICE_NAME = "dot"
 
 # Upload limits
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+MAX_OTA_BYTES = 100 * 1024 * 1024
 MAX_GIF_FRAMES = 360
+
+# OTA staging under data root
+OTA_DIR = DATA_ROOT / "ota"
 
 # Wi-Fi AP defaults (see scripts/setup-wifi-ap.sh)
 AP_SSID_PREFIX = "Dot"

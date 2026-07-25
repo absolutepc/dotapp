@@ -31,6 +31,7 @@ from firmware.state import (
     set_current_media,
     write_prepare_status,
 )
+from firmware.version import read_version
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +203,7 @@ def status() -> dict:
         "brightness": get_brightness(),
         "brightness_min": MIN_BRIGHTNESS,
         "brightness_max": MAX_BRIGHTNESS,
+        "version": read_version(),
     }
 
 
