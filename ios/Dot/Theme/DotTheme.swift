@@ -1,15 +1,15 @@
 import SwiftUI
 
-/// Dot visual identity: deep space-blue dark theme + plain white light theme.
+/// Dot visual identity: space-black dark theme + plain white light theme.
 enum DotTheme {
-    // Dark space-blue (deeper / darker navy)
-    static let void = Color(red: 0.015, green: 0.02, blue: 0.06) // ~#04060F
-    static let deep = Color(red: 0.03, green: 0.05, blue: 0.12) // ~#080D1F
-    static let navy = Color(red: 0.045, green: 0.08, blue: 0.18) // ~#0B142E
-    static let cobalt = Color(red: 0.07, green: 0.14, blue: 0.32) // ~#122452
-    static let horizon = Color(red: 0.14, green: 0.28, blue: 0.52) // ~#244785
-    static let ice = Color(red: 0.48, green: 0.70, blue: 0.95) // slightly muted ice
-    static let mist = Color(red: 0.72, green: 0.82, blue: 0.94)
+    // Dark space-black (near-OLED blacks + graphite depth)
+    static let void = Color(red: 0.02, green: 0.02, blue: 0.025) // ~#050506
+    static let deep = Color(red: 0.04, green: 0.04, blue: 0.045) // ~#0A0A0B
+    static let navy = Color(red: 0.07, green: 0.07, blue: 0.08) // ~#121214 graphite
+    static let cobalt = Color(red: 0.12, green: 0.12, blue: 0.14) // ~#1F1F24 soft lift
+    static let horizon = Color(red: 0.22, green: 0.23, blue: 0.26) // ~#383A42 cool metal
+    static let ice = Color(red: 0.78, green: 0.80, blue: 0.84) // silver accent
+    static let mist = Color(red: 0.72, green: 0.73, blue: 0.76)
 
     // Light theme neutrals
     static let paper = Color.white
@@ -25,32 +25,31 @@ enum DotTheme {
             return [
                 void,
                 deep,
+                Color(red: 0.05, green: 0.05, blue: 0.055),
                 navy,
-                Color(red: 0.035, green: 0.06, blue: 0.14),
             ]
         }
-        // Plain white light theme — no blue wash.
+        // Plain white light theme — no wash.
         return [paper, paper, paperSoft]
     }
 
     static func panel(dark: Bool) -> Color {
-        // Soft navy fill — no system gray “card chrome”.
+        // Raised graphite panel on black — no system gray chrome.
         dark
-            ? Color(red: 0.055, green: 0.085, blue: 0.155)
+            ? Color(red: 0.10, green: 0.10, blue: 0.11)
             : Color(red: 0.94, green: 0.94, blue: 0.96)
     }
 
     static func panelStroke(dark: Bool) -> Color {
-        // No harsh frames; sections are defined by fill only.
         .clear
     }
 
     static func primaryText(dark: Bool) -> Color {
-        dark ? .white : ink
+        dark ? Color(red: 0.96, green: 0.96, blue: 0.97) : ink
     }
 
     static func secondaryText(dark: Bool) -> Color {
-        dark ? mist.opacity(0.65) : inkSecondary
+        dark ? mist.opacity(0.72) : inkSecondary
     }
 
     static func toolbarTint(dark: Bool) -> Color {
@@ -63,7 +62,7 @@ enum DotTheme {
     }
 }
 
-/// Dark: deep space-blue gradient. Light: plain white (no blue tint).
+/// Dark: space-black gradient. Light: plain white.
 struct SpaceBlueBackground: View {
     var dark: Bool = true
     @State private var glowPulse = false
@@ -77,26 +76,26 @@ struct SpaceBlueBackground: View {
             )
 
             if dark {
-                // Soft nebula only in dark theme.
+                // Quiet depth — soft graphite, not blue nebula.
                 Circle()
-                    .fill(DotTheme.cobalt.opacity(0.28))
-                    .frame(width: 280, height: 280)
+                    .fill(DotTheme.cobalt.opacity(0.45))
+                    .frame(width: 300, height: 300)
+                    .blur(radius: 70)
+                    .offset(x: glowPulse ? 80 : 60, y: glowPulse ? -220 : -200)
+                    .allowsHitTesting(false)
+
+                Circle()
+                    .fill(Color.white.opacity(0.03))
+                    .frame(width: 240, height: 240)
                     .blur(radius: 55)
-                    .offset(x: glowPulse ? 90 : 70, y: glowPulse ? -210 : -190)
+                    .offset(x: glowPulse ? -90 : -70, y: glowPulse ? 250 : 230)
                     .allowsHitTesting(false)
 
                 Circle()
-                    .fill(DotTheme.ice.opacity(0.07))
-                    .frame(width: 220, height: 220)
-                    .blur(radius: 50)
-                    .offset(x: glowPulse ? -100 : -80, y: glowPulse ? 260 : 240)
-                    .allowsHitTesting(false)
-
-                Circle()
-                    .fill(DotTheme.horizon.opacity(0.12))
+                    .fill(DotTheme.horizon.opacity(0.18))
                     .frame(width: 160, height: 160)
-                    .blur(radius: 40)
-                    .offset(x: 40, y: glowPulse ? 40 : 20)
+                    .blur(radius: 45)
+                    .offset(x: 30, y: glowPulse ? 50 : 30)
                     .allowsHitTesting(false)
             }
         }
@@ -129,7 +128,10 @@ struct DotPrimaryButtonStyle: ButtonStyle {
                             dark
                                 ? AnyShapeStyle(
                                     LinearGradient(
-                                        colors: [DotTheme.ice, DotTheme.horizon],
+                                        colors: [
+                                            Color(red: 0.88, green: 0.89, blue: 0.92),
+                                            DotTheme.horizon,
+                                        ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
@@ -163,12 +165,12 @@ extension View {
         modifier(DotPanelModifier(dark: dark))
     }
 
-    /// Soft Form/List rows like the connection screen (fill only, no gray frames).
+    /// Soft Form/List rows (fill only, no gray frames).
     func dotListChrome(dark: Bool) -> some View {
         self
             .scrollContentBackground(.hidden)
             .listRowBackground(DotTheme.panel(dark: dark))
-            .listRowSeparatorTint(DotTheme.ice.opacity(dark ? 0.12 : 0.08))
+            .listRowSeparatorTint(DotTheme.ice.opacity(dark ? 0.14 : 0.08))
     }
 
     func dotNavigationChrome(dark: Bool) -> some View {
