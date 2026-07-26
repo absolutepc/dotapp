@@ -151,9 +151,14 @@ struct ConnectionView: View {
     }
 
     private func stepRow(_ n: Int, _ text: String) -> some View {
-        Label(text, systemImage: "\(n).circle.fill")
-            .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(DotTheme.ice, DotTheme.secondaryText(dark: preferDark))
+        Label {
+            Text(text)
+        } icon: {
+            Image(systemName: "\(n).circle.fill")
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(DotTheme.stepPending(dark: preferDark))
+        }
+        .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
     }
 
     private static func format(_ date: Date) -> String {

@@ -52,9 +52,17 @@ enum DotTheme {
         dark ? mist.opacity(0.72) : inkSecondary
     }
 
+    /// Light theme uses ink (black), not system blue.
     static func toolbarTint(dark: Bool) -> Color {
-        dark ? ice : Color(red: 0.12, green: 0.28, blue: 0.55)
+        dark ? ice : ink
     }
+
+    /// Pending setup step circle (number). Completed steps use `success`.
+    static func stepPending(dark: Bool) -> Color {
+        dark ? ice : ink
+    }
+
+    static let success = Color(red: 0.20, green: 0.72, blue: 0.38)
 
     static func listRow(dark: Bool) -> some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -136,7 +144,7 @@ struct DotPrimaryButtonStyle: ButtonStyle {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                : AnyShapeStyle(Color(red: 0.12, green: 0.28, blue: 0.55))
+                                : AnyShapeStyle(DotTheme.ink)
                         )
                 } else {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)

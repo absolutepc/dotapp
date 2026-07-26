@@ -335,7 +335,7 @@ struct ContentView: View {
                                     )
                                 )
                             } else {
-                                Capsule().fill(Color(red: 0.12, green: 0.28, blue: 0.55))
+                                Capsule().fill(DotTheme.ink)
                             }
                         }
                     )

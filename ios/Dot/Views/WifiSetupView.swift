@@ -24,6 +24,7 @@ struct WifiSetupView: View {
     @State private var inSetupMode = false
     @State private var setupSsidShown: String?
     @State private var credentialsSaved = false
+    @State private var hotspotJoinOrdered = false
 
     var body: some View {
         NavigationStack {
@@ -90,7 +91,7 @@ struct WifiSetupView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
             ProgressView(value: Double(step.rawValue), total: Double(Step.allCases.count))
-                .tint(DotTheme.ice)
+                .tint(DotTheme.toolbarTint(dark: preferDark))
             Text(stepTitle)
                 .font(.title3.bold())
                 .foregroundStyle(DotTheme.primaryText(dark: preferDark))
@@ -129,10 +130,10 @@ struct WifiSetupView: View {
     @ViewBuilder
     private var joinSetupSections: some View {
         Section {
-            Label("На iPhone: Настройки → Wi‑Fi", systemImage: "1.circle.fill")
-            Label("Выберите сеть `Dot-Setup-…`", systemImage: "2.circle.fill")
-            Label("Пароль: `dotsetup1`", systemImage: "3.circle.fill")
-            Label("Вернитесь в приложение Dot", systemImage: "4.circle.fill")
+            setupStepRow(1, "На iPhone: Настройки → Wi‑Fi", done: joinMicroDone(1))
+            setupStepRow(2, "Выберите сеть `Dot-Setup-…`", done: joinMicroDone(2))
+            setupStepRow(3, "Пароль: `dotsetup1`", done: joinMicroDone(3))
+            setupStepRow(4, "Вернитесь в приложение Dot", done: joinMicroDone(4))
         } footer: {
             Text("Режим модема на этом шаге не нужен и мешает — iPhone не может одновременно быть в чужом Wi‑Fi и раздавать модем.")
                 .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
@@ -143,7 +144,7 @@ struct WifiSetupView: View {
         Section("Связь с Dot") {
             HStack {
                 Circle()
-                    .fill(inSetupMode ? Color.green : (deviceReachable ? Color.orange : Color.red))
+                    .fill(inSetupMode ? DotTheme.success : (deviceReachable ? Color.orange : Color.red))
                     .frame(width: 8, height: 8)
                 Text(setupLinkLabel)
                     .font(.subheadline)
@@ -175,6 +176,36 @@ struct WifiSetupView: View {
             return "Dot отвечает, но не в Dot-Setup"
         }
         return "Пока нет связи — зайдите в Dot-Setup"
+    }
+
+    /// Micro-steps on the Dot-Setup join screen turn green as the link comes up.
+    private func joinMicroDone(_ n: Int) -> Bool {
+        switch n {
+        case 1:
+            return deviceReachable || inSetupMode
+        case 2, 3, 4:
+            return inSetupMode
+        default:
+            return false
+        }
+    }
+
+    private func setupStepRow(
+        _ number: Int,
+        _ text: String,
+        done: Bool,
+        pendingSymbol: String? = nil
+    ) -> some View {
+        Label {
+            Text(text)
+                .foregroundStyle(DotTheme.primaryText(dark: preferDark))
+        } icon: {
+            Image(systemName: done ? "checkmark.circle.fill" : (pendingSymbol ?? "\(number).circle.fill"))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(done ? DotTheme.success : DotTheme.stepPending(dark: preferDark))
+                .accessibilityLabel(done ? "Шаг \(number) выполнен" : "Шаг \(number)")
+        }
+        .animation(.easeInOut(duration: 0.28), value: done)
     }
 
     // MARK: - Step 2
@@ -228,10 +259,10 @@ struct WifiSetupView: View {
     @ViewBuilder
     private var enableHotspotSections: some View {
         Section {
-            Label("Останьтесь в Wi‑Fi `Dot-Setup-…`", systemImage: "1.circle.fill")
-            Label("Нажмите «Подключить Dot» ниже", systemImage: "2.circle.fill")
-            Label("Сразу после этого выйдите из Dot-Setup", systemImage: "3.circle.fill")
-            Label("Включите Режим модема + «Максимальная совместимость»", systemImage: "4.circle.fill")
+            setupStepRow(1, "Останьтесь в Wi‑Fi `Dot-Setup-…`", done: true)
+            setupStepRow(2, "Нажмите «Подключить Dot» ниже", done: hotspotJoinOrdered)
+            setupStepRow(3, "Сразу после этого выйдите из Dot-Setup", done: hotspotJoinOrdered)
+            setupStepRow(4, "Включите Режим модема + «Максимальная совместимость»", done: hotspotJoinOrdered)
         } footer: {
             Text("Важно: команду «подключить» нужно отправить ещё из Dot-Setup. Иначе Dot не узнает, что пора выходить. Подключение к модему будет одно — без цикла обрывов.")
                 .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
@@ -243,9 +274,19 @@ struct WifiSetupView: View {
     @ViewBuilder
     private var findDotSections: some View {
         Section {
-            Label("Режим модема включён", systemImage: "checkmark.circle")
-            Label("Подождите несколько секунд — Dot сам заходит в модем", systemImage: "antenna.radiowaves.left.and.right")
-            Label("Нажмите «Найти Dot» ниже", systemImage: "magnifyingglass")
+            setupStepRow(1, "Режим модема включён", done: true, pendingSymbol: "checkmark.circle")
+            setupStepRow(
+                2,
+                "Подождите несколько секунд — Dot сам заходит в модем",
+                done: api.canBrowseGallery,
+                pendingSymbol: "antenna.radiowaves.left.and.right"
+            )
+            setupStepRow(
+                3,
+                "Нажмите «Найти Dot» ниже",
+                done: api.canBrowseGallery,
+                pendingSymbol: "magnifyingglass"
+            )
         }
         .listRowBackground(DotTheme.panel(dark: preferDark))
         .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
@@ -318,6 +359,7 @@ struct WifiSetupView: View {
         case .enableHotspot:
             // Credentials already on Dot; going back allows re-send if needed.
             credentialsSaved = false
+            hotspotJoinOrdered = false
             step = .enterCredentials
         case .findDot:
             step = .enableHotspot
@@ -355,6 +397,9 @@ struct WifiSetupView: View {
         do {
             api.host = "192.168.4.1"
             let response = try await api.connectHotspot()
+            withAnimation {
+                hotspotJoinOrdered = true
+            }
             statusText = (response.message ?? "Команда принята.")
                 + " Теперь выйдите из Dot-Setup и включите Режим модема."
             inSetupMode = false
@@ -380,10 +425,12 @@ struct WifiSetupView: View {
         do {
             try await api.ensureReachableForSetup()
             let status = try await api.wifiStatus()
-            deviceReachable = true
             setupSsidShown = status.setupSsid
             let setupReady = status.mode == "setup_ap" || (status.setupSsid?.isEmpty == false)
-            inSetupMode = setupReady
+            withAnimation(.easeInOut(duration: 0.28)) {
+                deviceReachable = true
+                inSetupMode = setupReady
+            }
             if setupReady {
                 statusIsError = false
                 if let setup = status.setupSsid, !setup.isEmpty {
@@ -397,8 +444,10 @@ struct WifiSetupView: View {
                     "Dot отвечает (\(status.mode)), но не в Dot-Setup. На Pi выполните: sudo dot-enter-setup-ap — затем снова «Проверить связь»."
             }
         } catch {
-            deviceReachable = false
-            inSetupMode = false
+            withAnimation(.easeInOut(duration: 0.28)) {
+                deviceReachable = false
+                inSetupMode = false
+            }
             statusIsError = true
             statusText = "Нет связи. Подключите iPhone к Wi‑Fi Dot-Setup-… (пароль dotsetup1) и нажмите «Проверить связь»."
         }

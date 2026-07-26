@@ -20,6 +20,7 @@
       --text2: rgba(184, 186, 191, 0.72);
       --sep: rgba(199, 204, 214, 0.14);
       --danger: #ff7380;
+      --success: #34b861;
       --phone-w: 390px;
       --phone-h: 844px;
     }
@@ -27,16 +28,17 @@
       --void: #ffffff;
       --deep: #ffffff;
       --navy: #f5f5f7;
-      --cobalt: #e8eef8;
-      --horizon: #1f478c;
-      --ice: #1f478c;
+      --cobalt: #e8e8ed;
+      --horizon: #14141a;
+      --ice: #14141a;
       --mist: #595a66;
       --panel: #f0f0f5;
       --bg0: #ffffff;
       --bg1: #f5f5f7;
       --text: #14141a;
       --text2: #595a66;
-      --sep: rgba(31, 71, 140, 0.28);
+      --sep: rgba(20, 20, 26, 0.18);
+      --success: #34b861;
     }
 
     * { box-sizing: border-box; }
@@ -280,7 +282,7 @@
       background: linear-gradient(135deg, var(--ice), var(--horizon));
       flex-shrink: 0;
     }
-    html.light .btn-apply { color: #fff; background: #1f478c; }
+    html.light .btn-apply { color: #fff; background: #14141a; }
     .btn-apply:disabled { opacity: .45; cursor: default; }
 
     .library {
@@ -413,7 +415,22 @@
       font-size: 12px; font-weight: 700;
       display: grid; place-items: center; flex-shrink: 0;
     }
-    html.light .badge { color: #fff; }
+    html.light .badge {
+      color: #fff;
+      background: #14141a;
+    }
+    .step.done .badge {
+      background: var(--success, #34b861);
+      color: #fff;
+    }
+    .step.done .badge::after {
+      content: "✓";
+      font-size: 12px;
+      line-height: 1;
+    }
+    .step.done .badge {
+      font-size: 0;
+    }
     .err { color: var(--danger); font-size: 13px; min-height: 1em; }
     .field {
       width: 100%;
@@ -440,7 +457,7 @@
       color: var(--void);
       background: linear-gradient(135deg, var(--ice), var(--horizon));
     }
-    html.light .btn-primary { color: #fff; background: #1f478c; }
+    html.light .btn-primary { color: #fff; background: #14141a; }
     .btn-ghost {
       background: var(--panel);
       color: var(--text);
@@ -528,8 +545,8 @@
     }
     html.light .map-placeholder {
       background:
-        radial-gradient(circle at 45% 48%, rgba(31,71,140,.35), transparent 28%),
-        linear-gradient(160deg, #cfe8d4, #e8f0f8);
+        radial-gradient(circle at 45% 48%, rgba(20,20,26,.22), transparent 28%),
+        linear-gradient(160deg, #cfe8d4, #e8e8ed);
     }
     .map-pin {
       position: absolute;
@@ -761,12 +778,13 @@
         <div class="sheet-body" style="align-items:center;text-align:center">
           <div class="wifi-icon">📶</div>
           <h2 style="margin:0;font-size:22px">Подключить Dot к Wi‑Fi</h2>
-          <div class="panel steps" style="text-align:left">
-            <div class="step"><span class="badge">1</span><span>Включите точку доступа на iPhone</span></div>
-            <div class="step"><span class="badge">2</span><span>На Dot: подключитесь к телефону (или Dot-Setup)</span></div>
-            <div class="step"><span class="badge">3</span><span>Вернитесь в приложение → Найти Dot</span></div>
+          <div class="panel steps" style="text-align:left" id="wifiSteps">
+            <div class="step" data-step="1"><span class="badge">1</span><span>На iPhone: Настройки → Wi‑Fi</span></div>
+            <div class="step" data-step="2"><span class="badge">2</span><span>Выберите сеть Dot-Setup-…</span></div>
+            <div class="step" data-step="3"><span class="badge">3</span><span>Пароль: dotsetup1</span></div>
+            <div class="step" data-step="4"><span class="badge">4</span><span>Вернитесь в приложение Dot</span></div>
           </div>
-          <button class="btn btn-primary" type="button" onclick="useLive(); closeSheets()">Найти Dot</button>
+          <button class="btn btn-primary" type="button" onclick="completeWifiSteps(); useLive(); closeSheets()">Найти Dot</button>
         </div>
       </div>
 
@@ -894,6 +912,15 @@
           mode === "live" ? "Выберите файл для загрузки на Dot." : "Переключитесь в Live Dot для upload.";
       }
       if (name === "settings") syncDeviceRows();
+      if (name === "wifi") resetWifiSteps();
+    }
+
+    function resetWifiSteps() {
+      document.querySelectorAll("#wifiSteps .step").forEach((el) => el.classList.remove("done"));
+    }
+
+    function completeWifiSteps() {
+      document.querySelectorAll("#wifiSteps .step").forEach((el) => el.classList.add("done"));
     }
 
     function closeSheets() {
