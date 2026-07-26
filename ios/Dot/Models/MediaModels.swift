@@ -10,13 +10,63 @@ struct DeviceStatus: Codable {
     let brightness: Int?
     let brightnessMin: Int?
     let brightnessMax: Int?
+    let version: String?
 
     enum CodingKeys: String, CodingKey {
-        case device, current, resolution, connected, brightness
+        case device, current, resolution, connected, brightness, version
         case currentName = "current_name"
         case mdnsHosts = "mdns_hosts"
         case brightnessMin = "brightness_min"
         case brightnessMax = "brightness_max"
+    }
+}
+
+struct OTAManifest: Codable {
+    let latest: String
+    let minAppIos: String?
+    let releases: [OTARelease]
+
+    enum CodingKeys: String, CodingKey {
+        case latest, releases
+        case minAppIos = "min_app_ios"
+    }
+
+    var latestRelease: OTARelease? {
+        releases.first(where: { $0.version == latest }) ?? releases.first
+    }
+}
+
+struct OTARelease: Codable, Equatable {
+    let version: String
+    let notes: String?
+    let packageUrl: String
+    let sha256: String
+    let sizeBytes: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case version, notes, sha256
+        case packageUrl = "package_url"
+        case sizeBytes = "size_bytes"
+    }
+
+    var hasPackage: Bool {
+        !packageUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !sha256.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+struct DotUpdateStatus: Codable {
+    let ok: Bool?
+    let version: String?
+    let state: String?
+    let message: String?
+    let progress: Double?
+    let phase: String?
+    let targetVersion: String?
+
+    enum CodingKeys: String, CodingKey {
+        case ok, version, state, message, progress, phase
+        case targetVersion = "target_version"
     }
 }
 

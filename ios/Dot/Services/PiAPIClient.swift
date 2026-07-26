@@ -19,6 +19,21 @@ final class PiAPIClient: ObservableObject {
     @Published var shouldOfferWifiSetup = false
     /// Live Apply progress text (preparing frames on Dot).
     @Published var applyProgress: String?
+    /// OTA: 0...1 overall progress while updating.
+    @Published var updateProgress: Double?
+    /// OTA: human-readable phase label.
+    @Published var updateProgressLabel: String?
+    /// Latest remote release when newer than Dot (nil if up to date / unknown).
+    @Published var availableUpdate: OTARelease?
+
+    /// Manifest over the internet (GitHub). Override with UserDefaults `dot.ota.manifestURL`.
+    static var otaManifestURL: URL {
+        if let raw = UserDefaults.standard.string(forKey: "dot.ota.manifestURL"),
+           let url = URL(string: raw) {
+            return url
+        }
+        return URL(string: "https://raw.githubusercontent.com/absolutepc/dotapp/main/updates/manifest.json")!
+    }
 
     /// Gallery only after normal day-to-day link (client / hotspot), not during setup AP.
     var canBrowseGallery: Bool {
@@ -434,6 +449,205 @@ final class PiAPIClient: ObservableObject {
         await refresh()
     }
 
+    // MARK: - OTA updates
+
+    static func versionIsNewer(_ candidate: String, than current: String) -> Bool {
+        func parts(_ v: String) -> [Int] {
+            v.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+                .split(separator: ".")
+                .map { chunk -> Int in
+                    let digits = chunk.prefix(while: { $0.isNumber })
+                    return Int(digits) ?? 0
+                }
+        }
+        let a = parts(candidate)
+        let b = parts(current)
+        let n = max(a.count, b.count)
+        for i in 0..<n {
+            let lhs = i < a.count ? a[i] : 0
+            let rhs = i < b.count ? b[i] : 0
+            if lhs != rhs { return lhs > rhs }
+        }
+        return false
+    }
+
+    func checkForUpdate() async {
+        do {
+            var request = URLRequest(url: Self.otaManifestURL)
+            request.timeoutInterval = 12
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                return
+            }
+            let manifest = try JSONDecoder().decode(OTAManifest.self, from: data)
+            let current = status?.version ?? "0.0.0"
+            if let release = manifest.latestRelease,
+               Self.versionIsNewer(release.version, than: current) {
+                availableUpdate = release
+            } else {
+                availableUpdate = nil
+            }
+        } catch {
+            // Silent — Settings shows “не удалось проверить” only when user taps refresh.
+        }
+    }
+
+    /// Download package → upload to Dot → apply. Reports `updateProgress` 0...1.
+    func installUpdate(_ release: OTARelease) async throws {
+        guard canBrowseGallery else {
+            throw APIError.requestFailed
+        }
+        guard release.hasPackage else {
+            throw APIError.serverMessage("Пакет обновления ещё не опубликован (нет URL в манифесте).")
+        }
+        guard let packageURL = URL(string: release.packageUrl) else {
+            throw APIError.serverMessage("Некорректный URL пакета.")
+        }
+
+        defer {
+            updateProgress = nil
+            updateProgressLabel = nil
+        }
+
+        updateProgress = 0.02
+        updateProgressLabel = "Скачивание обновления…"
+
+        let localURL = try await downloadPackage(from: packageURL) { fraction in
+            Task { @MainActor in
+                self.updateProgress = 0.02 + fraction * 0.38
+                self.updateProgressLabel = "Скачивание \(Int(fraction * 100))%"
+            }
+        }
+
+        updateProgress = 0.42
+        updateProgressLabel = "Загрузка на Dot…"
+
+        try await uploadUpdatePackage(
+            fileURL: localURL,
+            sha256: release.sha256,
+            version: release.version
+        ) { fraction in
+            Task { @MainActor in
+                self.updateProgress = 0.42 + fraction * 0.28
+                self.updateProgressLabel = "Загрузка на Dot \(Int(fraction * 100))%"
+            }
+        }
+
+        updateProgress = 0.72
+        updateProgressLabel = "Установка на Dot…"
+
+        var request = URLRequest(url: baseURL.appending(path: "/api/update/apply"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "sha256": release.sha256,
+            "version": release.version,
+        ])
+        let (_, applyResponse) = try await URLSession.shared.data(for: request)
+        guard let applyHTTP = applyResponse as? HTTPURLResponse, applyHTTP.statusCode == 200 else {
+            throw APIError.serverMessage("Не удалось запустить установку")
+        }
+
+        try await pollUpdateFinished(targetVersion: release.version)
+        availableUpdate = nil
+        await refresh()
+        await checkForUpdate()
+    }
+
+    private func downloadPackage(
+        from url: URL,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws -> URL {
+        onProgress(0.05)
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 600
+        let (tempURL, response) = try await URLSession.shared.download(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw APIError.serverMessage("Не удалось скачать пакет обновления")
+        }
+        let dest = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dot-ota-\(UUID().uuidString).tar.gz")
+        try? FileManager.default.removeItem(at: dest)
+        try FileManager.default.moveItem(at: tempURL, to: dest)
+        onProgress(1)
+        return dest
+    }
+
+    private func uploadUpdatePackage(
+        fileURL: URL,
+        sha256: String,
+        version: String,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws {
+        let boundary = "dot-\(UUID().uuidString)"
+        var request = URLRequest(url: baseURL.appending(path: "/api/update/upload"))
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 600
+
+        let fileData = try Data(contentsOf: fileURL)
+        var body = Data()
+        body.append("--\(boundary)\r\n")
+        body.append("Content-Disposition: form-data; name=\"sha256\"\r\n\r\n")
+        body.append("\(sha256)\r\n")
+        body.append("--\(boundary)\r\n")
+        body.append("Content-Disposition: form-data; name=\"version\"\r\n\r\n")
+        body.append("\(version)\r\n")
+        body.append("--\(boundary)\r\n")
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"dot-ota.tar.gz\"\r\n")
+        body.append("Content-Type: application/gzip\r\n\r\n")
+        body.append(fileData)
+        body.append("\r\n--\(boundary)--\r\n")
+
+        let delegate = TransferProgressDelegate(onProgress: onProgress)
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+
+        let (responseData, response) = try await session.upload(for: request, from: body)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            if let obj = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let detail = obj["detail"] as? String {
+                throw APIError.serverMessage(detail)
+            }
+            throw APIError.serverMessage("Не удалось загрузить пакет на Dot")
+        }
+    }
+
+    private func pollUpdateFinished(targetVersion: String) async throws {
+        for _ in 0..<120 {
+            try await Task.sleep(nanoseconds: 500_000_000)
+            guard let status = try? await get("/api/update/status", as: DotUpdateStatus.self) else {
+                // API may be restarting — keep waiting.
+                updateProgressLabel = "Перезапуск Dot…"
+                updateProgress = min((updateProgress ?? 0.9) + 0.01, 0.98)
+                continue
+            }
+            if let progress = status.progress {
+                updateProgress = 0.72 + min(max(progress, 0), 1) * 0.26
+            }
+            if let message = status.message, !message.isEmpty {
+                updateProgressLabel = message
+            }
+            let state = status.state ?? "idle"
+            if state == "error" {
+                throw APIError.serverMessage(status.message ?? "Ошибка установки")
+            }
+            if state == "done" {
+                updateProgress = 1
+                updateProgressLabel = "Готово"
+                return
+            }
+        }
+        // After timeout, try refresh — restart may have succeeded.
+        await discoverAndConnect()
+        if let current = status?.version, !Self.versionIsNewer(targetVersion, than: current) {
+            return
+        }
+        throw APIError.serverMessage("Таймаут установки. Проверьте Dot и нажмите «Найти Dot».")
+    }
+
     func previewURL(for item: MediaItem) -> URL {
         // API returns "/api/preview/{id}?v=N". Do NOT use appending(path:) —
         // it percent-encodes "?" and breaks the query, so tiles stay blank.
@@ -497,6 +711,26 @@ final class PiAPIClient: ObservableObject {
         } catch {
             return nil
         }
+    }
+}
+
+/// URLSession delegate for upload byte progress (0...1).
+private final class TransferProgressDelegate: NSObject, URLSessionTaskDelegate {
+    let onProgress: @Sendable (Double) -> Void
+
+    init(onProgress: @escaping @Sendable (Double) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didSendBodyData bytesSent: Int64,
+        totalBytesSent: Int64,
+        totalBytesExpectedToSend: Int64
+    ) {
+        guard totalBytesExpectedToSend > 0 else { return }
+        onProgress(Double(totalBytesSent) / Double(totalBytesExpectedToSend))
     }
 }
 

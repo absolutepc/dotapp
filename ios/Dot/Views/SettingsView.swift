@@ -13,9 +13,12 @@ struct SettingsView: View {
     @State private var statusMessage: String?
     @State private var statusIsError = false
     @State private var isBusy = false
+    @State private var isUpdating = false
+    @State private var updateCheckMessage: String?
     @State private var showWifiSetup = false
     @State private var showReprovisionConfirm = false
     @State private var confirmClearHost = false
+    @State private var confirmUpdate = false
 
     var onShowOnboarding: () -> Void = {}
 
@@ -38,6 +41,7 @@ struct SettingsView: View {
                 appearanceSection
                 brightnessSection
                 deviceSection
+                updateSection
                 wifiSection
                 helpSection
                 if let statusMessage {
@@ -62,7 +66,22 @@ struct SettingsView: View {
             }
             .preferredColorScheme(preferDark ? .dark : .light)
             .tint(DotTheme.toolbarTint(dark: preferDark))
-            .task { await loadBrightness() }
+            .task {
+                await loadBrightness()
+                await api.checkForUpdate()
+            }
+            .confirmationDialog(
+                "Установить обновление \(api.availableUpdate?.version ?? "")?",
+                isPresented: $confirmUpdate,
+                titleVisibility: .visible
+            ) {
+                Button("Обновить") {
+                    Task { await runUpdate() }
+                }
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text(api.availableUpdate?.notes ?? "Dot скачает пакет и установит его. Не закрывайте приложение.")
+            }
             .sheet(isPresented: $showWifiSetup) {
                 WifiSetupView()
                     .environmentObject(api)
@@ -163,6 +182,7 @@ struct SettingsView: View {
             if let current = api.status?.currentName ?? api.status?.current {
                 LabeledContent("На экране", value: current)
             }
+            LabeledContent("Версия", value: api.status?.version ?? "—")
             if let mode = api.wifi?.mode {
                 LabeledContent("Wi‑Fi", value: mode)
             }
@@ -181,6 +201,89 @@ struct SettingsView: View {
             .disabled(isBusy)
         }
         .foregroundStyle(DotTheme.primaryText(dark: preferDark))
+        .listRowBackground(DotTheme.panel(dark: preferDark))
+        .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
+    }
+
+    private var updateSection: some View {
+        Section {
+            if let available = api.availableUpdate {
+                HStack {
+                    Label("Доступно \(available.version)", systemImage: "arrow.down.circle.fill")
+                        .foregroundStyle(DotTheme.primaryText(dark: preferDark))
+                    Spacer()
+                    Text("NEW")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(DotTheme.ice.opacity(preferDark ? 0.25 : 0.2), in: Capsule())
+                        .foregroundStyle(DotTheme.toolbarTint(dark: preferDark))
+                }
+                if let notes = available.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(.footnote)
+                        .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+                }
+                if isUpdating {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ProgressView(value: api.updateProgress ?? 0)
+                            .tint(DotTheme.ice)
+                        Text(api.updateProgressLabel ?? "Обновление…")
+                            .font(.caption)
+                            .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+                        if let p = api.updateProgress {
+                            Text("\(Int(p * 100))%")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+                        }
+                    }
+                } else {
+                    Button {
+                        confirmUpdate = true
+                    } label: {
+                        Label("Обновить Dot", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .disabled(!api.canBrowseGallery || isBusy || !available.hasPackage)
+                }
+                if !available.hasPackage {
+                    Text("Версия объявлена, но пакет ещё не опубликован (нет URL в манифесте).")
+                        .font(.footnote)
+                        .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+                } else if !api.canBrowseGallery {
+                    Text("Подключитесь к Dot (точка доступа iPhone), чтобы установить обновление.")
+                        .font(.footnote)
+                        .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+                }
+            } else {
+                Label("Установлена актуальная версия", systemImage: "checkmark.circle")
+                    .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+            }
+
+            Button {
+                Task {
+                    updateCheckMessage = nil
+                    await api.checkForUpdate()
+                    if api.availableUpdate == nil {
+                        updateCheckMessage = "Новых обновлений нет."
+                    }
+                }
+            } label: {
+                Label("Проверить обновления", systemImage: "arrow.clockwise")
+            }
+            .disabled(isUpdating)
+
+            if let updateCheckMessage {
+                Text(updateCheckMessage)
+                    .font(.footnote)
+                    .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+            }
+        } header: {
+            Text("Обновления")
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+        } footer: {
+            Text("Скачивание через интернет, установка по Wi‑Fi с Dot. Прогресс: скачивание → загрузка на Dot → установка.")
+                .foregroundStyle(DotTheme.secondaryText(dark: preferDark))
+        }
         .listRowBackground(DotTheme.panel(dark: preferDark))
         .listRowSeparatorTint(DotTheme.ice.opacity(preferDark ? 0.1 : 0.06))
     }
@@ -247,6 +350,22 @@ struct SettingsView: View {
             brightnessError = nil
         } catch {
             draftBrightness = Double(api.status?.brightness ?? api.brightness)
+        }
+    }
+
+    private func runUpdate() async {
+        guard let release = api.availableUpdate else { return }
+        isUpdating = true
+        statusMessage = nil
+        defer { isUpdating = false }
+        do {
+            try await api.installUpdate(release)
+            statusMessage = "Обновление \(release.version) установлено."
+            statusIsError = false
+            await api.discoverAndConnect()
+        } catch {
+            statusMessage = error.localizedDescription
+            statusIsError = true
         }
     }
 

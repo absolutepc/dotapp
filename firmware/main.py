@@ -8,13 +8,16 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from firmware.api.routes import router
+from firmware.api.update import router as update_router
 from firmware.api.wifi import router as wifi_router
 from firmware.api.wifi import setup_pages
 from firmware.config import BUILTIN_ASSETS, DATA_ROOT, REPO_ROOT
+from firmware.version import read_version
 
-app = FastAPI(title="Dot API", version="1.0.0")
+app = FastAPI(title="Dot API", version=read_version())
 app.include_router(router)
 app.include_router(wifi_router)
+app.include_router(update_router)
 app.include_router(setup_pages)
 
 MOCKUP_DIR = REPO_ROOT / "ios" / "mockup"

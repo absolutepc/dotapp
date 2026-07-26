@@ -31,8 +31,13 @@ Uses `assets/catalog.json` + media locally; switch to **Live Dot** to hit the Pi
 1. **First launch (onboarding slides):** shown once per iPhone install, flag `UserDefaults` key `dot.onboarding.completed`. To see them again: **Настройки → Показать введение**, or connection screen → **Показать введение**.
 2. **First Wi‑Fi pairing (Dot device):** while Dot is in `wifi-role=setup`, join `Dot-Setup-…`, run the in-app Wi‑Fi wizard, then enable Personal Hotspot. Dot switches to `wifi-role=client`.
 3. **Every later day:** enable Personal Hotspot → Dot joins alone (boot + watch) → open app → **Найти автоматически** (probes saved IP, `dot.local`, `172.20.10.x`). No Setup AP needed.
+<<<<<<< HEAD
 4. Browse gallery: **top half** = selected animation + send-to-Dot; **bottom** = library grid. Theme (`Theme/DotTheme.swift`): **dark** = space-black; **light** = plain white. Toolbar sun/moon toggles (`dot.appearance.dark`, default dark).
 5. **Настройки** (toolbar gear): brightness slider for the round display, theme, device info, Wi‑Fi wizard, **reset to Dot-Setup** (only while Dot is on Personal Hotspot / `mode=client`, with typed confirmation `СБРОС`), clear saved address, re-show intro.
+=======
+4. Browse gallery: **top half** = selected animation + send-to-Dot; **bottom** = library grid. Theme (`Theme/DotTheme.swift`): **dark** = deeper space-blue; **light** = plain white. Toolbar sun/moon toggles (`dot.appearance.dark`, default dark).
+5. **Настройки** (toolbar gear): brightness slider for the round display, theme, device info, **OTA updates** (check manifest → download → upload to Dot → install with % progress), Wi‑Fi wizard, **reset to Dot-Setup** (only while Dot is on Personal Hotspot / `mode=client`, with typed confirmation `СБРОС`), clear saved address, re-show intro. See [docs/ota-updates.md](../docs/ota-updates.md).
+>>>>>>> origin/cursor/ota-updates-e8ba
 6. **Где Dot** (toolbar pin): last place the iPhone saw Dot while connected — **not** Apple Find My. The phone saves GPS when the gallery connects (or via **Запросить геолокацию** on that screen).
 
 ### Geolocation not saving a pin
