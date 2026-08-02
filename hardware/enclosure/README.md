@@ -23,10 +23,11 @@ A **Ø74** outer cannot fit this display or a centered 66×58 board.
 
 1. Open in [OpenSCAD](https://openscad.org/)
 2. Set calipers (`glass_od`, `glass_thick`, `aa_d`, `hdmi_*`, `usbc_*`, `overall_z`) if your stack differs
-3. `part = "board"` → **see the 66×58 PCB seat** (green ghost; view only)  
-4. `part = "front"` → print → bond glass → seat LCD  
-5. `part = "back"` → print → dry-fit ports (look from the **open** side)  
-6. `part = "unibody"` → production-shaped single puck (CNC target)
+3. `part = "board"` → PCB seat (green) + **HDMI/USB-C adapter ghosts** (blue/orange)  
+4. Set `hdmi_adapter_*` / `usbc_adapter_*` to your real dongle calipers  
+5. `part = "front"` → print → bond glass → seat LCD  
+6. `part = "back"` → print → dry-fit board **and adapters** through rear windows  
+7. `part = "unibody"` → production-shaped single puck (CNC target)
 
 ## Measure (fill in)
 
@@ -40,4 +41,6 @@ A **Ø74** outer cannot fit this display or a centered 66×58 board.
 | LCD thickness behind glass | | |
 | HDMI shell toward rear | | |
 | USB-C shell toward rear | | |
+| HDMI adapter W×H×stick-out | defaults 20×12×28 | Overwrite in SCAD |
+| USB-C adapter W×H×stick-out | defaults 12.5×8×22 | Overwrite in SCAD |
 | Connector centers vs board | | |
