@@ -29,8 +29,6 @@ glass_thick = 1.1;
 glue_w = 1.0;           // seat shelf under glass rim (optical bond in production)
 bezel_lip = 0.9;
 lcd_pocket_z = 3.2;
-fpc_slot_w = 22;
-fpc_slot_h = 1.2;
 
 /* [Driver board — connectors face rear] */
 // Measured / confirmed: 66 × 58 mm (UEDX6911).
@@ -139,8 +137,7 @@ module front() {
         translate([0, 0, lcd_z0 - 0.05])
             cylinder(d = lcd_d + 2 * tolerance, h = lcd_pocket_z + 0.15);
 
-        translate([0, -(glass_od / 2) + 2, lcd_z0 - 0.1])
-            cube([fpc_slot_w, 12, fpc_slot_h + lcd_pocket_z], center = true);
+        // FPC stays inside the LCD pocket — no side wall cutout.
 
         for (a = [45, 135, 225, 315])
             rotate([0, 0, a])
