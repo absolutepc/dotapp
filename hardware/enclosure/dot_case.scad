@@ -243,7 +243,7 @@ module unibody() {
 }
 
 module preview_stack() {
-    color("DimGray")
+    color("Black")
         translate([0, 0, back_z() + 0.4])
             front();
     color("AliceBlue", 0.35)
@@ -260,8 +260,8 @@ module preview_stack() {
             cube([usbc_w, usbc_h, wall + 1], center = true);
 }
 
-if (part == "front") front();
+if (part == "front") color("Black") front();
 else if (part == "back") back_v2();
 else if (part == "board") back_board_view();
-else if (part == "unibody") unibody();
+else if (part == "unibody") color("Black") unibody();
 else preview_stack();
