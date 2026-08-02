@@ -57,6 +57,8 @@ Aerospace-style billet aluminum (6061-T6 or similar):
 
 Keep structural wall ≥ **1.2 mm**. Fixture: soft jaws / vacuum for thin discs.
 
+**Outer diameter hard max: Ø74 mm** (locked in CAD as `outer_d = 74`).
+
 ## Prototype (print before metal)
 
 Two-piece PETG only to prove stack height and port XY — then lock dims into unibody toolpath.
@@ -72,12 +74,15 @@ Model: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot_case.scad)
 
 ## Parts (measure before cutting)
 
-| Part | Catalog baseline | Measure |
-|------|------------------|---------|
-| Glass / AA | AA ⌀ ~70.13; glass OD ~73+ | OD, thickness, AR face |
-| LCD module | 73.03 × 76.48 mm | Stack height behind glass |
-| UEDX6911 | ~66 × 58 mm | Connector stick-out **to rear** |
-| Ports | HDMI + USB-C | Centers vs board; shell size |
+Outer shell is capped at **Ø74 mm**. Anything larger (module outline, board diagonal) must be trimmed, folded (FPC tabs), or remounted — it will not fit a centered pocket.
+
+| Part | Catalog baseline | Fit under Ø74 | Measure |
+|------|------------------|---------------|---------|
+| Outer shell | **Ø74 max** | CAD `outer_d = 74` | Confirm finished OD |
+| Glass / AA | AA ⌀ ~70.13; glass OD was ~73+ | Glass OD ≤ **71.5** (CAD); AA ≤ ~70 | OD, thickness, AR face |
+| LCD module | 73.03 × 76.48 mm | **76.48 > 74** — verify ears/FPC; active stack must clear inner Ø | Stack height behind glass |
+| UEDX6911 | ~66 × 58 mm | Diagonal ~Ø88 — **does not fit** centered; CAD pocket provisional **52 × 46** | Real L×W + rear stick-out |
+| Ports | HDMI + USB-C | Centers vs board; shell size | XY vs board |
 
 Goal overall head thickness after measure: **~16–20 mm**.
 

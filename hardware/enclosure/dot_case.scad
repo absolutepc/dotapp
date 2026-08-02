@@ -12,24 +12,28 @@
 part = "preview"; // ["preview", "front", "back", "unibody"]
 
 /* [Outer — unibody silhouette] */
-outer_d = 84;
-chamfer = 1.6;
-wall = 1.5;             // ≥1.2 mm aluminum in production
+// Hard max outer diameter: 74 mm (product constraint).
+outer_d = 74;
+chamfer = 1.2;
+wall = 1.2;             // ≥1.2 mm aluminum in production
 overall_z = 18;         // lock after measuring rear connector stick-out
 
 /* [Front — bezel + glass (optical bond target)] */
-aa_d = 70.2;
-glass_od = 73.5;
+// Nest inside Ø74: leave ≥1.2 mm metal outside glass OD.
+aa_d = 70.0;
+glass_od = 71.5;
 glass_thick = 1.1;
-glue_w = 1.2;           // seat shelf under glass rim (optical bond in production)
-bezel_lip = 0.9;
+glue_w = 0.75;          // seat shelf under glass rim (optical bond in production)
+bezel_lip = 0.7;
 lcd_pocket_z = 3.2;
 fpc_slot_w = 22;
 fpc_slot_h = 1.2;
 
 /* [Driver board — connectors face rear] */
-board_w = 66;
-board_h = 58;
+// Catalog UEDX ~66×58 needs ~Ø88 if centered — does not fit Ø74.
+// Pocket = max centered rect clearing inner Ø (outer_d − 2×wall). Re-measure real board.
+board_w = 52;
+board_h = 46;
 board_thick = 1.6;
 board_clear_z = 8.5;
 board_corner_r = 2;
@@ -56,7 +60,7 @@ mount_hole_d = 4.2;
 /* [Fit] */
 tolerance = 0.25;
 screw_d = 2.2;
-screw_circle = 34;
+screw_circle = 29;
 
 $fn = 128;
 
