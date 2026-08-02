@@ -23,9 +23,10 @@ A **Ø74** outer cannot fit this display or a centered 66×58 board.
 
 1. Open in [OpenSCAD](https://openscad.org/)
 2. Set calipers (`glass_od`, `glass_thick`, `aa_d`, `hdmi_*`, `usbc_*`, `overall_z`) if your stack differs
-3. `part = "front"` → print → bond glass → seat LCD  
-4. `part = "back"` → print → dry-fit ports  
-5. `part = "unibody"` → production-shaped single puck (CNC target)
+3. `part = "board"` → **see the 66×58 PCB seat** (green ghost; view only)  
+4. `part = "front"` → print → bond glass → seat LCD  
+5. `part = "back"` → print → dry-fit ports (look from the **open** side)  
+6. `part = "unibody"` → production-shaped single puck (CNC target)
 
 ## Measure (fill in)
 

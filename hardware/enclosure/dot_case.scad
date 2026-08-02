@@ -9,7 +9,8 @@
 // Units: mm
 
 /* [Which part] */
-part = "preview"; // ["preview", "front", "back", "unibody"]
+// board = back + green ghost of the 66×58 PCB seat (view only, not for STL)
+part = "board"; // ["preview", "front", "back", "board", "unibody"]
 
 /* [Outer — unibody silhouette] */
 // Sized to clear measured display Ø83 + bezel and centered board 66×58 (diag ~Ø88).
@@ -136,6 +137,7 @@ module ghost_glass() {
 
 // ---------- BACK (prototype) ----------
 // z=0 outer back; z=back_z() mates to front
+// Look from the OPEN side (+Z): rectangular pocket = board seat 66×58.
 module back_v2() {
     z = back_z();
     difference() {
@@ -149,11 +151,9 @@ module back_v2() {
                         cylinder(d = 6.5, h = z);
         }
 
-        translate([0, 0, wall])
-            cylinder(d = outer_d - 2 * wall, h = z + 0.1);
-
+        // Board seating pocket (not a full hollow cup — so the 66×58 seat is visible)
         translate([0, board_y_shift, wall])
-            linear_extrude(height = board_clear_z + 1)
+            linear_extrude(height = z - wall + 0.1)
                 board_2d();
 
         rear_ports(wall + 0.3);
@@ -170,6 +170,26 @@ module back_v2() {
                 translate([screw_circle, 0, -0.1])
                     cylinder(d = screw_d, h = z + 0.2);
     }
+}
+
+module ghost_board() {
+    color("lime", 0.55)
+        translate([0, board_y_shift, wall + 0.2])
+            linear_extrude(height = board_thick)
+                square([board_w, board_h], center = true);
+}
+
+// View helper: back shell + green PCB in the seat
+module back_board_view() {
+    color("gainsboro")
+        back_v2();
+    ghost_board();
+    color("royalblue", 0.75)
+        translate([hdmi_x, hdmi_y, wall / 2])
+            cube([hdmi_w, hdmi_h, wall + 1], center = true);
+    color("orange", 0.75)
+        translate([usbc_x, usbc_y, wall / 2])
+            cube([usbc_w, usbc_h, wall + 1], center = true);
 }
 
 // ---------- UNIBODY (production aluminum puck) ----------
@@ -205,10 +225,7 @@ module unibody() {
         translate([0, -(glass_od / 2) + 2, lcd_z0 - 0.1])
             cube([fpc_slot_w, 12, fpc_slot_h + lcd_pocket_z], center = true);
 
-        // --- rear: board pocket under floor ---
-        translate([0, 0, wall])
-            cylinder(d = outer_d - 2 * wall, h = max(0.2, board_cavity_top - wall));
-
+        // --- rear: rectangular board pocket (visible seat under the floor) ---
         translate([0, board_y_shift, wall])
             linear_extrude(height = max(0.2, board_cavity_top - wall + 0.2))
                 board_2d();
@@ -234,10 +251,7 @@ module preview_stack() {
             ghost_glass();
     color("gainsboro")
         back_v2();
-    color("green", 0.45)
-        translate([0, board_y_shift, wall + 1])
-            linear_extrude(height = board_thick)
-                square([board_w, board_h], center = true);
+    ghost_board();
     color("royalblue", 0.7)
         translate([hdmi_x, hdmi_y, wall / 2])
             cube([hdmi_w, hdmi_h, wall + 1], center = true);
@@ -248,5 +262,6 @@ module preview_stack() {
 
 if (part == "front") front();
 else if (part == "back") back_v2();
+else if (part == "board") back_board_view();
 else if (part == "unibody") unibody();
 else preview_stack();
