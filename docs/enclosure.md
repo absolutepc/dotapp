@@ -57,7 +57,7 @@ Aerospace-style billet aluminum (6061-T6 or similar):
 
 Keep structural wall ≥ **1.2 mm**. Fixture: soft jaws / vacuum for thin discs.
 
-**Outer diameter hard max: Ø74 mm** (locked in CAD as `outer_d = 74`).
+**Sizing driver:** measured display **Ø83 mm** (not the old “2.8″” label) and board **66 × 58 mm**. Outer shell in CAD is **Ø92** so both fit with wall + bezel. A **Ø74** shell is too small for this stack.
 
 ## Prototype (print before metal)
 
@@ -74,15 +74,14 @@ Model: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot_case.scad)
 
 ## Parts (measure before cutting)
 
-Outer shell is capped at **Ø74 mm**. Anything larger (module outline, board diagonal) must be trimmed, folded (FPC tabs), or remounted — it will not fit a centered pocket.
-
-| Part | Catalog baseline | Fit under Ø74 | Measure |
-|------|------------------|---------------|---------|
-| Outer shell | **Ø74 max** | CAD `outer_d = 74` | Confirm finished OD |
-| Glass / AA | AA ⌀ ~70.13; glass OD was ~73+ | Glass OD ≤ **71.5** (CAD); AA ≤ ~70 | OD, thickness, AR face |
-| LCD module | 73.03 × 76.48 mm | **76.48 > 74** — verify ears/FPC; active stack must clear inner Ø | Stack height behind glass |
-| UEDX6911 | ~66 × 58 mm | Diagonal ~Ø88 — **does not fit** centered; CAD pocket provisional **52 × 46** | Real L×W + rear stick-out |
-| Ports | HDMI + USB-C | Centers vs board; shell size | XY vs board |
+| Part | Confirmed / CAD | Measure still |
+|------|-----------------|---------------|
+| Display (AA) | **Ø83 mm** (was mislabeled 2.8″) | Glass OD/thickness if separate cover |
+| Cover glass | CAD `glass_od = 85` (target) | Final OD, AR face |
+| Outer shell | CAD `outer_d = 92` | Finished OD after CNC |
+| UEDX6911 board | **66 × 58 mm** (correct) | Thickness, rear HDMI/USB stick-out + XY |
+| LCD stack height | — | Z behind glass |
+| Ports | HDMI + USB-C | Centers vs board; shell size |
 
 Goal overall head thickness after measure: **~16–20 mm**.
 

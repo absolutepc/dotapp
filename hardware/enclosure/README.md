@@ -9,14 +9,20 @@ Prototype with split PETG (`front` / `back`), then lock dims into `unibody`.
 - Spec: [docs/enclosure.md](../../docs/enclosure.md)
 - Model: [`dot_case.scad`](dot_case.scad)
 
-## Constraint
+## Confirmed sizes
 
-**Outer diameter ≤ 74 mm** (`outer_d = 74` in the SCAD). Do not raise this without a product decision.
+| Item | Value |
+|------|--------|
+| Display (AA) | **Ø83 mm** (label “2.8″” was wrong) |
+| Driver board | **66 × 58 mm** |
+| Outer shell (CAD) | **Ø92 mm** — clears Ø83 panel + 66×58 board + walls |
+
+A **Ø74** outer cannot fit this display or a centered 66×58 board.
 
 ## Export
 
 1. Open in [OpenSCAD](https://openscad.org/)
-2. Keep `outer_d ≤ 74`; set calipers (`glass_od`, `glass_thick`, `aa_d`, `hdmi_*`, `usbc_*`, `overall_z`)
+2. Set calipers (`glass_od`, `glass_thick`, `aa_d`, `hdmi_*`, `usbc_*`, `overall_z`) if your stack differs
 3. `part = "front"` → print → bond glass → seat LCD  
 4. `part = "back"` → print → dry-fit ports  
 5. `part = "unibody"` → production-shaped single puck (CNC target)
@@ -25,12 +31,12 @@ Prototype with split PETG (`front` / `back`), then lock dims into `unibody`.
 
 | Item | mm | Note |
 |------|-----|------|
-| Outer OD | ≤ **74** | Hard max |
-| Cover glass OD | ≤ 71.5 | Must leave metal rim |
+| Display AA | **83** | Confirmed |
+| Cover glass OD | ~85 target | Must clear AA + glue shelf |
 | Cover glass thickness | | |
-| AA diameter | ≤ ~70 | |
-| LCD thickness behind glass | | Outline may exceed Ø74 (ears/FPC) |
-| Board L × W × H | | Catalog 66×58 won’t fit centered |
+| Outer OD | **92** CAD | Adjust after CNC finish |
+| Board L × W | **66 × 58** | Confirmed |
+| LCD thickness behind glass | | |
 | HDMI shell toward rear | | |
 | USB-C shell toward rear | | |
 | Connector centers vs board | | |

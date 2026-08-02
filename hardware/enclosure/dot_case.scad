@@ -12,28 +12,28 @@
 part = "preview"; // ["preview", "front", "back", "unibody"]
 
 /* [Outer — unibody silhouette] */
-// Hard max outer diameter: 74 mm (product constraint).
-outer_d = 74;
-chamfer = 1.2;
-wall = 1.2;             // ≥1.2 mm aluminum in production
+// Sized to clear measured display Ø83 + bezel and centered board 66×58 (diag ~Ø88).
+// Note: a Ø74 shell cannot fit this panel or board.
+outer_d = 92;
+chamfer = 1.6;
+wall = 1.5;             // ≥1.2 mm aluminum in production
 overall_z = 18;         // lock after measuring rear connector stick-out
 
 /* [Front — bezel + glass (optical bond target)] */
-// Nest inside Ø74: leave ≥1.2 mm metal outside glass OD.
-aa_d = 70.0;
-glass_od = 71.5;
+// Marketing “2.8″” was wrong — measured active/display diameter is 83 mm.
+aa_d = 83;
+glass_od = 85;
 glass_thick = 1.1;
-glue_w = 0.75;          // seat shelf under glass rim (optical bond in production)
-bezel_lip = 0.7;
+glue_w = 1.0;           // seat shelf under glass rim (optical bond in production)
+bezel_lip = 0.9;
 lcd_pocket_z = 3.2;
 fpc_slot_w = 22;
 fpc_slot_h = 1.2;
 
 /* [Driver board — connectors face rear] */
-// Catalog UEDX ~66×58 needs ~Ø88 if centered — does not fit Ø74.
-// Pocket = max centered rect clearing inner Ø (outer_d − 2×wall). Re-measure real board.
-board_w = 52;
-board_h = 46;
+// Measured / confirmed: 66 × 58 mm (UEDX6911).
+board_w = 66;
+board_h = 58;
 board_thick = 1.6;
 board_clear_z = 8.5;
 board_corner_r = 2;
@@ -60,7 +60,7 @@ mount_hole_d = 4.2;
 /* [Fit] */
 tolerance = 0.25;
 screw_d = 2.2;
-screw_circle = 29;
+screw_circle = 38;
 
 $fn = 128;
 
