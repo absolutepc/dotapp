@@ -5,11 +5,12 @@
 // FRONT: bezel + optically bonded cover glass + LCD pocket
 // BACK / unibody rear: HDMI + USB-C under the board
 //
-// part = "preview" | "front" | "back" | "unibody"
+// part = "preview" | "front" | "back" | "board" | "unibody"
 // Units: mm
+// Rear I/O: flush/recessed HDMI + USB-C — only the port exits are visible outside.
 
 /* [Which part] */
-// board = back + green ghost of the 66×58 PCB seat (view only, not for STL)
+// board = back + green PCB ghost (view only, not for STL)
 part = "board"; // ["preview", "front", "back", "board", "unibody"]
 
 /* [Outer — unibody silhouette] */
@@ -40,7 +41,8 @@ board_clear_z = 8.5;
 board_corner_r = 2;
 board_y_shift = 0;
 
-/* [Rear ports — connector shells on the board] */
+/* [Rear ports — flush exits only (adapter body stays inside)] */
+// Outside you should see only the HDMI / USB-C openings, not dongle bodies.
 hdmi_w = 15.5;
 hdmi_h = 6.2;
 hdmi_x = -12;
@@ -52,21 +54,6 @@ usbc_x = 14;
 usbc_y = -8;
 
 port_inset = 0.35;
-
-/* [Adapters — HDMI + USB-C dongles through the rear] */
-// Measure your real adapters and overwrite these (mm).
-// Stick-out is beyond the outer back face (z=0 → −Z), clear of the mount boss.
-hdmi_adapter_w = 20;
-hdmi_adapter_h = 12;
-hdmi_adapter_stickout = 28;   // body length outside the case
-hdmi_adapter_inboard = 6;     // how far the shell sits inside the pocket
-
-usbc_adapter_w = 12.5;
-usbc_adapter_h = 8;
-usbc_adapter_stickout = 22;
-usbc_adapter_inboard = 5;
-
-adapter_clearance = 0.8;      // extra cut around adapter body
 
 /* [Rear mount boss] */
 mount_boss_d = 14;
@@ -85,14 +72,6 @@ function front_z() = glass_seat_z() + lcd_pocket_z + 0.8;
 function back_z() = max(overall_z - front_z(), board_clear_z + wall + 2.5);
 function unibody_z() = overall_z;
 
-// Port windows sized for the larger of board connector vs adapter body
-function hdmi_cut_w() = max(hdmi_w, hdmi_adapter_w) + 2 * (port_inset + adapter_clearance);
-function hdmi_cut_h() = max(hdmi_h, hdmi_adapter_h) + 2 * (port_inset + adapter_clearance);
-function usbc_cut_w() = max(usbc_w, usbc_adapter_w) + 2 * (port_inset + adapter_clearance);
-function usbc_cut_h() = max(usbc_h, usbc_adapter_h) + 2 * (port_inset + adapter_clearance);
-// Keep-out behind the case for plugged-in adapters (for mount / grille planning)
-function adapter_keepout_z() = max(hdmi_adapter_stickout, usbc_adapter_stickout);
-
 module chamfered_disc(d, h, ch) {
     hull() {
         cylinder(d = d, h = max(0.2, h - ch));
@@ -109,60 +88,30 @@ module board_2d() {
         ], center = true);
 }
 
+// Flush port windows — opening size only (no external adapter bodies in the model)
 module rear_ports(through_z) {
     translate([hdmi_x, hdmi_y, -0.1])
-        cube([hdmi_cut_w(), hdmi_cut_h(), through_z], center = true);
+        cube([hdmi_w + 2 * port_inset, hdmi_h + 2 * port_inset, through_z], center = true);
     translate([usbc_x, usbc_y, -0.1])
-        cube([usbc_cut_w(), usbc_cut_h(), through_z], center = true);
+        cube([usbc_w + 2 * port_inset, usbc_h + 2 * port_inset, through_z], center = true);
 }
 
-// Internal tunnels so adapter shells clear the rear wall + pocket
-module adapter_tunnels() {
+// Clearance inside the pocket for recessed connector / adapter shells
+module port_tunnels() {
     translate([hdmi_x, hdmi_y, wall - 0.05])
-        cube([
-            hdmi_cut_w(),
-            hdmi_cut_h(),
-            board_clear_z + hdmi_adapter_inboard
-        ], center = true);
+        cube([hdmi_w + 2 * port_inset, hdmi_h + 2 * port_inset, board_clear_z], center = true);
     translate([usbc_x, usbc_y, wall - 0.05])
-        cube([
-            usbc_cut_w(),
-            usbc_cut_h(),
-            board_clear_z + usbc_adapter_inboard
-        ], center = true);
+        cube([usbc_w + 2 * port_inset, usbc_h + 2 * port_inset, board_clear_z], center = true);
 }
 
-module ghost_adapters() {
-    // Bodies outside the case (plugged into rear ports)
-    color("royalblue", 0.55)
-        translate([hdmi_x, hdmi_y, -hdmi_adapter_stickout / 2])
-            cube([
-                hdmi_adapter_w,
-                hdmi_adapter_h,
-                hdmi_adapter_stickout
-            ], center = true);
-    color("orange", 0.55)
-        translate([usbc_x, usbc_y, -usbc_adapter_stickout / 2])
-            cube([
-                usbc_adapter_w,
-                usbc_adapter_h,
-                usbc_adapter_stickout
-            ], center = true);
-    // Inboard stubs (connector side inside the pocket)
-    color("royalblue", 0.35)
-        translate([hdmi_x, hdmi_y, wall + hdmi_adapter_inboard / 2])
-            cube([
-                hdmi_adapter_w * 0.85,
-                hdmi_adapter_h * 0.85,
-                hdmi_adapter_inboard
-            ], center = true);
-    color("orange", 0.35)
-        translate([usbc_x, usbc_y, wall + usbc_adapter_inboard / 2])
-            cube([
-                usbc_adapter_w * 0.85,
-                usbc_adapter_h * 0.85,
-                usbc_adapter_inboard
-            ], center = true);
+// Thin face markers so openings read in preview (not dongle bodies)
+module ghost_port_exits() {
+    color("royalblue", 0.85)
+        translate([hdmi_x, hdmi_y, -0.15])
+            cube([hdmi_w, hdmi_h, 0.3], center = true);
+    color("orange", 0.85)
+        translate([usbc_x, usbc_y, -0.15])
+            cube([usbc_w, usbc_h, 0.3], center = true);
 }
 
 // ---------- FRONT (prototype print; bond glass; seat LCD) ----------
@@ -229,7 +178,7 @@ module back_v2() {
                 board_2d();
 
         rear_ports(wall + 0.3);
-        adapter_tunnels();
+        port_tunnels();
 
         translate([0, 0, -mount_boss_h - 0.1])
             cylinder(d = mount_hole_d, h = mount_boss_h + wall + 0.3);
@@ -248,12 +197,12 @@ module ghost_board() {
                 square([board_w, board_h], center = true);
 }
 
-// View helper: back shell + green PCB + adapter keep-out
+// View helper: back shell + green PCB + flush port exits only
 module back_board_view() {
     color("gainsboro")
         back_v2();
     ghost_board();
-    ghost_adapters();
+    ghost_port_exits();
 }
 
 // ---------- UNIBODY (production aluminum puck) ----------
@@ -294,9 +243,9 @@ module unibody() {
             linear_extrude(height = max(0.2, board_cavity_top - wall + 0.2))
                 board_2d();
 
-        // HDMI + USB-C (+ adapters) through rear wall under the board
+        // Flush HDMI + USB-C exits through rear wall under the board
         rear_ports(wall + 0.3);
-        adapter_tunnels();
+        port_tunnels();
 
         translate([0, 0, -mount_boss_h - 0.1])
             cylinder(d = mount_hole_d, h = mount_boss_h + wall + 0.3);
@@ -313,7 +262,7 @@ module preview_stack() {
     color("gainsboro")
         back_v2();
     ghost_board();
-    ghost_adapters();
+    ghost_port_exits();
 }
 
 if (part == "front") color("Black") front();

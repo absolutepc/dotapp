@@ -81,35 +81,32 @@ Model: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot_case.scad)
 | Outer shell | CAD `outer_d = 92` | Finished OD after CNC |
 | UEDX6911 board | **66 × 58 mm** (correct) | Thickness, rear HDMI/USB stick-out + XY |
 | LCD stack height | — | Z behind glass |
-| Ports | HDMI + USB-C on board | Centers vs board; shell size |
-| **Adapters** | HDMI + USB-C dongles (CAD defaults) | Real W×H×stick-out — see below |
+| Ports | Flush HDMI + USB-C exits | Opening size + XY vs board; body stays **inside** |
 
-Goal overall head thickness after measure: **~16–20 mm** (adapters stick **out** the back; they do not add to head Z unless the shell sits inside the pocket).
+Goal overall head thickness after measure: **~16–20 mm**.
 
-## HDMI / USB-C adapters
+## HDMI / USB-C (flush exits)
 
-Rear I/O is not bare cable-only: plan for **plug-in adapters** through the back wall.
+Переходники/разъёмы ставятся так, что **снаружи видны только окна** HDMI и USB-C — без торчащих «хвостов» dongle.
 
-| Item | CAD default (mm) | What to measure |
-|------|------------------|-----------------|
-| HDMI adapter body | 20 × 12, stick-out **28** | Your dongle L×W×H + how far it sits inboard |
-| USB-C adapter body | 12.5 × 8, stick-out **22** | Same |
-| Port windows | Sized to the **larger** of board shell vs adapter + clearance | Dry-fit through printed `back` |
-| Keep-out behind head | `max(stick-outs)` ≈ **28 mm** | Must clear ball mount / grille / VHB pad |
+| Item | CAD | Notes |
+|------|-----|--------|
+| HDMI window | 15.5 × 6.2 (+ inset) | Face flush / slightly recessed |
+| USB-C window | 9.2 × 3.6 (+ inset) | Same |
+| Adapter / shell body | Inside board pocket | Not modeled as external solids |
 
-In OpenSCAD: `part = board` or `preview` shows blue (HDMI) and orange (USB-C) adapter ghosts. Overwrite `hdmi_adapter_*` / `usbc_adapter_*` after calipers.
+In OpenSCAD, `part = board` shows only thin blue/orange **exit markers** on the back face.
 
 ## Mounting
 
-- Rear center boss: M4 insert or 17 mm ball — place so the ball/arm does **not** hit adapter stick-out (~28 mm keep-out)  
-- Or flat back + 3M VHB for grille (leave cable/adapter channel)  
-- Strain relief on the harness side (remote box), not only at the head  
+- Rear center boss: M4 insert or 17 mm ball  
+- Or flat back + 3M VHB for grille  
+- Strain relief on the harness side (remote box)
 
 ## Checklist
 
-- [ ] Calipers: glass, AA, LCD Z, board, HDMI/USB shells + **adapter** W×H×stick-out  
+- [ ] Calipers: glass, AA, LCD Z, board, port XY / opening size  
 - [ ] PETG front → optical/glue bond glass → LCD  
-- [ ] PETG back → dry-fit board + **both adapters** through rear windows  
-- [ ] Confirm mount boss / ball clears adapter keep-out  
+- [ ] PETG back → dry-fit board; confirm only port exits show on the outside  
 - [ ] Lock dims → CNC unibody + three-stage finish  
 - [ ] Vehicle: 12V buck or USB-C 5V/3A; remote Pi box  
