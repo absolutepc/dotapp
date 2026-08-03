@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Quick diagnostics for Dot ↔ iPhone hotspot auto-join.
+set -euo pipefail
+
+echo "=== Dot Wi-Fi status ==="
+echo "role:        $(tr -d '[:space:]' </var/lib/dot/wifi-role 2>/dev/null || echo setup)"
+echo "setup-hold:  $([[ -f /var/lib/dot/setup-ap-hold ]] && echo yes || echo no)"
+echo "hostapd:     $(systemctl is-active hostapd 2>/dev/null || echo missing)"
+echo "watch:       $(systemctl is-active dot-wifi-watch.service 2>/dev/null || echo missing)"
+echo "keepalive:   $(systemctl is-active dot-wifi-keepalive.timer 2>/dev/null || echo missing)"
+echo "unmanaged:   $([[ -f /etc/NetworkManager/conf.d/99-dot-unmanaged.conf ]] && echo YES || echo no)"
+echo
+echo "=== NM connections ==="
+nmcli -t -f NAME,TYPE,AUTOCONNECT connection show 2>/dev/null | grep -E 'wifi|802-11' || true
+echo
+if nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq dot-phone-hotspot; then
+  echo "=== dot-phone-hotspot ==="
+  nmcli -f connection.autoconnect,connection.autoconnect-retries,802-11-wireless.ssid,802-11-wireless.powersave \
+    connection show dot-phone-hotspot 2>/dev/null || true
+else
+  echo "NO profile dot-phone-hotspot — finish in-app Wi-Fi wizard first"
+fi
+echo
+echo "=== device ==="
+nmcli -t -f DEVICE,STATE,CONNECTION device 2>/dev/null || true
+ip -4 addr show wlan0 2>/dev/null || true
+echo
+echo "=== recent boot / watch / join ==="
+tail -n 20 /var/log/dot-wifi-boot.log 2>/dev/null || echo "(no boot log)"
+tail -n 15 /var/log/dot-wifi-watch.log 2>/dev/null || echo "(no watch log)"
+tail -n 15 /var/log/dot-wifi-join.log 2>/dev/null || echo "(no join log)"
+tail -n 10 /var/log/dot-wifi-keepalive.log 2>/dev/null || echo "(no keepalive log)"
+echo
+echo "=== status files ==="
+python3 - <<'PY' 2>/dev/null || true
+import json
+from pathlib import Path
+for name in ("wifi-status.json", "wifi-mode.json", "wifi-client.json", "wifi-pending.json"):
+    p = Path("/var/lib/dot") / name
+    if not p.exists():
+        print(f"{name}: (missing)")
+        continue
+    try:
+        data = json.loads(p.read_text())
+    except Exception as exc:
+        print(f"{name}: (unreadable: {exc})")
+        continue
+    if name == "wifi-pending.json" and isinstance(data, dict) and data.get("password"):
+        data = dict(data)
+        data["password"] = "***"
+    print(f"{name}:", json.dumps(data, ensure_ascii=False))
+PY
