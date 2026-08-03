@@ -57,7 +57,8 @@ Aerospace-style billet aluminum (6061-T6 or similar):
 
 Keep structural wall ≥ **1.2 mm**. Fixture: soft jaws / vacuum for thin discs.
 
-**Sizing driver:** measured display **Ø83 mm** (not the old “2.8″” label) and board **66 × 58 mm**. Outer shell in CAD is **Ø92** so both fit with wall + bezel. A **Ø74** shell is too small for this stack.
+**Sizing (current CAD):** outer **Ø74**, board **51.7 × 47.15**, mini-HDMI adapter **26 mm** from PCB (board recessed so only the port face shows). Head Z ≈ **34 mm**.  
+**Conflict:** earlier measured display **Ø83** does **not** fit Ø74 — CAD glass/AA are provisional (~68 / 71) until you pick a smaller panel or raise `outer_d`.
 
 ## Prototype (print before metal)
 
@@ -66,7 +67,8 @@ Two-piece PETG only to prove stack height and port XY — then lock dims into un
 | `part` in CAD | Role |
 |---------------|------|
 | `front` | Bezel + glass seat + LCD pocket (print, bond glass) |
-| `back` | Board pocket + rear HDMI/USB + mount boss |
+| `back` | Recessed board + rear mini-HDMI/USB + mount boss |
+| `board` | View: green PCB + flush port markers |
 | `unibody` | Single-body preview of production aluminum puck |
 | `preview` | Ghost assembly |
 
@@ -76,26 +78,27 @@ Model: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot_case.scad)
 
 | Part | Confirmed / CAD | Measure still |
 |------|-----------------|---------------|
-| Display (AA) | **Ø83 mm** (was mislabeled 2.8″) | Glass OD/thickness if separate cover |
-| Cover glass | CAD `glass_od = 85` (target) | Final OD, AR face |
-| Outer shell | CAD `outer_d = 92` | Finished OD after CNC |
-| UEDX6911 board | **66 × 58 mm** (correct) | Thickness, rear HDMI/USB stick-out + XY |
-| LCD stack height | — | Z behind glass |
-| Ports | Flush HDMI + USB-C exits | Opening size + XY vs board; body stays **inside** |
+| Outer shell | **Ø74** | Finished OD after CNC |
+| Driver board | **51.7 × 47.15 mm** | Thickness, hole pattern |
+| Mini-HDMI adapter | **26 mm** from PCB | Plug face size (window XY) |
+| Display (AA) | Was Ø83 — **won't fit Ø74** | Confirm actual panel AA |
+| Cover glass | CAD `glass_od = 71` (provisional) | Final OD, AR face |
+| USB-C | Flush exit | Opening + XY |
 
-Goal overall head thickness after measure: **~16–20 mm**.
+Goal overall head thickness: **~34 mm** with recessed 26 mm mini-HDMI (flush rear).
 
 ## HDMI / USB-C (flush exits)
 
-Переходники/разъёмы ставятся так, что **снаружи видны только окна** HDMI и USB-C — без торчащих «хвостов» dongle.
+Mini-HDMI переходник **26 мм** от платы уходит к задней стенке. Плата посажена с отступом `hdmi_adapter_len`, снаружи видно **только окно** разъёма.
 
 | Item | CAD | Notes |
 |------|-----|--------|
-| HDMI window | 15.5 × 6.2 (+ inset) | Face flush / slightly recessed |
-| USB-C window | 9.2 × 3.6 (+ inset) | Same |
-| Adapter / shell body | Inside board pocket | Not modeled as external solids |
+| Mini-HDMI window | 11.5 × 8.5 (+ inset) | Caliper your plug |
+| Adapter length | **26 mm** from PCB | Inside tunnel; flush at z=0 |
+| USB-C window | 9.2 × 3.6 (+ inset) | Same flush idea |
+| External dongle solids | Not modeled | Exit markers only in preview |
 
-In OpenSCAD, `part = board` shows only thin blue/orange **exit markers** on the back face.
+In OpenSCAD, `part = board` shows green PCB recessed + thin blue/orange **exit markers**.
 
 ## Mounting
 
