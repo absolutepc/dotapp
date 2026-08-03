@@ -7,7 +7,7 @@
 //
 // part = "preview" | "front" | "back" | "board" | "unibody"
 // Units: mm
-// Rear I/O: flush/recessed HDMI + USB-C — only the port exits are visible outside.
+// Rear I/O: USB-C on back face; mini-HDMI adapter adds +26 mm on PCB width (rim exit).
 
 /* [Which part] */
 // board = back + green PCB ghost (view only, not for STL)
