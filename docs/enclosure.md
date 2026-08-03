@@ -57,18 +57,17 @@ Aerospace-style billet aluminum (6061-T6 or similar):
 
 Keep structural wall ≥ **1.2 mm**. Fixture: soft jaws / vacuum for thin discs.
 
-**Sizing (current CAD):** PCB **51.7 × 47.15** + mini-HDMI **+26 mm to width** → footprint **51.7 × 73.15** (diag ≈ **89.6 mm**). Outer shell **Ø94**.  
-**Ø74 does not fit** this stack (width alone is already 73.15 mm before corners/walls).
+**Sizing (current CAD):** PCB **51.7 × 47.15** fits **Ø74**.  
+**I/O requirement:** HDMI + Power sit **under the board** and exit through the **rear face** (no side adapters).  
+**Display:** measured Ø83 still does not fit Ø74 — glass/AA in CAD are provisional (~68 / 71).
 
 ## Prototype (print before metal)
-
-Two-piece PETG only to prove stack height and port XY — then lock dims into unibody toolpath.
 
 | `part` in CAD | Role |
 |---------------|------|
 | `front` | Bezel + glass seat + LCD pocket |
-| `back` | Board + mini-HDMI stub pocket; USB-C rear; HDMI at rim |
-| `board` | View: green PCB + blue +26 mm adapter on width |
+| `back` | Board pocket; HDMI + Power under PCB → rear exits |
+| `board` | View: green PCB + under-board connector ghosts |
 | `unibody` | Production puck preview |
 | `preview` | Ghost assembly |
 
@@ -78,15 +77,15 @@ Model: [`hardware/enclosure/dot_case.scad`](../hardware/enclosure/dot_case.scad)
 
 | Part | Confirmed / CAD | Measure still |
 |------|-----------------|---------------|
-| PCB | **51.7 × 47.15** | Thickness, hole pattern |
-| Mini-HDMI | **+26 mm on width** (not Z) | Plug face; body thickness |
-| Envelope | **51.7 × 73.15** | — |
-| Outer shell | **Ø94** | Finished OD |
-| Display AA | Was Ø83 | Glass OD under Ø94 |
+| PCB | **51.7 × 47.15** | Must have **under-board** HDMI + Power |
+| Outer shell | **Ø74** | Finished OD |
+| Under-board Z | **10 mm** CAD | Real connector shell height |
+| Mini-HDMI / Power openings | 11.5×8.5 / 9.2×3.6 | XY vs board |
+| Display AA | Was Ø83 | Needs ≤~70 AA for Ø74, or larger shell |
 
-## HDMI / USB-C
+## HDMI + Power (under the board)
 
-Mini-HDMI переходник удлиняет **ширину** платы: 47.15 + 26 = **73.15 мм**. В превью — синий выступ с края PCB; выход разъёма у **обода** корпуса. USB-C — в задней стенке.
+Разъёмы **не сбоку** платы: корпуса коннекторов под PCB, окна только на **задней** стенке. Боковой mini-HDMI (+26 мм к ширине) для Ø74 не используем.
 
 ## Mounting
 
