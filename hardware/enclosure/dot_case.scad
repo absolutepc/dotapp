@@ -14,44 +14,47 @@
 part = "board"; // ["preview", "front", "back", "board", "unibody"]
 
 /* [Outer — unibody silhouette] */
-// Sized to clear measured display Ø83 + bezel and centered board 66×58 (diag ~Ø88).
-// Note: a Ø74 shell cannot fit this panel or board.
-outer_d = 92;
-chamfer = 1.6;
-wall = 1.5;             // ≥1.2 mm aluminum in production
-overall_z = 18;         // lock after measuring rear connector stick-out
+// Ø74 fits board 51.7×47.15 (diag ~70). Measured display Ø83 does NOT fit Ø74 —
+// glass/AA below are nested for an Ø74 shell (use a ≤~70 AA panel, or raise outer_d).
+outer_d = 74;
+chamfer = 1.2;
+wall = 1.2;             // ≥1.2 mm aluminum in production
+// Head Z sized so mini-HDMI adapter (26 mm from PCB) can sit flush at the rear face.
+overall_z = 34;
 
 /* [Front — bezel + glass (optical bond target)] */
-// Marketing “2.8″” was wrong — measured active/display diameter is 83 mm.
-aa_d = 83;
-glass_od = 85;
+// Provisional nest inside Ø74 (not the earlier Ø83 panel).
+aa_d = 68;
+glass_od = 71;
 glass_thick = 1.1;
-glue_w = 1.0;           // seat shelf under glass rim (optical bond in production)
-bezel_lip = 0.9;
+glue_w = 1.0;
+bezel_lip = 0.7;
 lcd_pocket_z = 3.2;
 
 /* [Driver board — connectors face rear] */
-// Measured / confirmed: 66 × 58 mm (UEDX6911).
-board_w = 66;
-board_h = 58;
+// Measured PCB: 51.7 × 47.15 mm (diag ~70 → fits Ø74 with wall 1.2).
+board_w = 51.7;
+board_h = 47.15;
 board_thick = 1.6;
-board_clear_z = 8.5;
+board_clear_z = 6;
 board_corner_r = 2;
 board_y_shift = 0;
 
-/* [Rear ports — flush exits only (adapter body stays inside)] */
-// Outside you should see only the HDMI / USB-C openings, not dongle bodies.
-hdmi_w = 15.5;
-hdmi_h = 6.2;
-hdmi_x = -12;
+/* [Rear ports — flush exits; mini-HDMI adapter body inside] */
+// Mini-HDMI adapter protrudes 26 mm from the PCB toward the rear.
+// Board seat is recessed so only the port opening shows on the outside.
+hdmi_adapter_len = 26;  // from PCB to flush rear face
+hdmi_w = 11.5;          // mini-HDMI opening (caliper your plug)
+hdmi_h = 8.5;
+hdmi_x = -10;
 hdmi_y = -8;
 
 usbc_w = 9.2;
 usbc_h = 3.6;
-usbc_x = 14;
+usbc_x = 12;
 usbc_y = -8;
 
-port_inset = 0.35;
+port_inset = 0.4;
 
 /* [Rear mount boss] */
 mount_boss_d = 14;
@@ -61,13 +64,18 @@ mount_hole_d = 4.2;
 /* [Fit] */
 tolerance = 0.25;
 screw_d = 2.2;
-screw_circle = 38;
+screw_circle = 28;
 
 $fn = 128;
 
 function glass_seat_z() = bezel_lip + glass_thick;
 function front_z() = glass_seat_z() + lcd_pocket_z + 0.8;
-function back_z() = max(overall_z - front_z(), board_clear_z + wall + 2.5);
+// Rear depth: recess board so mini-HDMI (hdmi_adapter_len) ends flush at z=0.
+function board_seat_z() = hdmi_adapter_len;
+function back_z() = max(
+    overall_z - front_z(),
+    board_seat_z() + board_thick + 2
+);
 function unibody_z() = overall_z;
 
 module chamfered_disc(d, h, ch) {
@@ -94,12 +102,20 @@ module rear_ports(through_z) {
         cube([usbc_w + 2 * port_inset, usbc_h + 2 * port_inset, through_z], center = true);
 }
 
-// Clearance inside the pocket for recessed connector / adapter shells
+// Clearance tunnels from flush rear face up to the recessed board / adapter
 module port_tunnels() {
-    translate([hdmi_x, hdmi_y, wall - 0.05])
-        cube([hdmi_w + 2 * port_inset, hdmi_h + 2 * port_inset, board_clear_z], center = true);
-    translate([usbc_x, usbc_y, wall - 0.05])
-        cube([usbc_w + 2 * port_inset, usbc_h + 2 * port_inset, board_clear_z], center = true);
+    translate([hdmi_x, hdmi_y, board_seat_z() / 2])
+        cube([
+            hdmi_w + 2 * port_inset,
+            hdmi_h + 2 * port_inset,
+            board_seat_z() + 0.2
+        ], center = true);
+    translate([usbc_x, usbc_y, board_seat_z() / 2])
+        cube([
+            usbc_w + 2 * port_inset,
+            usbc_h + 2 * port_inset,
+            board_seat_z() + 0.2
+        ], center = true);
 }
 
 // Thin face markers so openings read in preview (not dongle bodies)
@@ -154,10 +170,10 @@ module ghost_glass() {
 }
 
 // ---------- BACK (prototype) ----------
-// z=0 outer back; z=back_z() mates to front
-// Look from the OPEN side (+Z): rectangular pocket = board seat 66×58.
+// z=0 outer back (flush mini-HDMI / USB-C exits); board recessed at board_seat_z().
 module back_v2() {
     z = back_z();
+    seat = board_seat_z();
     difference() {
         union() {
             cylinder(d = outer_d, h = z);
@@ -169,12 +185,12 @@ module back_v2() {
                         cylinder(d = 6.5, h = z);
         }
 
-        // Board seating pocket (not a full hollow cup — so the 66×58 seat is visible)
-        translate([0, board_y_shift, wall])
-            linear_extrude(height = z - wall + 0.1)
+        // Board seating pocket above the recessed plane
+        translate([0, board_y_shift, seat])
+            linear_extrude(height = z - seat + 0.1)
                 board_2d();
 
-        rear_ports(wall + 0.3);
+        rear_ports(wall + 0.4);
         port_tunnels();
 
         translate([0, 0, -mount_boss_h - 0.1])
@@ -189,7 +205,7 @@ module back_v2() {
 
 module ghost_board() {
     color("lime", 0.55)
-        translate([0, board_y_shift, wall + 0.2])
+        translate([0, board_y_shift, board_seat_z() + 0.2])
             linear_extrude(height = board_thick)
                 square([board_w, board_h], center = true);
 }
@@ -210,11 +226,10 @@ module unibody() {
     glass_z0 = z - bezel_lip - glass_thick;
     lcd_z0 = glass_z0 - lcd_pocket_z;
     lcd_d = glass_od - 2 * glue_w;
-    // Mid floor thickness between LCD pocket and board cavity
+    seat = board_seat_z();
     floor_top = lcd_z0;
-    board_cavity_h = board_clear_z + 1.0;
-    // Keep a solid floor: board cavity rises from wall up, stops below floor_top
-    board_cavity_top = min(wall + board_cavity_h, floor_top - 0.8);
+    // Board pocket from recessed seat up, leave a solid floor under the LCD
+    board_cavity_top = min(seat + board_clear_z + board_thick + 2, floor_top - 0.8);
 
     difference() {
         union() {
@@ -231,17 +246,14 @@ module unibody() {
         translate([0, 0, lcd_z0 - 0.05])
             cylinder(d = lcd_d + 2 * tolerance, h = lcd_pocket_z + 0.15);
 
-        // FPC channel toward rim
-        translate([0, -(glass_od / 2) + 2, lcd_z0 - 0.1])
-            cube([fpc_slot_w, 12, fpc_slot_h + lcd_pocket_z], center = true);
+        // FPC stays inside the LCD pocket — no side wall cutout.
 
-        // --- rear: rectangular board pocket (visible seat under the floor) ---
-        translate([0, board_y_shift, wall])
-            linear_extrude(height = max(0.2, board_cavity_top - wall + 0.2))
+        // --- rear: recessed board + mini-HDMI tunnel (26 mm) ---
+        translate([0, board_y_shift, seat])
+            linear_extrude(height = max(0.2, board_cavity_top - seat + 0.2))
                 board_2d();
 
-        // Flush HDMI + USB-C exits through rear wall under the board
-        rear_ports(wall + 0.3);
+        rear_ports(wall + 0.4);
         port_tunnels();
 
         translate([0, 0, -mount_boss_h - 0.1])
