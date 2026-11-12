@@ -18,10 +18,11 @@ logger = logging.getLogger(__name__)
 
 VIDEO_SUFFIXES = {".webm", ".mp4", ".mov"}
 MAX_VIDEO_FRAMES = 360
-# 15 fps keeps motion smooth enough and finishes in seconds on Pi Zero
-VIDEO_TARGET_FPS = 15.0
-# Bump when PNG/JPEG cache encoding changes so ensure_frames rebuilds on Pi.
-FRAME_CACHE_VERSION = 6
+# Pi Zero 2 W: 30 fps balances smooth rotation and RAM/CPU for cached playback.
+# GIFs preserve their original frame timing through the separate image pathway.
+VIDEO_TARGET_FPS = 30.0
+# Bump because video color and JPEG encoding have changed.
+FRAME_CACHE_VERSION = 7
 
 
 def list_frame_files(frame_dir: Path) -> list[Path]:
@@ -121,10 +122,10 @@ class MediaProcessor:
 
         vf = (
             f"fps={fps:.4f},"
-            f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:flags=bilinear:"
+            f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:flags=lanczos:"
             f"force_original_aspect_ratio=increase,"
-            f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT},"
-            "eq=contrast=1.35:brightness=0.12:gamma=1.25"
+            f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}"
+            # Preserve source colors: global eq caused clipped reds and halos.
         )
         pattern = dest_dir / "%04d.jpg"
         cmd = [
@@ -143,7 +144,7 @@ class MediaProcessor:
             "-frames:v",
             str(MAX_VIDEO_FRAMES),
             "-q:v",
-            "5",
+            "2",
             str(pattern),
         ]
         logger.info(
