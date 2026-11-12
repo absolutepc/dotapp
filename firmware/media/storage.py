@@ -94,50 +94,13 @@ class MediaStorage:
         return media_id, dest
 
     def register_builtin_assets(self) -> None:
-        """Sync built-in assets from repo into manifest."""
-        catalog_path = BUILTIN_ASSETS / "catalog.json"
-        display_names: dict[str, str] = {}
-        if catalog_path.exists():
-            for entry in json.loads(catalog_path.read_text(encoding="utf-8")):
-                display_names[entry["id"]] = entry.get("name", entry["id"])
+        """Keep only user-uploaded media in the xDot gallery.
 
-        existing = {m.id: m for m in self._read_manifest()}
-        items = [m for m in existing.values() if not m.builtin]
-
-        for category in ("bmw", "emoji"):
-            cat_dir = BUILTIN_ASSETS / category
-            if not cat_dir.is_dir():
-                continue
-            for path in sorted(cat_dir.iterdir()):
-                if path.suffix.lower() not in {
-                    ".png",
-                    ".gif",
-                    ".jpg",
-                    ".jpeg",
-                    ".webp",
-                    ".webm",
-                    # .mp4 siblings are browser-only mockup previews for WebM; skip
-                }:
-                    continue
-                asset_id = f"builtin-{category}-{path.stem}"
-                is_anim = path.suffix.lower() in {".gif", ".webm", ".webp"}
-                name = display_names.get(asset_id, path.stem.replace("-", " ").title())
-                # Prefer catalog-listed assets when present (skip orphan mp4/etc.)
-                if catalog_path.exists() and asset_id not in display_names:
-                    continue
-                items.append(
-                    MediaItem(
-                        id=asset_id,
-                        name=name,
-                        type="animation" if is_anim else "image",
-                        builtin=True,
-                        filename=str(path.relative_to(REPO_ROOT)),
-                        frame_count=1,
-                        fps=60.0,
-                        created_at=datetime.now(timezone.utc).isoformat(),
-                    )
-                )
-
+        Older releases registered bundled BMW and emoji assets at every API
+        startup. This migration removes those entries from the manifest while
+        preserving uploaded files and their cached frames.
+        """
+        items = [item for item in self._read_manifest() if not item.builtin]
         self._write_manifest(items)
 
     def resolve_source_path(self, item: MediaItem) -> Path:
