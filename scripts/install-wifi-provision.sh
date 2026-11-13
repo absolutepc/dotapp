@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# Install Wi-Fi provisioning (setup AP → phone hotspot client).
+# Run: sudo bash scripts/install-wifi-provision.sh
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+STATE_DIR="/var/lib/dot"
+PI_USER="${SUDO_USER:-${1:-mercy119}}"
+
+# Migrate legacy data dir
+if [[ -d /var/lib/bmw-logo && ! -d "${STATE_DIR}" ]]; then
+  mv /var/lib/bmw-logo "${STATE_DIR}"
+fi
+mkdir -p "${STATE_DIR}"
+
+# Remove legacy helpers/units (old flap-prone burst / restore only)
+systemctl disable --now bmw-wifi-apply.path bmw-wifi-apply.service 2>/dev/null || true
+systemctl disable --now dot-wifi-burst.service 2>/dev/null || true
+rm -f /etc/systemd/system/bmw-wifi-apply.path /etc/systemd/system/bmw-wifi-apply.service
+rm -f /etc/systemd/system/dot-wifi-burst.service
+rm -f /usr/local/sbin/bmw-wifi-apply /usr/local/sbin/bmw-enter-setup-ap /etc/sudoers.d/bmw-wifi-apply
+rm -f /usr/local/sbin/dot-wifi-burst /usr/local/sbin/dot-restore-wifi
+
+install -m 755 "${ROOT}/scripts/wifi-apply-client.sh" /usr/local/sbin/dot-wifi-apply
+install -m 755 "${ROOT}/scripts/enter-setup-ap.sh" /usr/local/sbin/dot-enter-setup-ap
+install -m 755 "${ROOT}/scripts/dot-wifi-boot.sh" /usr/local/sbin/dot-wifi-boot
+install -m 755 "${ROOT}/scripts/dot-wifi-join.sh" /usr/local/sbin/dot-wifi-join
+install -m 755 "${ROOT}/scripts/dot-wifi-keepalive.sh" /usr/local/sbin/dot-wifi-keepalive
+install -m 755 "${ROOT}/scripts/dot-wifi-diagnose.sh" /usr/local/sbin/dot-wifi-diagnose
+install -m 755 "${ROOT}/scripts/dot-wifi-use-hotspot.sh" /usr/local/sbin/dot-wifi-use-hotspot
+install -m 755 "${ROOT}/scripts/dot-wifi-watch.sh" /usr/local/sbin/dot-wifi-watch
+
+# HDMI setup screen helper (enter-setup-ap looks here when installed under /usr/local/sbin)
+mkdir -p /usr/local/share/dot
+install -m 644 "${ROOT}/scripts/render-setup-screen.py" /usr/local/share/dot/render-setup-screen.py
+
+install -m 644 "${ROOT}/firmware/systemd/dot-wifi-apply.service" /etc/systemd/system/dot-wifi-apply.service
+install -m 644 "${ROOT}/firmware/systemd/dot-wifi-apply.path" /etc/systemd/system/dot-wifi-apply.path
+install -m 644 "${ROOT}/firmware/systemd/dot-wifi-boot.service" /etc/systemd/system/dot-wifi-boot.service
+install -m 644 "${ROOT}/firmware/systemd/dot-wifi-keepalive.service" /etc/systemd/system/dot-wifi-keepalive.service
+install -m 644 "${ROOT}/firmware/systemd/dot-wifi-keepalive.timer" /etc/systemd/system/dot-wifi-keepalive.timer
+install -m 644 "${ROOT}/firmware/systemd/dot-wifi-watch.service" /etc/systemd/system/dot-wifi-watch.service
+
+# Stable client Wi-Fi (no scan MAC randomization / powersave)
+if [[ -f "${ROOT}/firmware/NetworkManager/99-dot-wifi.conf" ]]; then
+  install -m 644 "${ROOT}/firmware/NetworkManager/99-dot-wifi.conf" \
+    /etc/NetworkManager/conf.d/99-dot-wifi.conf
+  systemctl reload NetworkManager 2>/dev/null || true
+fi
+
+# Harden existing hotspot profile only if currently DOWN (modify while up causes flaps)
+if command -v nmcli >/dev/null 2>&1 && nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot"; then
+  active="$(nmcli -g GENERAL.CONNECTION device show wlan0 2>/dev/null || true)"
+  if [[ "${active}" != "dot-phone-hotspot" ]]; then
+    nmcli connection modify dot-phone-hotspot \
+      connection.autoconnect yes \
+      connection.autoconnect-priority 200 \
+      connection.autoconnect-retries 0 \
+      connection.wait-device-timeout 15 \
+      ipv4.dhcp-timeout 30 \
+      ipv6.method ignore \
+      802-11-wireless.mac-address-randomization never \
+      802-11-wireless.powersave 2 \
+      2>/dev/null || true
+    touch "${STATE_DIR}/.hotspot-profile-hardened" 2>/dev/null || true
+  fi
+fi
+
+# Passwordless apply for the service account (API runs as PI_USER)
+cat >/etc/sudoers.d/dot-wifi-apply <<EOF
+${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-wifi-apply
+${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-enter-setup-ap
+${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-wifi-join
+${PI_USER} ALL=(root) NOPASSWD: /usr/local/sbin/dot-wifi-use-hotspot
+${PI_USER} ALL=(root) NOPASSWD: /bin/systemctl start dot-wifi-apply.service
+${PI_USER} ALL=(root) NOPASSWD: /bin/systemctl start dot-wifi-boot.service
+${PI_USER} ALL=(root) NOPASSWD: /bin/systemctl start dot-wifi-watch.service
+EOF
+chmod 440 /etc/sudoers.d/dot-wifi-apply
+
+chown -R "${PI_USER}:${PI_USER}" "${STATE_DIR}"
+chmod 755 "${STATE_DIR}"
+touch "${STATE_DIR}/wifi-status.json" "${STATE_DIR}/wifi-mode.json"
+chown "${PI_USER}:${PI_USER}" "${STATE_DIR}/wifi-status.json" "${STATE_DIR}/wifi-mode.json"
+chmod 664 "${STATE_DIR}/wifi-status.json" "${STATE_DIR}/wifi-mode.json"
+
+systemctl daemon-reload
+systemctl enable --now dot-wifi-apply.path
+systemctl enable dot-wifi-boot.service
+systemctl enable --now dot-wifi-keepalive.timer
+systemctl enable --now dot-wifi-watch.service
+
+# mDNS for day-to-day discovery (hostname.local)
+if command -v apt-get >/dev/null; then
+  if ! command -v avahi-daemon >/dev/null 2>&1; then
+    apt-get install -y -qq avahi-daemon 2>/dev/null || true
+  fi
+  if ! command -v iw >/dev/null 2>&1; then
+    apt-get install -y -qq iw 2>/dev/null || true
+  fi
+fi
+if [[ -f "${ROOT}/firmware/avahi/dot.service" ]]; then
+  mkdir -p /etc/avahi/services
+  install -m 644 "${ROOT}/firmware/avahi/dot.service" /etc/avahi/services/dot.service
+  systemctl enable --now avahi-daemon 2>/dev/null || true
+  systemctl reload avahi-daemon 2>/dev/null || true
+fi
+
+# Default role is setup (Dot-Setup AP). Modem client only after the app
+# finishes «Подключить Dot» / sudo dot-wifi-use-hotspot.
+if [[ ! -f "${STATE_DIR}/wifi-role" ]]; then
+  echo "setup" >"${STATE_DIR}/wifi-role"
+fi
+chown "${PI_USER}:${PI_USER}" "${STATE_DIR}/wifi-role" 2>/dev/null || true
+
+ROLE="$(tr -d '[:space:]' <"${STATE_DIR}/wifi-role" 2>/dev/null || echo setup)"
+if [[ "${ROLE}" == "client" ]] && nmcli -t -f NAME connection show 2>/dev/null | grep -Fxq "dot-phone-hotspot"; then
+  echo "wifi-role=client — joining phone hotspot…"
+  systemctl enable --now dot-wifi-watch.service 2>/dev/null || true
+  /usr/local/sbin/dot-wifi-use-hotspot || /usr/local/sbin/dot-wifi-join || true
+else
+  echo "wifi-role=${ROLE:-setup} — starting Dot-Setup AP (no modem assumed)…"
+  systemctl stop dot-wifi-watch.service 2>/dev/null || true
+  systemctl start dot-wifi-boot.service || /usr/local/sbin/dot-enter-setup-ap || true
+fi
+
+echo "Wi-Fi provisioning installed for user: ${PI_USER}"
+echo "  Role file:       ${STATE_DIR}/wifi-role  (setup | client)"
+echo "  First connect:   phone → Dot-Setup-… → app wizard → then modem"
+echo "  Force Setup AP:  sudo dot-enter-setup-ap"
+echo "  Force modem:     sudo dot-wifi-use-hotspot"
+echo "  Diagnose:        sudo dot-wifi-diagnose"
+echo "  Portal:          http://192.168.4.1/setup/"
+echo "  Status API:      http://127.0.0.1:8080/api/wifi/status"
+echo "  mDNS:            http://$(hostname 2>/dev/null).local:8080"

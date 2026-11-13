@@ -1,0 +1,8 @@
+[Unit]
+Description=Dot soft Wi-Fi keepalive (phone hotspot)
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/dot-wifi-keepalive
+Nice=10

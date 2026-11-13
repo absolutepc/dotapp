@@ -4,8 +4,8 @@
 set -euo pipefail
 
 SSID_SUFFIX="${1:-$(hostname | tail -c 5)}"
-WPA_PASS="${2:-bmwlogo2024}"
-SSID="BMW-Logo-${SSID_SUFFIX}"
+WPA_PASS="${2:-dotapp2024}"
+SSID="Dot-${SSID_SUFFIX}"
 AP_IP="192.168.4.1"
 
 echo "Setting up AP: ${SSID}"
@@ -45,12 +45,12 @@ fi
 
 # Avoid dnsmasq conflicting with systemd-resolved / NM stub DNS on boot
 mkdir -p /etc/dnsmasq.d
-cat >/etc/dnsmasq.d/bmw-logo.conf <<EOF
+cat >/etc/dnsmasq.d/dot.conf <<EOF
 interface=wlan0
 bind-interfaces
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
 domain=local
-address=/bmw-logo.local/${AP_IP}
+address=/dot.local/${AP_IP}
 EOF
 
 # Bookworm/Trixie may not ship ifupdown dirs — create them
@@ -65,7 +65,7 @@ EOF
 # NetworkManager must not manage wlan0, or hostapd cannot bind it
 if command -v nmcli >/dev/null 2>&1; then
   mkdir -p /etc/NetworkManager/conf.d
-  cat >/etc/NetworkManager/conf.d/99-bmw-logo-unmanaged.conf <<EOF
+  cat >/etc/NetworkManager/conf.d/99-dot-unmanaged.conf <<EOF
 [keyfile]
 unmanaged-devices=interface-name:wlan0
 EOF
