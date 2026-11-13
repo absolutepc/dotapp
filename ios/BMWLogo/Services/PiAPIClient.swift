@@ -40,7 +40,7 @@ final class PiAPIClient: ObservableObject {
         await refresh()
     }
 
-    func upload(data: Data, filename: String, mimeType: String) async throws -> UploadResponse {
+    func upload(data: Data, filename: String, mimeType: String, crop: [String: Double]? = nil) async throws -> UploadResponse {
         let boundary = UUID().uuidString
         var request = URLRequest(url: baseURL.appending(path: "/api/upload"))
         request.httpMethod = "POST"
@@ -51,6 +51,12 @@ final class PiAPIClient: ObservableObject {
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n")
         body.append("Content-Type: \(mimeType)\r\n\r\n")
         body.append(data)
+        if let crop {
+            let jsonData = try JSONSerialization.data(withJSONObject: crop)
+            body.append("\r\n--\(boundary)\r\n")
+            body.append("Content-Disposition: form-data; name=\"crop\"\r\n\r\n")
+            body.append(jsonData)
+        }
         body.append("\r\n--\(boundary)--\r\n")
         request.httpBody = body
 

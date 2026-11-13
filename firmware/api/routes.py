@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import json
+import math
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -89,7 +91,23 @@ def gallery() -> list[dict]:
 
 
 @router.post("/upload")
-async def upload(file: UploadFile = File(...)) -> dict:
+async def upload(file: UploadFile = File(...), crop: str | None = Form(None)) -> dict:
+    # Optional source-relative crop chosen in the 71 mm round preview.
+    crop_rect: dict[str, float] | None = None
+    if crop is not None:
+        try:
+            parsed = json.loads(crop)
+            if not isinstance(parsed, dict) or set(parsed) != {"x", "y", "w", "h"}:
+                raise ValueError("Expected x, y, w, h")
+            crop_rect = {k: float(parsed[k]) for k in ("x", "y", "w", "h")}
+            x, y, w, h = (crop_rect[k] for k in ("x", "y", "w", "h"))
+            if not all(math.isfinite(v) for v in (x, y, w, h)):
+                raise ValueError("Non-finite crop")
+            if x < 0 or y < 0 or w < 0.02 or h < 0.02 or x + w > 1.00001 or y + h > 1.00001:
+                raise ValueError("Crop outside source")
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid crop: {exc}") from exc
+
     data = await file.read()
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large")
@@ -98,13 +116,13 @@ async def upload(file: UploadFile = File(...)) -> dict:
         raise HTTPException(status_code=400, detail="Missing filename")
 
     suffix = Path(file.filename).suffix.lower()
-    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".webm", ".mp4"}
+    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".webm", ".mp4", ".mov"}
     if suffix not in allowed:
         raise HTTPException(status_code=400, detail=f"Unsupported type: {suffix}")
 
     media_id, dest = storage.save_upload(file.filename, data)
     name = Path(file.filename).stem.replace("-", " ").title()
-    item = processor.process_file(media_id, dest, name, builtin=False)
+    item = processor.process_file(media_id, dest, name, builtin=False, crop=crop_rect)
     return {"media_id": item.id, "name": item.name, "type": item.type}
 
 

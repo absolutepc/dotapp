@@ -40,9 +40,20 @@ class MediaProcessor:
         self.storage = storage or MediaStorage()
         self._mask = create_circle_mask()
 
-    def _fit_square(self, image: Image.Image) -> Image.Image:
+    def _fit_square(self, image: Image.Image, crop: dict[str, float] | None = None) -> Image.Image:
+        rgba = image.convert("RGBA")
+        if crop:
+            left = int(round(crop["x"] * rgba.width))
+            top = int(round(crop["y"] * rgba.height))
+            right = int(round((crop["x"] + crop["w"]) * rgba.width))
+            bottom = int(round((crop["y"] + crop["h"]) * rgba.height))
+            left = max(0, min(left, rgba.width - 1))
+            top = max(0, min(top, rgba.height - 1))
+            right = max(left + 1, min(right, rgba.width))
+            bottom = max(top + 1, min(bottom, rgba.height))
+            rgba = rgba.crop((left, top, right, bottom))
         return ImageOps.fit(
-            image.convert("RGBA"),
+            rgba,
             (DISPLAY_WIDTH, DISPLAY_HEIGHT),
             method=Image.Resampling.LANCZOS,
             centering=(0.5, 0.5),
@@ -104,7 +115,9 @@ class MediaProcessor:
                 return sibling
         return source
 
-    def _extract_video_frames(self, source: Path, dest_dir: Path) -> tuple[list[Path], float]:
+    def _extract_video_frames(
+        self, source: Path, dest_dir: Path, crop: dict[str, float] | None = None
+    ) -> tuple[list[Path], float]:
         """Extract WebM/MP4 directly to final 480x480 JPEGs (no per-frame Pillow)."""
         if shutil.which("ffmpeg") is None:
             raise RuntimeError(
@@ -119,8 +132,16 @@ class MediaProcessor:
             fps = VIDEO_TARGET_FPS
         fps = max(fps, 1.0)
 
+        crop_filter = ""
+        if crop:
+            # ffmpeg autorotates display-oriented video before the filter chain.
+            crop_filter = (
+                f"crop=iw*{crop['w']:.8f}:ih*{crop['h']:.8f}:"
+                f"iw*{crop['x']:.8f}:ih*{crop['y']:.8f},"
+            )
         vf = (
             f"fps={fps:.4f},"
+            f"{crop_filter}"
             f"scale={DISPLAY_WIDTH}:{DISPLAY_HEIGHT}:flags=bilinear:"
             f"force_original_aspect_ratio=increase,"
             f"crop={DISPLAY_WIDTH}:{DISPLAY_HEIGHT},"
@@ -169,6 +190,7 @@ class MediaProcessor:
         source: Path,
         name: str,
         builtin: bool = False,
+        crop: dict[str, float] | None = None,
     ) -> MediaItem:
         suffix = source.suffix.lower()
         from firmware.config import FRAMES_DIR
@@ -184,7 +206,7 @@ class MediaProcessor:
 
         if suffix in VIDEO_SUFFIXES:
             # Write final JPEGs straight into frame_dir (fast path for Pi Zero)
-            frame_paths, fps = self._extract_video_frames(source, frame_dir)
+            frame_paths, fps = self._extract_video_frames(source, frame_dir, crop)
             durations = [1.0 / fps] * len(frame_paths)
             media_type = "animation"
         elif suffix == ".gif":
@@ -202,7 +224,7 @@ class MediaProcessor:
                     else:
                         canvas = composed
 
-                    fitted = self._ensure_visible(self._fit_square(composed))
+                    fitted = self._ensure_visible(self._fit_square(composed, crop))
                     masked = apply_circle_mask(fitted, self._mask)
                     out = frame_dir / f"{idx:04d}.png"
                     masked.convert("RGB").save(out)
@@ -213,7 +235,7 @@ class MediaProcessor:
             fps = 1.0 / (sum(durations) / len(durations)) if durations else TARGET_FPS
         else:
             with Image.open(source) as im:
-                fitted = self._ensure_visible(self._fit_square(im))
+                fitted = self._ensure_visible(self._fit_square(im, crop))
                 masked = apply_circle_mask(fitted, self._mask)
                 out = frame_dir / "0000.png"
                 masked.convert("RGB").save(out)
@@ -257,6 +279,7 @@ class MediaProcessor:
             filename=filename,
             frame_count=len(frame_paths),
             fps=fps,
+            crop=crop,
         )
         # Always refresh manifest entry (fps/frame_count matter for display)
         self.storage.add(item)
@@ -312,4 +335,4 @@ class MediaProcessor:
             return
 
         logger.info("Rebuilding frames for %s from %s", item.id, source.name)
-        self.process_file(item.id, source, item.name, builtin=item.builtin)
+        self.process_file(item.id, source, item.name, builtin=item.builtin, crop=item.crop)

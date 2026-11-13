@@ -367,6 +367,48 @@
       flex-direction: column;
       gap: 16px;
     }
+
+    /* Interactive Instagram-style crop; same source rectangle for every frame. */
+    .crop-editor[hidden] { display: none !important; }
+    .crop-editor { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .crop-stage {
+      width: min(300px, 76vw);
+      aspect-ratio: 1;
+      position: relative;
+      background: #090909;
+      touch-action: none;
+      user-select: none;
+      cursor: grab;
+    }
+    .crop-stage:active { cursor: grabbing; }
+    .crop-viewport {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: 50%;
+      background: #000;
+      border: 2px solid rgba(255,255,255,.85);
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .crop-source {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+      object-fit: cover;
+      transform-origin: center center;
+      pointer-events: none;
+      max-width: none;
+      display: none;
+    }
+    .crop-label { color: var(--secondary-label); font-size: 13px; text-align: center; }
+    .crop-zoom { display: flex; align-items: center; width: 100%; gap: 10px; }
+    .crop-zoom input { flex: 1; min-width: 0; }
+    .crop-zoom button {
+      border: 0; border-radius: 9px; padding: 7px 10px;
+      background: var(--secondary-bg); color: var(--label); font: inherit;
+    }
     .hint {
       font-size: 12px;
       color: var(--secondary-label);
@@ -523,7 +565,24 @@
         <div class="upload-body">
           <input id="fileInput" type="file" accept="image/*,.gif,.webp,.webm,.mp4,video/*" hidden />
           <button class="btn btn-primary" type="button" onclick="document.getElementById('fileInput').click()">Choose from Photos</button>
-          <div class="hint">Images are resized on the Pi after upload. GIF and WebM both play on the round display (up to 360 frames).</div>
+          <div class="crop-editor" id="cropEditor" hidden>
+            <div class="crop-label">Круг Ø 71 мм · дисплей 480 × 480</div>
+            <div class="crop-stage" id="cropStage" aria-label="Перемещайте изображение внутри круга">
+              <div class="crop-viewport">
+                <img class="crop-source" id="cropImage" alt="Предпросмотр обрезки" />
+                <video class="crop-source" id="cropVideo" muted autoplay loop playsinline></video>
+              </div>
+            </div>
+            <div class="crop-label">Передвигайте изображение пальцем и меняйте масштаб двумя пальцами.</div>
+            <div class="crop-zoom">
+              <span>−</span>
+              <input id="cropZoom" type="range" min="1" max="4" step=".01" value="1" aria-label="Масштаб" />
+              <span>+</span>
+              <button type="button" id="cropReset">Сброс</button>
+            </div>
+            <button class="btn btn-primary" type="button" id="cropSubmit" disabled>Обрезать и загрузить</button>
+          </div>
+          <div class="hint">Область за пределами круга будет чёрной; для GIF и видео положение обрезки одинаковое во всех кадрах.</div>
           <div class="hint" id="uploadHint">Upload works in Live Pi mode.</div>
         </div>
       </div>
@@ -929,6 +988,7 @@
     }
 
     function closeSheets() {
+      resetCropFile();
       document.getElementById("backdrop").classList.remove("show");
       document.getElementById("sheet-preview").classList.remove("show");
       document.getElementById("sheet-upload").classList.remove("show");
@@ -1063,31 +1123,207 @@
       showToast._timer = setTimeout(() => t.classList.remove("show"), 2200);
     }
 
-    document.getElementById("fileInput").addEventListener("change", async (ev) => {
-      const file = ev.target.files && ev.target.files[0];
-      ev.target.value = "";
-      if (!file) return;
-      if (mode !== "live") {
-        showToast("Переключитесь в Live Pi для upload");
-        return;
+
+    // The crop is a square in source pixel coordinates. Its normalized dimensions
+    // are sent to the Pi, which applies them to every GIF/video frame before masking.
+    let cropFile = null;
+    let cropURL = null;
+    let cropWidth = 0;
+    let cropHeight = 0;
+    let cropZoom = 1;
+    let cropDX = 0;
+    let cropDY = 0;
+    let cropBusy = false;
+    const cropPointers = new Map();
+    let cropGesture = null;
+    const cropStage = document.getElementById("cropStage");
+    const cropImage = document.getElementById("cropImage");
+    const cropVideo = document.getElementById("cropVideo");
+    const zoomSlider = document.getElementById("cropZoom");
+
+    function resetCropFile() {
+      cropVideo.pause();
+      cropVideo.removeAttribute("src");
+      cropImage.removeAttribute("src");
+      if (cropURL) URL.revokeObjectURL(cropURL);
+      cropFile = null;
+      cropURL = null;
+      cropWidth = cropHeight = 0;
+      cropPointers.clear();
+      cropGesture = null;
+      document.getElementById("cropEditor").hidden = true;
+      document.getElementById("cropSubmit").disabled = true;
+    }
+
+    function clampCrop() {
+      if (!cropWidth || !cropHeight) return;
+      const size = cropStage.clientWidth;
+      const scale = Math.max(size / cropWidth, size / cropHeight) * cropZoom;
+      const maxX = Math.max(0, (cropWidth * scale - size) / 2);
+      const maxY = Math.max(0, (cropHeight * scale - size) / 2);
+      cropDX = Math.max(-maxX, Math.min(maxX, cropDX));
+      cropDY = Math.max(-maxY, Math.min(maxY, cropDY));
+    }
+
+    function renderCrop() {
+      clampCrop();
+      const transform = "translate(" + cropDX + "px," + cropDY + "px) scale(" + cropZoom + ")";
+      cropImage.style.transform = transform;
+      cropVideo.style.transform = transform;
+      zoomSlider.value = cropZoom;
+    }
+
+    function cropRect() {
+      const size = cropStage.clientWidth;
+      const scale = Math.max(size / cropWidth, size / cropHeight) * cropZoom;
+      const side = size / scale;
+      const left = Math.max(0, Math.min(cropWidth - side, (cropWidth - side) / 2 - cropDX / scale));
+      const top = Math.max(0, Math.min(cropHeight - side, (cropHeight - side) / 2 - cropDY / scale));
+      return {
+        x: Number((left / cropWidth).toFixed(7)),
+        y: Number((top / cropHeight).toFixed(7)),
+        w: Number((side / cropWidth).toFixed(7)),
+        h: Number((side / cropHeight).toFixed(7)),
+      };
+    }
+
+    function prepareCrop(file) {
+      resetCropFile();
+      cropFile = file;
+      cropURL = URL.createObjectURL(file);
+      cropZoom = 1;
+      cropDX = cropDY = 0;
+      zoomSlider.value = "1";
+      document.getElementById("cropEditor").hidden = false;
+      const isMovie = file.type.startsWith("video/") || /\.(mp4|webm|mov)$/i.test(file.name);
+      cropImage.style.display = isMovie ? "none" : "block";
+      cropVideo.style.display = isMovie ? "block" : "none";
+      const onReady = (width, height) => {
+        if (!width || !height) {
+          showToast("Невозможно определить размеры медиа");
+          return;
+        }
+        cropWidth = width;
+        cropHeight = height;
+        renderCrop();
+        document.getElementById("cropSubmit").disabled = false;
+      };
+      if (isMovie) {
+        cropVideo.onloadedmetadata = () => onReady(cropVideo.videoWidth, cropVideo.videoHeight);
+        cropVideo.onerror = () => showToast("Видео не поддерживается браузером");
+        cropVideo.src = cropURL;
+        cropVideo.play().catch(() => {});
+      } else {
+        cropImage.onload = () => onReady(cropImage.naturalWidth, cropImage.naturalHeight);
+        cropImage.onerror = () => showToast("Не удалось открыть изображение или GIF");
+        cropImage.src = cropURL;
       }
+    }
+
+    zoomSlider.addEventListener("input", (event) => {
+      cropZoom = Number(event.target.value);
+      renderCrop();
+    });
+    document.getElementById("cropReset").addEventListener("click", () => {
+      cropZoom = 1;
+      cropDX = cropDY = 0;
+      renderCrop();
+    });
+    cropStage.addEventListener("wheel", (event) => {
+      if (!cropFile) return;
+      event.preventDefault();
+      cropZoom = Math.max(1, Math.min(4, cropZoom * (event.deltaY < 0 ? 1.05 : 0.95)));
+      renderCrop();
+    }, { passive: false });
+
+    function pointDistance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+    function gestureStart() {
+      const pts = Array.from(cropPointers.values());
+      if (pts.length === 1) {
+        cropGesture = { x: pts[0].x, y: pts[0].y, dx: cropDX, dy: cropDY };
+      } else if (pts.length >= 2) {
+        cropGesture = {
+          distance: Math.max(1, pointDistance(pts[0], pts[1])),
+          zoom: cropZoom, dx: cropDX, dy: cropDY,
+          x: (pts[0].x + pts[1].x) / 2,
+          y: (pts[0].y + pts[1].y) / 2,
+        };
+      }
+    }
+    cropStage.addEventListener("pointerdown", (event) => {
+      if (!cropFile || !cropWidth) return;
+      cropStage.setPointerCapture(event.pointerId);
+      cropPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      gestureStart();
+    });
+    cropStage.addEventListener("pointermove", (event) => {
+      if (!cropPointers.has(event.pointerId)) return;
+      cropPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const pts = Array.from(cropPointers.values());
+      if (!cropGesture) return;
+      if (pts.length === 1) {
+        cropDX = cropGesture.dx + pts[0].x - cropGesture.x;
+        cropDY = cropGesture.dy + pts[0].y - cropGesture.y;
+      } else if (pts.length >= 2 && cropGesture.distance) {
+        cropZoom = Math.max(1, Math.min(4,
+          cropGesture.zoom * pointDistance(pts[0], pts[1]) / cropGesture.distance));
+        cropDX = cropGesture.dx + (pts[0].x + pts[1].x) / 2 - cropGesture.x;
+        cropDY = cropGesture.dy + (pts[0].y + pts[1].y) / 2 - cropGesture.y;
+      }
+      renderCrop();
+    });
+    function gestureEnd(event) {
+      cropPointers.delete(event.pointerId);
+      gestureStart();
+    }
+    cropStage.addEventListener("pointerup", gestureEnd);
+    cropStage.addEventListener("pointercancel", gestureEnd);
+
+    document.getElementById("cropSubmit").addEventListener("click", async () => {
+      if (!cropFile || !cropWidth || cropBusy || mode !== "live") return;
+      cropBusy = true;
+      const button = document.getElementById("cropSubmit");
+      button.disabled = true;
+      button.textContent = "Загрузка…";
       const body = new FormData();
-      body.append("file", file, file.name);
+      body.append("file", cropFile, cropFile.name);
+      body.append("crop", JSON.stringify(cropRect()));
       try {
-        const res = await fetch(`${apiBase()}/api/upload`, { method: "POST", body });
-        if (!res.ok) throw new Error("upload failed");
-        const data = await res.json();
-        await fetch(`${apiBase()}/api/display`, {
+        const res = await fetch(apiBase() + "/api/upload", { method: "POST", body });
+        if (!res.ok) {
+          const errorBody = await res.text();
+          throw new Error("Upload " + res.status + ": " + errorBody.slice(0, 150));
+        }
+        const uploaded = await res.json();
+        const displayRes = await fetch(apiBase() + "/api/display", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ media_id: data.media_id }),
+          body: JSON.stringify({ media_id: uploaded.media_id }),
         });
+        if (!displayRes.ok) throw new Error("Display " + displayRes.status);
         closeSheets();
         await loadLive();
-        showToast("Applied — Image sent to the round display.");
-      } catch (e) {
-        showToast("Upload failed");
+        showToast("Медиа обрезано и отправлено на xDot");
+      } catch (error) {
+        showToast("Ошибка: " + error.message);
+      } finally {
+        cropBusy = false;
+        button.textContent = "Обрезать и загрузить";
+        button.disabled = !cropFile || !cropWidth;
       }
+    });
+
+    document.getElementById("fileInput").addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = "";
+      if (!file) return;
+      if (mode !== "live") {
+        showToast("Переключитесь в Live Pi для загрузки");
+        return;
+      }
+      prepareCrop(file);
     });
 
     function tickClock() {
