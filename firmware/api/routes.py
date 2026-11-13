@@ -116,7 +116,7 @@ async def upload(file: UploadFile = File(...), crop: str | None = Form(None)) ->
         raise HTTPException(status_code=400, detail="Missing filename")
 
     suffix = Path(file.filename).suffix.lower()
-    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".webm", ".mp4"}
+    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".webm", ".mp4", ".mov"}
     if suffix not in allowed:
         raise HTTPException(status_code=400, detail=f"Unsupported type: {suffix}")
 
