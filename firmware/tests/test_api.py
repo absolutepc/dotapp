@@ -76,3 +76,32 @@ def test_circle_mask_frame_size():
     assert result.size == (480, 480)
     # Corner should be black
     assert result.getpixel((0, 0)) == (0, 0, 0, 255)
+
+
+def test_wifi_configure_writes_request(client, tmp_path, monkeypatch):
+    test_client, _ = client
+    import firmware.api.wifi as wifi
+
+    monkeypatch.setattr(wifi, "DATA_ROOT", tmp_path)
+    monkeypatch.setattr(wifi, "WIFI_REQUEST", tmp_path / "wifi-request.json")
+    monkeypatch.setattr(wifi, "WIFI_STATUS", tmp_path / "wifi-status.json")
+    monkeypatch.setattr(wifi, "WIFI_MODE", tmp_path / "wifi-mode.json")
+    monkeypatch.setattr(wifi, "WIFI_CLIENT", tmp_path / "wifi-client.json")
+    monkeypatch.setattr(wifi, "_trigger_apply", lambda: None)
+
+    bad = test_client.post("/api/wifi/configure", json={"ssid": "Phone", "password": "short"})
+    assert bad.status_code == 422
+
+    ok = test_client.post(
+        "/api/wifi/configure",
+        json={"ssid": "iPhone Hotspot", "password": "secret123"},
+    )
+    assert ok.status_code == 200
+    assert (tmp_path / "wifi-request.json").exists()
+    data = json.loads((tmp_path / "wifi-request.json").read_text(encoding="utf-8"))
+    assert data["ssid"] == "iPhone Hotspot"
+    assert data["password"] == "secret123"
+
+    status = test_client.get("/api/wifi/status")
+    assert status.status_code == 200
+    assert status.json()["mode"] == "switching"
