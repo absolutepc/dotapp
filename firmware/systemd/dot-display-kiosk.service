@@ -1,0 +1,40 @@
+[Unit]
+Description=Dot HDMI Display Renderer (kiosk, no desktop)
+After=local-fs.target systemd-udevd.service
+Wants=dot-api.service
+Before=getty@tty1.service
+Conflicts=getty@tty1.service
+StartLimitIntervalSec=120
+StartLimitBurst=15
+
+[Service]
+Type=simple
+# Root + KMSDRM (no seat).
+User=root
+WorkingDirectory=/opt/dot
+Environment=PYTHONPATH=/opt/dot
+Environment=SDL_VIDEODRIVER=KMSDRM
+Environment=SDL_AUDIODRIVER=dummy
+Environment=SDL_VIDEO_EGL_DRIVER=libEGL.so.1
+Environment=SDL_VIDEO_GL_DRIVER=libGLESv2.so.2
+Environment=XDG_RUNTIME_DIR=/run/dot-display
+# Product power-on splash (set 0 to skip straight to logo frames)
+Environment=DOT_BOOT_SPLASH=1
+# Create runtime dir; wait for DRM
+ExecStartPre=/bin/sh -c 'mkdir -p /run/dot-display; chmod 700 /run/dot-display; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -e /dev/dri/card0 ] || [ -e /dev/dri/card1 ] && exit 0; sleep 0.5; done; exit 0'
+# Unbind kernel framebuffer console so KMSDRM owns HDMI (otherwise e2fsck text stays visible)
+ExecStartPre=/bin/sh -c 'for v in /sys/class/vtconsole/vtcon*/bind; do echo 0 > "$v" 2>/dev/null || true; done; if [ -e /sys/class/graphics/fbcon/cursor_blink ]; then echo 0 > /sys/class/graphics/fbcon/cursor_blink 2>/dev/null || true; fi'
+StandardInput=null
+StandardOutput=journal
+StandardError=journal
+ExecStart=/opt/dot/.venv/bin/python -m firmware.display.hdmi_renderer
+# Always restart — clean exits were leaving a black console
+Restart=always
+RestartSec=2
+TimeoutStopSec=3
+KillMode=control-group
+FinalKillSignal=SIGKILL
+SendSIGKILL=yes
+
+[Install]
+WantedBy=multi-user.target

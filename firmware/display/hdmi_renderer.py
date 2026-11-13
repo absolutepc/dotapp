@@ -5,8 +5,19 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
+import time
 from collections import OrderedDict
 from pathlib import Path
+
+# Must be set before importing pygame/SDL — otherwise ALSA hotplug threads
+# start and hang systemd stop (SIGKILL of SDLHotplugALSA).
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+os.environ.setdefault("SDL_VIDEODRIVER", "KMSDRM")
+os.environ.setdefault("SDL_VIDEO_EGL_DRIVER", "libEGL.so.1")
+os.environ.setdefault("SDL_VIDEO_GL_DRIVER", "libGLESv2.so.2")
+if not os.environ.get("XDG_RUNTIME_DIR"):
+    os.environ["XDG_RUNTIME_DIR"] = "/run/dot-display"
 
 import pygame
 from PIL import Image
@@ -18,42 +29,82 @@ from firmware.config import (
     FRAMES_DIR,
     TARGET_FPS,
 )
+from firmware.display.boot_splash import play_power_on_splash
+from firmware.state import get_brightness
 
-# Full preload is smooth but RAM-heavy on Pi Zero 2W (~0.66MB/frame RGB).
-# Animations up to MAX_GIF_FRAMES (360) stream from disk with an LRU cache
-# plus short lookahead prefetch so sequential playback stays smooth.
-PRELOAD_FRAME_LIMIT = 180
-SURFACE_CACHE_SIZE = 64
-PREFETCH_AHEAD = 8
+# Never RAM-preload full clips on Pi Zero: blocking the loop makes the X11/SDL
+# window look like it closed, and long stalls can trip the window manager.
+# Always stream from disk with a small LRU + lookahead prefetch.
+PRELOAD_FRAME_LIMIT = 0
+SURFACE_CACHE_SIZE = 48
+PREFETCH_AHEAD = 12
 
 
 def _init_pygame_display() -> pygame.Surface:
-    """Try SDL drivers in order: env override, kmsdrm, fbcon, x11."""
+    """Try SDL drivers until a *real* on-screen backend works (not offscreen)."""
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    os.environ.setdefault("SDL_VIDEO_EGL_DRIVER", "libEGL.so.1")
+    os.environ.setdefault("SDL_VIDEO_GL_DRIVER", "libGLESv2.so.2")
+    runtime = Path(os.environ.get("XDG_RUNTIME_DIR") or "/run/dot-display")
+    try:
+        runtime.mkdir(parents=True, exist_ok=True)
+        os.environ["XDG_RUNTIME_DIR"] = str(runtime)
+    except OSError:
+        os.environ["XDG_RUNTIME_DIR"] = "/tmp"
+
     preferred = os.environ.get("SDL_VIDEODRIVER")
-    drivers = [preferred] if preferred else []
-    for driver in ("kmsdrm", "fbcon", "x11"):
+    drivers: list[str] = []
+    if preferred and preferred.lower() not in {"auto", "default"}:
+        drivers.append(preferred)
+    # SDL lists the driver as "KMSDRM"; lowercase often reports "not available".
+    for driver in ("KMSDRM", "kmsdrm", "fbcon", "x11"):
         if driver not in drivers:
             drivers.append(driver)
 
     last_error: Exception | None = None
     for driver in drivers:
-        if not driver:
-            continue
         os.environ["SDL_VIDEODRIVER"] = driver
-        pygame.display.quit()
-        pygame.quit()
         try:
+            pygame.display.quit()
+        except pygame.error:
+            pass
+        try:
+            if pygame.get_init():
+                pygame.quit()
+        except pygame.error:
+            pass
+        try:
+            # Full init with dummy audio (set above) so timer/events work on KMSDRM.
             pygame.init()
+            try:
+                pygame.mixer.quit()
+            except pygame.error:
+                pass
             pygame.display.init()
+            pygame.mouse.set_visible(False)
+            flags = pygame.FULLSCREEN
+            if hasattr(pygame, "DOUBLEBUF"):
+                flags |= pygame.DOUBLEBUF
             screen = pygame.display.set_mode(
                 (DISPLAY_WIDTH, DISPLAY_HEIGHT),
-                pygame.FULLSCREEN,
+                flags,
             )
-            print(f"Display driver: {driver}")
+            used = (pygame.display.get_driver() or "").lower()
+            info = pygame.display.Info()
+            print(
+                f"Display driver: {used} (requested={driver}) "
+                f"mode={info.current_w}x{info.current_h} bits={info.bitsize}",
+                flush=True,
+            )
+            if used in {"offscreen", "dummy", "evdev"}:
+                raise pygame.error(f"refusing non-display backend: {used}")
+            # Black until power-on splash runs (product intro, not diagnostic cross).
+            screen.fill((0, 0, 0))
+            pygame.display.flip()
             return screen
         except pygame.error as exc:
             last_error = exc
-            print(f"Driver {driver} failed: {exc}")
+            print(f"Driver {driver} failed: {exc}", flush=True)
 
     raise RuntimeError(f"No SDL display driver available: {last_error}")
 
@@ -61,8 +112,10 @@ def _init_pygame_display() -> pygame.Surface:
 class HDMIRenderer:
     def __init__(self) -> None:
         self._screen = _init_pygame_display()
-        pygame.display.set_caption("BMW Logo")
+        pygame.display.set_caption("Dot")
         pygame.mouse.set_visible(False)
+        # Product power-on: branded intro, then last logo / waiting gray.
+        play_power_on_splash(self._screen)
 
         self._clock = pygame.time.Clock()
         self._running = True
@@ -74,8 +127,49 @@ class HDMIRenderer:
         self._accum = 0.0
         self._preload_all = True
         self._cache: OrderedDict[int, pygame.Surface] = OrderedDict()
+        self._cache_lock = threading.Lock()
         self._last_state_mtime = 0.0
         self._last_frames_mtime = 0.0
+        self._brightness = get_brightness()
+        print(f"brightness={self._brightness} state={CURRENT_MEDIA_FILE}", flush=True)
+        self._brightness_check_at = 0.0
+        self._dim_overlay = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
+        self._dim_overlay.fill((0, 0, 0))
+        self._apply_brightness_overlay_alpha()
+
+        self._prefetch_index = 0
+        self._prefetch_wake = threading.Event()
+        self._prefetch_thread = threading.Thread(
+            target=self._prefetch_loop,
+            name="dot-prefetch",
+            daemon=True,
+        )
+        self._prefetch_thread.start()
+
+    def _apply_brightness_overlay_alpha(self) -> None:
+        # 100 = full brightness (no dim). 5 ≈ almost dark.
+        level = max(0, min(100, int(self._brightness)))
+        alpha = int(round((100 - level) / 100 * 255))
+        self._dim_overlay.set_alpha(alpha)
+
+    def _refresh_brightness(self, now: float) -> None:
+        if now - self._brightness_check_at < 0.25:
+            return
+        self._brightness_check_at = now
+        level = get_brightness()
+        if level != self._brightness:
+            self._brightness = level
+            self._apply_brightness_overlay_alpha()
+
+    def _blit_with_brightness(self, surface: pygame.Surface | None) -> None:
+        if surface is not None:
+            self._screen.blit(surface, (0, 0))
+        else:
+            # Bright red = missing frame (near-black was indistinguishable from "off")
+            self._screen.fill((160, 20, 40))
+        if self._brightness < 100:
+            self._screen.blit(self._dim_overlay, (0, 0))
+        pygame.display.flip()
 
     def _dir_mtime(self, frame_dir: Path) -> float:
         try:
@@ -88,25 +182,42 @@ class HDMIRenderer:
             return 0.0
 
     def _load_surface(self, path: Path) -> pygame.Surface:
+        # Prefer pygame loader for already-sized JPEG/PNG caches (much faster than Pillow).
+        suffix = path.suffix.lower()
+        if suffix in {".jpg", ".jpeg", ".png"}:
+            try:
+                surface = pygame.image.load(str(path))
+                if surface.get_size() == (DISPLAY_WIDTH, DISPLAY_HEIGHT):
+                    try:
+                        return surface.convert()
+                    except pygame.error:
+                        return surface
+            except pygame.error:
+                pass
         with Image.open(path) as img:
             rgb = img.convert("RGB")
             if rgb.size != (DISPLAY_WIDTH, DISPLAY_HEIGHT):
                 rgb = rgb.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.Resampling.BILINEAR)
             surface = pygame.image.fromstring(rgb.tobytes(), rgb.size, "RGB")
-        return surface.convert()
+        try:
+            return surface.convert()
+        except pygame.error:
+            return surface
 
     def _cache_put(self, index: int, surface: pygame.Surface) -> None:
-        self._cache[index] = surface
-        self._cache.move_to_end(index)
-        while len(self._cache) > SURFACE_CACHE_SIZE:
-            self._cache.popitem(last=False)
+        with self._cache_lock:
+            self._cache[index] = surface
+            self._cache.move_to_end(index)
+            while len(self._cache) > SURFACE_CACHE_SIZE:
+                self._cache.popitem(last=False)
 
     def _load_cached(self, index: int) -> pygame.Surface | None:
         if index < 0 or index >= len(self._frame_paths):
             return None
-        if index in self._cache:
-            self._cache.move_to_end(index)
-            return self._cache[index]
+        with self._cache_lock:
+            if index in self._cache:
+                self._cache.move_to_end(index)
+                return self._cache[index]
         try:
             surface = self._load_surface(self._frame_paths[index])
         except Exception as exc:  # noqa: BLE001
@@ -115,15 +226,33 @@ class HDMIRenderer:
         self._cache_put(index, surface)
         return surface
 
-    def _prefetch(self, index: int) -> None:
-        """Warm the next few frames while the current one is on screen."""
+    def _prefetch_loop(self) -> None:
+        """Warm upcoming frames off the render thread so FPS stays stable."""
+        while self._running:
+            self._prefetch_wake.wait(timeout=0.25)
+            self._prefetch_wake.clear()
+            if not self._running or self._preload_all:
+                continue
+            n = len(self._frame_paths)
+            if n == 0:
+                continue
+            start = self._prefetch_index
+            for offset in range(1, PREFETCH_AHEAD + 1):
+                if not self._running:
+                    break
+                idx = (start + offset) % n
+                with self._cache_lock:
+                    if idx in self._cache:
+                        continue
+                self._load_cached(idx)
+                # Yield so the blit thread keeps priority on a single-core Zero
+                time.sleep(0.002)
+
+    def _request_prefetch(self, index: int) -> None:
         if self._preload_all:
             return
-        n = len(self._frame_paths)
-        if n == 0:
-            return
-        for offset in range(1, PREFETCH_AHEAD + 1):
-            self._load_cached((index + offset) % n)
+        self._prefetch_index = index
+        self._prefetch_wake.set()
 
     def _get_surface(self, index: int) -> pygame.Surface | None:
         if self._preload_all:
@@ -131,7 +260,7 @@ class HDMIRenderer:
                 return self._surfaces[index]
             return None
         surface = self._load_cached(index)
-        self._prefetch(index)
+        self._request_prefetch(index)
         return surface
 
     def _load_state(self) -> None:
@@ -175,28 +304,15 @@ class HDMIRenderer:
             fps = float(data.get("fps") or TARGET_FPS)
             durations = [1.0 / max(fps, 1.0)] * len(paths)
 
-        self._cache.clear()
+        with self._cache_lock:
+            self._cache.clear()
         self._surfaces = []
         self._frame_paths = paths
-        self._preload_all = len(paths) <= PRELOAD_FRAME_LIMIT
-
-        if self._preload_all:
-            print(f"Preloading media {media_id}: {len(paths)} frames into RAM…")
-            surfaces: list[pygame.Surface | None] = []
-            for path in paths:
-                try:
-                    surfaces.append(self._load_surface(path))
-                except Exception as exc:  # noqa: BLE001
-                    print(f"Skip frame {path.name}: {exc}")
-                    surfaces.append(None)
-            self._surfaces = surfaces
-            mode = "RAM preload"
-        else:
-            print(
-                f"Streaming media {media_id}: {len(paths)} frames "
-                f"(cache {SURFACE_CACHE_SIZE}, avoids RAM overrun)"
-            )
-            mode = "disk+cache"
+        self._preload_all = False
+        print(
+            f"Streaming media {media_id}: {len(paths)} frames "
+            f"(cache {SURFACE_CACHE_SIZE})"
+        )
 
         self._frame_durations = durations[: len(paths)]
         if len(self._frame_durations) < len(paths):
@@ -208,26 +324,44 @@ class HDMIRenderer:
         self._accum = 0.0
         self._last_state_mtime = state_mtime
         self._last_frames_mtime = frames_mtime
-        print(f"Loaded media {media_id}: {len(paths)} frames ({mode})")
+        # Show first frame immediately so the window never goes blank/closed-looking
+        first = self._load_cached(0)
+        self._blit_with_brightness(first)
+        self._request_prefetch(0)
+        print(f"Loaded media {media_id}: {len(paths)} frames (disk+cache)")
 
     def _handle_events(self) -> None:
         for event in pygame.event.get():
+            # Never quit the kiosk renderer from SDL events (QUIT/ESC/etc).
             if event.type == pygame.QUIT:
-                self._running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self._running = False
+                print("Ignoring SDL QUIT (keep display process alive)", flush=True)
+                continue
+            if event.type == pygame.KEYDOWN:
+                print(f"Ignoring key {event.key} (kiosk stays up)", flush=True)
+                continue
 
     def run(self) -> None:
-        print(f"Renderer started {DISPLAY_WIDTH}x{DISPLAY_HEIGHT} @ {TARGET_FPS}fps")
+        print(f"Renderer started {DISPLAY_WIDTH}x{DISPLAY_HEIGHT} @ {TARGET_FPS}fps", flush=True)
+        last_beat = 0.0
         while self._running:
             dt = self._clock.tick(TARGET_FPS) / 1000.0
             self._handle_events()
+            now = time.monotonic()
+            self._refresh_brightness(now)
             self._load_state()
+
+            if now - last_beat >= 15.0:
+                last_beat = now
+                print(
+                    f"heartbeat media={self._current_media_id} "
+                    f"frames={len(self._frame_paths)} idx={self._frame_index} "
+                    f"brightness={self._brightness}",
+                    flush=True,
+                )
 
             if not self._frame_paths:
                 # Dim gray (not pure black) so "no cache yet" is distinguishable
-                self._screen.fill((18, 18, 22))
-                pygame.display.flip()
+                self._blit_with_brightness(None)
                 continue
 
             self._accum += dt
@@ -239,22 +373,43 @@ class HDMIRenderer:
                 guard += 1
 
             surface = self._get_surface(self._frame_index)
-            if surface is not None:
-                self._screen.blit(surface, (0, 0))
-            else:
-                self._screen.fill((18, 18, 22))
-            pygame.display.flip()
+            self._blit_with_brightness(surface)
 
-        pygame.quit()
+        print("Renderer loop ended", flush=True)
+        self._prefetch_wake.set()
 
 
 def main() -> None:
+    import signal
+
+    renderer: HDMIRenderer | None = None
+
+    def _stop(signum: int, *_args: object) -> None:
+        print(f"signal {signum} received — stopping renderer", flush=True)
+        if renderer is not None:
+            renderer._running = False
+        # Hard-exit if SDL teardown blocks (common with KMSDRM).
+        signal.signal(signal.SIGALRM, lambda *_: os._exit(0))
+        signal.alarm(2)
+
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+    # Do not die if the controlling terminal goes away
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+
     renderer = HDMIRenderer()
     try:
         renderer.run()
-    except KeyboardInterrupt:
-        pygame.quit()
-        sys.exit(0)
+    finally:
+        print("renderer main() exiting", flush=True)
+        try:
+            pygame.display.quit()
+        except pygame.error:
+            pass
+        try:
+            pygame.quit()
+        except pygame.error:
+            pass
 
 
 if __name__ == "__main__":

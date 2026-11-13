@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# Aggressively disable ALL Raspberry Pi boot splash screens.
+# Soft silence for Dot HDMI boot (safe for Pi Zero 2W kiosk).
+# Avoids fbcon=map:99 / stripping all VT consoles — those caused black screen
+# + no Wi‑Fi after reboot on this hardware.
+#
 # Run: sudo bash scripts/disable-splash.sh
+# Hard mode (may brick HDMI console until SD recovery): DOT_HARD_SILENCE=1 sudo bash …
 set -euo pipefail
 
-echo "=== Disable Raspberry Pi splash screens ==="
+HARD="${DOT_HARD_SILENCE:-0}"
+
+echo "=== Silence Dot HDMI boot console (hard=${HARD}) ==="
 
 CONFIG="/boot/firmware/config.txt"
 [[ -f "${CONFIG}" ]] || CONFIG="/boot/config.txt"
@@ -15,75 +21,79 @@ if [[ ! -f "${CONFIG}" || ! -f "${CMDLINE}" ]]; then
   exit 1
 fi
 
-# 1) Rainbow / early firmware splash
-if ! grep -q '^disable_splash=1' "${CONFIG}"; then
-  echo "disable_splash=1" >>"${CONFIG}"
-fi
-echo "[ok] ${CONFIG}: disable_splash=1"
+grep -qE '^[[:space:]]*disable_splash=1' "${CONFIG}" || echo "disable_splash=1" >>"${CONFIG}"
+grep -qE '^[[:space:]]*avoid_warnings=1' "${CONFIG}" || echo "avoid_warnings=1" >>"${CONFIG}"
+echo "[ok] ${CONFIG}: disable_splash=1 avoid_warnings=1"
 
-# 2) Plymouth graphical splash ("Welcome to Raspberry Pi Desktop")
-#    The word "splash" in cmdline ENABLES it — remove it.
 cp -a "${CMDLINE}" "${CMDLINE}.bak.$(date +%s)"
-# Keep as a single line; strip splash-related tokens
-python3 - "${CMDLINE}" <<'PY'
+python3 - "${CMDLINE}" "${HARD}" <<'PY'
 import sys
-path = sys.argv[1]
+path, hard = sys.argv[1], sys.argv[2] == "1"
 tokens = open(path).read().strip().split()
-drop = {"splash", "nosplash", "plymouth.ignore-serial-consoles"}
-kept = [t for t in tokens if t not in drop]
-kept = ["console=tty3" if t == "console=tty1" else t for t in kept]
-for need in ("quiet", "loglevel=0", "logo.nologo", "vt.global_cursor_default=0", "consoleblank=0"):
+
+# Always strip Plymouth splash tokens and our previous hard flags
+drop_exact = {
+    "splash", "nosplash", "plymouth.ignore-serial-consoles",
+    "fbcon=map:99", "fbcon=logo-count:0",
+}
+kept = []
+for t in tokens:
+    if t in drop_exact:
+        continue
+    if t.startswith("fbcon="):
+        continue
+    if hard and t.startswith("console="):
+        val = t.split("=", 1)[1]
+        # In hard mode drop VT consoles (tty1/tty3); keep serial*
+        if val.startswith("tty") and not val.startswith(("ttyS", "ttyAMA")) and "serial" not in val:
+            continue
+    kept.append(t)
+
+# Soft quiet flags (no fbcon=map:99)
+for need in (
+    "quiet",
+    "loglevel=3",  # softer than 0 — still hides most spam
+    "logo.nologo",
+    "vt.global_cursor_default=0",
+    "consoleblank=0",
+    "systemd.show_status=false",
+):
     key = need.split("=")[0]
     kept = [t for t in kept if t != key and not t.startswith(key + "=")]
     kept.append(need)
+
+# Prefer console=tty3 over tty1 so early text is less visible, but keep a VT
+has_vt = any(
+    t.startswith("console=tty") and not t.startswith(("console=ttyS", "console=ttyAMA"))
+    for t in kept
+)
+if not hard:
+    if any(t == "console=tty1" or t.startswith("console=tty1,") for t in kept):
+        kept = ["console=tty3" if t.startswith("console=tty1") else t for t in kept]
+    elif not has_vt:
+        kept.append("console=tty3")
+else:
+    if not any(t.startswith("console=") for t in kept):
+        kept.append("console=serial0,115200")
+
 open(path, "w").write(" ".join(kept) + "\n")
 print("[ok] cmdline rewritten")
 print(open(path).read())
 PY
 
-# 3) Mask Plymouth units
 for svc in plymouth-start plymouth-read-write plymouth-quit plymouth-quit-wait \
            plymouth-reboot plymouth-halt plymouth-kexec; do
   systemctl disable "${svc}" 2>/dev/null || true
   systemctl mask "${svc}" 2>/dev/null || true
 done
-echo "[ok] Plymouth services masked"
+systemctl disable getty@tty1 2>/dev/null || true
+systemctl mask getty@tty1 2>/dev/null || true
+echo "[ok] Plymouth + getty@tty1 masked"
 
-# 4) raspi-config: Splash Screen = No  (1 = No in nonint API)
 if command -v raspi-config >/dev/null 2>&1; then
-  raspi-config nonint do_boot_splash 1 2>/dev/null && echo "[ok] raspi-config splash=No" || true
+  raspi-config nonint do_boot_splash 1 2>/dev/null || true
 fi
 
-# 5) Replace Plymouth theme image with solid black (covers initramfs leftover)
-PIX="/usr/share/plymouth/themes/pix/splash.png"
-if [[ -f "${PIX}" ]]; then
-  cp -a "${PIX}" "${PIX}.bak" 2>/dev/null || true
-  if command -v convert >/dev/null 2>&1; then
-    convert -size 1920x1080 xc:black "${PIX}"
-  elif command -v python3 >/dev/null 2>&1; then
-    python3 - <<'PY'
-from pathlib import Path
-try:
-    from PIL import Image
-    Image.new("RGB", (1920, 1080), (0, 0, 0)).save("/usr/share/plymouth/themes/pix/splash.png")
-    print("[ok] splash.png -> black")
-except Exception as e:
-    print("[warn] could not rewrite splash.png:", e)
-PY
-  fi
-fi
-
-# 6) Rebuild initramfs so Plymouth changes take effect
-if command -v update-initramfs >/dev/null 2>&1; then
-  echo "[..] update-initramfs (may take a minute on Pi Zero)…"
-  update-initramfs -u
-  echo "[ok] initramfs updated"
-elif command -v plymouth-set-default-theme >/dev/null 2>&1; then
-  plymouth-set-default-theme -R text 2>/dev/null || true
-  echo "[ok] plymouth theme -> text"
-fi
-
-# 7) Disable cloud-init (prints "Completed socket interaction for boot stage …")
 mkdir -p /etc/cloud
 touch /etc/cloud/cloud-init.disabled
 for svc in cloud-init cloud-init-local cloud-config cloud-final \
@@ -91,22 +101,34 @@ for svc in cloud-init cloud-init-local cloud-config cloud-final \
   systemctl disable "${svc}" 2>/dev/null || true
   systemctl mask "${svc}" 2>/dev/null || true
 done
-echo "[ok] cloud-init disabled"
 
-# 8) Hide kernel printk on console after boot
 mkdir -p /etc/sysctl.d
 cat >/etc/sysctl.d/20-quiet-console.conf <<'EOF'
 kernel.printk = 3 4 1 3
 EOF
-echo "[ok] kernel.printk quieted"
+
+# Early blank — safe oneshot (does not unbind all vtcon forever at boot script time)
+cat >/etc/systemd/system/dot-blank-hdmi.service <<'EOF'
+[Unit]
+Description=Blank HDMI framebuffer before Dot logo
+DefaultDependencies=no
+After=local-fs.target
+Before=dot-display.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'if [ -e /dev/fb0 ]; then dd if=/dev/zero of=/dev/fb0 bs=1024 count=4096 status=none 2>/dev/null || true; fi'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable dot-blank-hdmi.service
+echo "[ok] dot-blank-hdmi.service enabled"
+
+# Do NOT run update-initramfs here — slow on Zero 2W and risky mid-session.
 
 echo ""
-echo "Verify (must NOT contain the word 'splash'):"
-echo "--- cmdline ---"
-cat "${CMDLINE}"
-echo "--- config ---"
-grep disable_splash "${CONFIG}" || true
-echo "--- cloud-init ---"
-ls -la /etc/cloud/cloud-init.disabled
-echo ""
-echo "Now reboot: sudo reboot"
+echo "Reboot: sudo reboot"
+echo "If you need max silence later: DOT_HARD_SILENCE=1 sudo bash scripts/disable-splash.sh"
