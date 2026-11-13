@@ -29,6 +29,7 @@ class MediaItem:
     frame_count: int = 1
     fps: float = 60.0
     created_at: str = ""
+    crop: dict[str, float] | None = None  # Normalized source crop, applied to all frames
 
     def to_dict(self) -> dict:
         return asdict(self)
