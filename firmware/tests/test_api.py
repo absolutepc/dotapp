@@ -129,3 +129,37 @@ def test_upload_rejects_invalid_crop(client, crop):
         data={"crop": crop},
     )
     assert response.status_code == 422
+
+
+def test_gif_crop_applies_to_every_frame(client):
+    from io import BytesIO
+    from PIL import Image
+    import firmware.api.routes as routes
+
+    test_client, frames_dir = client
+    colors = [(230, 10, 10), (10, 230, 10), (230, 230, 10)]
+    frames = []
+    for left_color in colors:
+        frame = Image.new("RGB", (240, 120), (10, 10, 230))
+        frame.paste(left_color, (0, 0, 120, 120))
+        frames.append(frame)
+    source = BytesIO()
+    frames[0].save(source, format="GIF", save_all=True, append_images=frames[1:],
+                   duration=[90, 120, 150], loop=0, disposal=2)
+    response = test_client.post(
+        "/api/upload",
+        files={"file": ("colors.gif", source.getvalue(), "image/gif")},
+        data={"crop": json.dumps({"x": 0, "y": 0, "w": 0.5, "h": 1})},
+    )
+    assert response.status_code == 200, response.text
+    item = routes.storage.get(response.json()["media_id"])
+    assert item is not None
+    path = frames_dir / item.id
+    frame_paths = sorted(path.glob("*.png"))
+    assert len(frame_paths) == 3
+    assert json.loads((path / "meta.json").read_text())["durations"] == [0.09, 0.12, 0.15]
+    for idx, frame_path in enumerate(frame_paths):
+        with Image.open(frame_path) as image:
+            pixel = image.convert("RGB").getpixel((240, 240))
+            expected = colors[idx]
+            assert all(abs(int(a) - int(b)) < 12 for a, b in zip(pixel, expected))
